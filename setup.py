@@ -4,18 +4,22 @@ with open("README.md", "r") as file:
     long_description = file.read()
 
 setup(
-      name="wappsto",
-      version="1.0.0",
-      author="Seluxit",
-      author_email="placeholder",
-      description="placeholder",
-      long_description=long_description,
-      long_description_content_type="text/markdown",
-      url="placeholder",
-      classifiers=[
+    name="wappsto",
+    version="1.0.0",
+    author="Seluxit A/S",
+    author_email="support@seluxit.com",
+    license="Apache-2.0",
+    description="Python Package to connect to wappsto.com",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    url="https://github.com/wappsto/wappsto-python",
+    classifiers=[
         "Programming Language :: Python :: 3",
         "License :: [placeholder] :: [placeholder]",
         "Operating System :: OS Independent"
-      ],
-      packages=find_packages()
+    ],
+    packages=find_packages(),
+    tests_require=[
+        'pytest',
+    ],
 )
