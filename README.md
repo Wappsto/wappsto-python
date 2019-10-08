@@ -1,5 +1,7 @@
 # wappsto-python
 
+[![Build Status](https://travis-ci.com/Wappsto/wappsto-python.svg?branch=master)](https://travis-ci.com/Wappsto/wappsto-python)
+
 Python module for rapid prototyping for wappsto.com
 
 ## Getting Started
