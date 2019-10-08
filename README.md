@@ -31,7 +31,7 @@ service.stop(save=False)
 
 ### Prerequisites
 
-One of the requirements to use the wappsto module is to have a JSON file that has information about the network, devices, values and their states. This file can be generated from [website here](https://www.linktowappsto.com/I/guess)
+One of the requirements to use the wappsto module is to have a JSON file that has information about the network, devices, values and their states. This file can be generated from [the wappsto website](https://wappsto.com/).
 
 
 ### Installation using pip
