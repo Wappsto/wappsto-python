@@ -655,27 +655,3 @@ class TestValueUnitTests:
 
     def test_is_number_type_value_string(self):
         assert self.value_string.is_number_type() is False
-
-
-class TestRealServerConnection:
-
-    @pytest.fixture(autouse=True)
-    def clear_logs(self):
-        open("server_logging", "w").close()
-
-    @classmethod
-    def setup_class(self):
-        self.server = mock_wappsto_server.MockServer("127.0.0.1", 8080)
-        self.server.threaded_run()
-        one = 'test_JSON/62606aea-fc31-4706-8074-83a705fb29e5.json'
-        self.json_value_one = os.path.join(os.path.dirname(__file__),one)
-        self.wapp = wappsto.Wappsto(json_file_name=self.json_value_one)
-
-    def test_connection_to_mock_server(self):
-        self.wapp.start("127.0.0.1", 8080)
-        result = False
-        file = open("server_logging", "r")
-        for line in file:
-            if "Connected to server!" in line:
-                result = True
-        assert result is True
