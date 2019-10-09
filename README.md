@@ -1,6 +1,7 @@
 # wappsto-python
 
 [![Build Status](https://travis-ci.com/Wappsto/wappsto-python.svg?branch=master)](https://travis-ci.com/Wappsto/wappsto-python)
+[![Coverage Status](https://coveralls.io/repos/github/Detox23/wappsto-python/badge.svg?branch=master)](https://coveralls.io/github/Detox23/wappsto-python?branch=master)
 
 Python module for rapid prototyping for wappsto.com
 
