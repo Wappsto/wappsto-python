@@ -31,9 +31,9 @@ from wappsto.connection import send_data
 from wappsto.connection import seluxit_rpc
 from wappsto.connection import handlers
 
-ssl_server_cert = "../certificates/ca.crt"
-ssl_client_cert = "../certificates/client.crt"
-ssk_key = "../certificates/client.key"
+ssl_server_cert = "certificates/ca.crt"
+ssl_client_cert = "certificates/client.crt"
+ssk_key = "certificates/client.key"
 
 logging.basicConfig(level=logging.DEBUG,
                     format="%(levelname)s in %(filename)s:%(funcName)s "
