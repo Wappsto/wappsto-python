@@ -362,8 +362,18 @@ class ClientSocket:
         self.wapp_log.debug("ReceiveThread Started!")
         while True:
             try:
-                data = self.my_socket.recv(2000)
-                decoded = json.loads(data.decode('utf-8'))
+                total_decoded = []
+                decoded = None
+                while True:
+                    data = self.my_socket.recv(2000)
+                    decoded_data = data.decode('utf-8')
+                    total_decoded.append(decoded_data)
+                    try:
+                        decoded = json.loads(''.join(total_decoded))
+                    except json.decoder.JSONDecodeError:
+                        pass
+                    else:
+                        break
                 decoded_id = decoded.get('id')
                 try:
                     self.wapp_log.debug('Raw received Json: {}'
@@ -666,10 +676,20 @@ class ClientSocket:
             A positive response.
 
         """
-        data = self.my_socket.recv(4000)
-        decoded = json.loads(data.decode('utf-8'))
+        total_decoded = []
+        decoded = None
+        while True:
+            data = self.my_socket.recv(4000)
+            decoded_data = data.decode('utf-8')
+            total_decoded.append(decoded_data)
+            try:
+                decoded = json.loads(''.join(total_decoded))
+            except json.decoder.JSONDecodeError:
+                pass
+            else:
+                break
 
-        self.wapp_log.debug('Raw init response {}'.format(data))
+        self.wapp_log.debug("Received after assembly: {}".format(decoded))
 
         if data == b'':
             self.wapp_log.info("Server disconnected")
