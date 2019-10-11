@@ -41,7 +41,6 @@ class SeluxitRpc:
         if not connection.init_ok():
             self.wapp_log.error(error_msg, exc_info=True)
             connection.close()
-            quit()
 
     @staticmethod
     def create_meta(network, network_id):
@@ -142,8 +141,8 @@ class SeluxitRpc:
             random_id: A new, incremented value of random_id attribute.
 
         """
-        range_start = 10**(12-1)
-        range_end = (10**12)-1
+        range_start = 10**(8-1)
+        range_end = (10**8)-1
         self.random_id = randint(range_start, range_end)
         return self.random_id
 
