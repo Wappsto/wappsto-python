@@ -141,8 +141,8 @@ class SeluxitRpc:
             random_id: A new, incremented value of random_id attribute.
 
         """
-        range_start = 10**(8-1)
-        range_end = (10**8)-1
+        range_start = 10 ** (8 - 1)
+        range_end = (10 ** 8) - 1
         self.random_id = randint(range_start, range_end)
         return self.random_id
 
