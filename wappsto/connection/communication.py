@@ -541,19 +541,19 @@ class ClientSocket:
             self.wapp_log.error(msg, exc_info=True)
 
     def receive_data(self):
-        """[summary].
+        """Socket receive method.
 
-        [description]
+        Method that handles receiving data from a socket. Capable of handling
+        data chunks.
 
         Returns:
-            [description]
-            [type]
+            The decoded message from the socket.
 
         """
         total_decoded = []
         decoded = None
         while True:
-            data = self.my_socket.recv(4000)
+            data = self.my_socket.recv(2000)
             decoded_data = data.decode('utf-8')
             total_decoded.append(decoded_data)
             try:
@@ -561,7 +561,7 @@ class ClientSocket:
             except json.decoder.JSONDecodeError:
                 pass
             except ValueError:
-                if decoded == b'':
+                if data == b'':
                     self.reconnect()
                 else:
                     self.wapp_log.info("Value error")
