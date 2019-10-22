@@ -9,6 +9,7 @@ import json
 import datetime
 import os
 import logging
+from random import randint
 
 
 class SeluxitRpc:
@@ -40,7 +41,6 @@ class SeluxitRpc:
         if not connection.init_ok():
             self.wapp_log.error(error_msg, exc_info=True)
             connection.close()
-            quit()
 
     @staticmethod
     def create_meta(network, network_id):
@@ -106,7 +106,7 @@ class SeluxitRpc:
         Initialize the seluxit_rpc class.
 
         Initializes an object of seluxit_rpc class by passing required
-        parameters. While initialization, wapp_log is created, json_id
+        parameters. While initialization, wapp_log is created, random_id
         attribute is set to 1. The attribute is increased every time
         information from server is retrieved. Moreover an data_json_rpc
         attribute is created. It is a dictionary that will be used while
@@ -119,7 +119,7 @@ class SeluxitRpc:
         self.wapp_log = logging.getLogger(__name__)
         self.wapp_log.addHandler(logging.NullHandler())
         self.save_init = save_init
-        self.json_id = 1
+        self.random_id = self.get_next_random_id()
         self.filename = 'Init_json.txt'
         try:
             os.remove(self.filename)
@@ -127,22 +127,24 @@ class SeluxitRpc:
             pass
         self.data_json_rpc = {
             'jsonrpc': '2.0',
-            'id': self.json_id,
+            'id': self.random_id,
             'params': {}
         }
 
-    def get_next_json_id(self):
+    def get_next_random_id(self):
         """
-        Get next json_id.
+        Get next random_id.
 
-        Increases json_id attribute by one every time the method is called.
+        Increases random_id attribute by one every time the method is called.
 
         Returns:
-            json_id: A new, incremented value of json_id attribute.
+            random_id: A new, incremented value of random_id attribute.
 
         """
-        self.json_id = self.json_id + 1
-        return self.json_id
+        range_start = 10 ** (8 - 1)
+        range_end = (10 ** 8) - 1
+        self.random_id = randint(range_start, range_end)
+        return self.random_id
 
     def get_rpc_network(self, network_id, network_name, put=True):
         """
@@ -182,7 +184,7 @@ class SeluxitRpc:
             self.data_json_rpc['method'] = 'POST'
 
         self.data_json_rpc['params'] = network_parameters
-        self.data_json_rpc['id'] = self.get_next_json_id()
+        self.data_json_rpc['id'] = self.get_next_random_id()
         return json.dumps(self.data_json_rpc).encode('utf-8')
 
     def get_rpc_device(
@@ -268,7 +270,7 @@ class SeluxitRpc:
             }
 
         self.data_json_rpc['params'] = network_parameters
-        self.data_json_rpc['id'] = self.get_next_json_id()
+        self.data_json_rpc['id'] = self.get_next_random_id()
         self.wapp_log.info(self.data_json_rpc)
         return json.dumps(self.data_json_rpc).encode('utf-8')
 
@@ -370,7 +372,7 @@ class SeluxitRpc:
         if encoding:
             device_value['string']['encoding'] = encoding
 
-        self.data_json_rpc['id'] = self.get_next_json_id()
+        self.data_json_rpc['id'] = self.get_next_random_id()
         self.create_json_message(
             device_id,
             network_id,
@@ -441,7 +443,7 @@ class SeluxitRpc:
         if delta:
             device_value['number']['delta'] = delta
 
-        self.data_json_rpc['id'] = self.get_next_json_id()
+        self.data_json_rpc['id'] = self.get_next_random_id()
         self.create_json_message(
             device_id,
             network_id,
@@ -509,7 +511,7 @@ class SeluxitRpc:
         if encoding:
             device_value['blob']['encoding'] = encoding
 
-        self.data_json_rpc['id'] = self.get_next_json_id()
+        self.data_json_rpc['id'] = self.get_next_random_id()
         self.create_json_message(
             device_id,
             network_id,
@@ -568,7 +570,7 @@ class SeluxitRpc:
         if delta:
             device_value['set']['delta'] = delta
 
-        self.data_json_rpc['id'] = self.get_next_json_id()
+        self.data_json_rpc['id'] = self.get_next_random_id()
 
         self.create_json_message(
             device_id,
@@ -637,7 +639,7 @@ class SeluxitRpc:
             set_type = 'Control'
 
         device_state['type'] = set_type
-        self.data_json_rpc['id'] = self.get_next_json_id()
+        self.data_json_rpc['id'] = self.get_next_random_id()
         if get is True and put is False:
             self.create_json_message(
                 device_id,

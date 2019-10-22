@@ -31,9 +31,9 @@ from wappsto.connection import send_data
 from wappsto.connection import seluxit_rpc
 from wappsto.connection import handlers
 
-ssl_server_cert = "../certificates/ca.crt"
-ssl_client_cert = "../certificates/client.crt"
-ssk_key = "../certificates/client.key"
+ssl_server_cert = "test/certificates/ca.crt"
+ssl_client_cert = "test/certificates/client.crt"
+ssk_key = "test/certificates/client.key"
 
 logging.basicConfig(level=logging.DEBUG,
                     format="%(levelname)s in %(filename)s:%(funcName)s "
@@ -197,29 +197,29 @@ class MockServer:
 
         if data['params']['url'].endswith('/network'):
             if data['params']['data']['meta']['id'] == self.instance.network_cl.uuid:
-                self.send_success_reply(self.rpc.get_next_json_id())
+                self.send_success_reply(self.rpc.get_next_random_id())
         for device in self.instance.device_list:
             if data['params']['url'].endswith('/device'):
                 if data['params']['data']['meta']['id'] == device.uuid:
-                    self.send_success_reply(self.rpc.get_next_json_id())
+                    self.send_success_reply(self.rpc.get_next_random_id())
 
             for value in device.value_list:
                 if data['params']['url'].endswith('/value/'):
                     if data['params']['data']['meta']['id'] == value.uuid:
-                        self.send_success_reply(self.rpc.get_next_json_id())
+                        self.send_success_reply(self.rpc.get_next_random_id())
 
                 elif data['params']['url'].endswith('/state'):
                     if value.report_state is not None:
                         if data['params']['data']['meta']['id'] == value.report_state.uuid:
-                            self.send_success_reply(self.rpc.get_next_json_id())
+                            self.send_success_reply(self.rpc.get_next_random_id())
                     if value.control_state is not None:
                         if data['params']['data']['meta']['id'] == value.control_state.uuid:
-                            self.send_success_reply(self.rpc.get_next_json_id())
+                            self.send_success_reply(self.rpc.get_next_random_id())
         if (not data['params']['url'].endswith('/network')
             and not data['params']['url'].endswith('/device')
             and not data['params']['url'].endswith('/value/')
             and not data['params']['url'].endswith('/state')):
-            self.send_error('Could not initialize', self.rpc.get_next_json_id())
+            self.send_error('Could not initialize', self.rpc.get_next_random_id())
 
     def create_outgoing_put(self):
         self.OUTGOING_PUT = True
@@ -392,7 +392,7 @@ class MockServer:
                 server_send_time = datetime.datetime.utcnow().strftime(
                     '%Y-%m-%dT%H:%M:%S.%fZ')
                 a_value.report_state.timestamp = server_send_time
-                reply_base = '{"jsonrpc":"2.0","id":"'+str(self.rpc.get_next_json_id())+'","method":"GET","params":{"url":"/network/'+str(device.get_parent_network().uuid)+'/device/'+str(device.uuid)+'/value/'+str(a_value.uuid)+'/state/'+str(a_value.report_state.uuid)+'","data":""}}'
+                reply_base = '{"jsonrpc":"2.0","id":"'+str(self.rpc.get_next_random_id())+'","method":"GET","params":{"url":"/network/'+str(device.get_parent_network().uuid)+'/device/'+str(device.uuid)+'/value/'+str(a_value.uuid)+'/state/'+str(a_value.report_state.uuid)+'","data":""}}'
                 self.add_id_to_confirm_list(bytes(reply_base, 'utf-8'))
                 self.sending_queue.put(bytes(reply_base, 'utf-8'))
 

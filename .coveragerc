@@ -1,2 +1,2 @@
 [run]
-source = wappsto
+source = test/.coverage

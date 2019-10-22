@@ -362,8 +362,7 @@ class ClientSocket:
         self.wapp_log.debug("ReceiveThread Started!")
         while True:
             try:
-                data = self.my_socket.recv(2000)
-                decoded = json.loads(data.decode('utf-8'))
+                decoded = self.receive_data()
                 decoded_id = decoded.get('id')
                 try:
                     self.wapp_log.debug('Raw received Json: {}'
@@ -392,18 +391,15 @@ class ClientSocket:
 
                 except ValueError:
                     self.wapp_log.info("Value error")
-                    self.wapp_log.info(data)
+                    self.wapp_log.info(decoded)
                     error_str = 'Value error'
                     self.send_error(error_str, decoded_id)
 
             except ValueError:
-                if data == b'':
-                    self.reconnect()
-                else:
-                    self.wapp_log.info("Value error")
-                    self.wapp_log.info(data)
-                    error_str = 'Value error'
-                    self.send_error(error_str, decoded_id)
+                self.wapp_log.info("Value error")
+                self.wapp_log.info(decoded)
+                error_str = 'Value error'
+                self.send_error(error_str, decoded_id)
 
             except ConnectionResetError as e:
                 msg = "Received Reset: {}".format(e)
@@ -544,6 +540,40 @@ class ClientSocket:
             msg = "Error sending control: {}".format(e)
             self.wapp_log.error(msg, exc_info=True)
 
+    def receive_data(self):
+        """Socket receive method.
+
+        Method that handles receiving data from a socket. Capable of handling
+        data chunks.
+
+        Returns:
+            The decoded message from the socket.
+
+        """
+        total_decoded = []
+        decoded = None
+        while True:
+            data = self.my_socket.recv(2000)
+            decoded_data = data.decode('utf-8')
+            total_decoded.append(decoded_data)
+            try:
+                decoded = json.loads(''.join(total_decoded))
+            except json.decoder.JSONDecodeError:
+                pass
+            except ValueError:
+                if data == b'':
+                    self.reconnect()
+                else:
+                    self.wapp_log.info("Value error")
+                    self.wapp_log.info(data)
+                    error_str = 'Value error'
+                    decoded_id = decoded.get('id')
+                    self.send_error(error_str, decoded_id)
+            else:
+                break
+
+        return decoded
+
     def send_reconnect(self):
         """
         Send a reconnect attempt.
@@ -666,12 +696,11 @@ class ClientSocket:
             A positive response.
 
         """
-        data = self.my_socket.recv(4000)
-        decoded = json.loads(data.decode('utf-8'))
+        decoded = self.receive_data()
 
-        self.wapp_log.debug('Raw init response {}'.format(data))
+        self.wapp_log.debug("Received after assembly: {}".format(decoded))
 
-        if data == b'':
+        if decoded is None:
             self.wapp_log.info("Server disconnected")
             return False
 
