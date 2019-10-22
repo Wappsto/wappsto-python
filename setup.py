@@ -15,7 +15,6 @@ setup(
     url="https://github.com/wappsto/wappsto-python",
     classifiers=[
         "Programming Language :: Python :: 3",
-        "License :: [placeholder] :: [placeholder]",
         "Operating System :: OS Independent"
     ],
     packages=find_packages(),
