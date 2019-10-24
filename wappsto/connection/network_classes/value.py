@@ -93,7 +93,7 @@ class Value:
         self.delta = delta
         self.report_state = None
         self.control_state = None
-        self.callback = self.callback_not_set()
+        self.callback = self.__callback_not_set
         self.last_update_of_report = self.get_now()
         self.rpc = None
         self.conn = None
@@ -105,6 +105,8 @@ class Value:
         self.last_controlled = self.data_value
         self.parent_network_id = parent_device.get_parent_network().uuid
         self.parent_device_id = parent_device.uuid
+        self.state_list = []
+
         msg = "Value {} debug: {}".format(name, str(self.__dict__))
         self.wapp_log.debug(msg)
 
@@ -140,7 +142,7 @@ class Value:
 
         """
         try:
-            if (self.is_number_type()
+            if (self.__is_number_type()
                     and self.get_report_state()
                     and float(delta) > 0):
                 self.delta = delta
@@ -149,7 +151,7 @@ class Value:
         except ValueError:
             self.wapp_log.error("Delta value must be a number")
 
-    def callback_not_set(self):
+    def __callback_not_set(self):
         """
         Message about no callback being set.
 
@@ -186,10 +188,11 @@ class Value:
 
         """
         self.report_state = state
+        self.state_list.append(state)
         msg = "Report state {} has been added.".format(state)
-        self.reporting_thread = threading.Thread(target=self.send_report)
-        self.reporting_thread.setDaemon(True)
-        self.reporting_thread.start()
+        #self.reporting_thread = threading.Thread(target=self.__send_report_thread)
+        #self.reporting_thread.setDaemon(True)
+        #self.reporting_thread.start()
         self.wapp_log.debug(msg)
 
     def add_control_state(self, state):
@@ -203,6 +206,7 @@ class Value:
 
         """
         self.control_state = state
+        self.state_list.append(state)
         msg = "Control state {} has been added".format(state)
         self.wapp_log.debug(msg)
 
@@ -238,7 +242,7 @@ class Value:
             msg = "Value {}  has no control state.".format(self.name)
             self.wapp_log.warning(msg)
 
-    def send_report_delta(self, state):
+    def __send_report_delta(self, state):
         """
         Send report message when delta range reached.
 
@@ -252,7 +256,7 @@ class Value:
         try:
             result = int(self.difference) >= int(self.delta)
             if result and self.rpc is not None and self.delta_report == 1:
-                self.send_logic(state, "report")
+                self.__send_logic(state, "report")
                 self.wapp_log.info("Sent report [DELTA].")
                 self.delta_report = 0
                 return True
@@ -271,14 +275,14 @@ class Value:
         """
         return datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
 
-    def send_report(self):
+    def __send_report_thread(self):
         """
         Send report message.
 
         Sends a report message with the current value to the server.
         Unless state exists, runs a while loop. It is determined whether or
         not set flag allowing send report because of delta attribute. If delta
-        exists: send_report_delta method is called. If period exists it is
+        exists: __send_report_delta method is called. If period exists it is
         checked if the sum of period value and last time the value was
         updated is greater than current time. If it does then a report is sent.
         Method is running on separate thread which after each loop sleeps for
@@ -288,25 +292,25 @@ class Value:
         value = self.last_controlled
         if state is not None:
             while True:
-                if self.last_controlled is not None and self.is_number_type():
+                if self.last_controlled is not None and self.__is_number_type():
                     value_check = self.last_controlled
                     if value != value_check:
                         self.difference = fabs(int(value) - int(value_check))
                         value = value_check
                         self.delta_report = 1
                 if self.delta is not None:
-                    self.send_report_delta(state)
+                    self.__send_report_delta(state)
                 if self.period is not None:
                     try:
-                        last_update_timestamp = self.date_converter(
+                        last_update_timestamp = self.__date_converter(
                             self.last_update_of_report
                         )
                         now = self.get_now()
-                        now_timestamp = self.date_converter(now)
+                        now_timestamp = self.__date_converter(now)
                         the_time = last_update_timestamp + self.period
                         if the_time <= now_timestamp and self.rpc is not None:
                             self.wapp_log.info("Sending report [PERIOD].")
-                            self.send_logic(state, 'report')
+                            self.__send_logic(state, 'report')
                     except Exception as e:
                         self.reporting_thread.join()
                         self.wapp_log.error(e)
@@ -316,7 +320,7 @@ class Value:
         """
         Set the callback.
 
-        Sets the callback attribute. It will be called by the send_logic
+        Sets the callback attribute. It will be called by the __send_logic
         method.
 
         Args:
@@ -338,7 +342,7 @@ class Value:
             self.wapp_log.error("Error setting callback: {}".format(e))
             raise
 
-    def date_converter(self, date):
+    def __date_converter(self, date):
         """
         Convert date to timestamp.
 
@@ -358,6 +362,79 @@ class Value:
         date_format = '%Y-%m-%d %H:%M:%S.%f'
         date_datetime = datetime.datetime.strptime(date_first, date_format)
         return time.mktime(date_datetime.timetuple())
+
+    def __validate_value_data(self, data_value):
+        if self.__is_number_type():
+            try:
+                if self.number_min <= int(data_value) <= self.number_max:
+                    return True
+                else:
+                    msg = "Invalid number. Range: {}-{}. Your: {}".format(
+                        self.number_min,
+                        self.number_max,
+                        data_value
+                    )
+                    self.wapp_log.error(msg)
+                    return False
+            except ValueError:
+                msg = "Invalid type of value. Must be a number."
+                self.wapp_log.error(msg)
+                return False
+        elif self.__is_string_type():
+            if self.string_max is None:
+                return True
+            elif len(str(data_value)) <= int(self.string_max):
+                return True
+            else:
+                msg = ("Value {} not in correct range for {}"
+                       .format(data_value, self.name))
+                self.wapp_log.error(msg)
+                return False
+        elif self.__is_blob_type():
+            if self.blob_max is None:
+                return True
+            elif len(str(data_value)) <= int(self.blob_max):
+                return True
+            else:
+                msg = ("Value {} not in correct range for {}"
+                       .format(data_value, self.name))
+                self.wapp_log.error(msg)
+                return False
+        else:
+            msg = ("Value type {} is invalid".format(self.date_type))
+            self.wapp_log.error(msg)
+            return False
+
+    def update(self, data_value):
+        state = self.get_report_state()
+        if state is None:
+            self.wapp_log.error("Value is write only.")
+            return False
+
+        if not self.__validate_value_data(data_value):
+            return False
+
+        return self.__send_logic(
+            state,
+            'report',
+            data_value=data_value
+        )
+
+    def __call_callback(self, type):
+        if self.callback is not None:
+            self.callback(self, type)
+            return True
+        return False
+
+    def handle_refresh(self):
+        return self.__call_callback('refresh')
+
+    def handle_control(self, data_value):
+        self.data_value = data_value
+        #self.last_update_of_control = state.timestamp
+        self.last_controlled = data_value
+
+        return self.__call_callback('set')
 
     def send_control(self, data_value):
         """
@@ -379,10 +456,10 @@ class Value:
         """
         state = self.get_control_state()
         if state is not None:
-            if self.is_number_type():
+            if self.__is_number_type():
                 try:
                     if self.number_min <= int(data_value) <= self.number_max:
-                        return self.send_logic(
+                        return self.__send_logic(
                             state,
                             'control',
                             data_value=data_value
@@ -399,9 +476,9 @@ class Value:
                     msg = "Invalid type of value. Must be a number."
                     self.wapp_log.error(msg)
                     return False
-            elif not self.is_number_type():
+            elif not self.__is_number_type():
                 if self.string_max is None and self.blob_max is None:
-                    return self.send_logic(
+                    return self.__send_logic(
                         state,
                         'control',
                         data_value=data_value
@@ -409,7 +486,7 @@ class Value:
                 else:
                     if self.data_type == "blob":
                         if len(str(data_value)) <= int(self.blob_max):
-                            return self.send_logic(
+                            return self.__send_logic(
                                 state,
                                 'control',
                                 data_value=data_value
@@ -422,7 +499,7 @@ class Value:
                         return False
                     elif self.data_type == "string":
                         if len(str(data_value)) <= int(self.string_max):
-                            return self.send_logic(
+                            return self.__send_logic(
                                 state,
                                 'control',
                                 data_value=data_value
@@ -440,7 +517,7 @@ class Value:
             self.wapp_log.error("Value is read only.")
             return False
 
-    def send_logic(self, state, type, data_value=None):
+    def __send_logic(self, state, type, data_value=None):
         """
         Send control or report to a server.
 
@@ -473,26 +550,15 @@ class Value:
                 type,
                 state_obj=state
             )
-            self.rpc.send_init_json(self.conn, json_data)
-            if type == 'report':
-                self.last_update_of_report = state.timestamp
-                if self.callback is not None:
-                    self.callback(self, 'report')
-                return True
-            else:
-                self.data_value = data_value
-                self.last_update_of_control = state.timestamp
-                self.last_controlled = data_value
-                if self.callback is not None:
-                    self.callback(self, 'control')
-                return True
+            self.last_update_of_report = state.timestamp
+            return self.rpc.send_init_json(self.conn, json_data)
 
         except Exception as e:
             msg = "Error reporting state: {}".format(e)
             self.wapp_log.error(msg)
             return False
 
-    def is_number_type(self):
+    def __is_number_type(self):
         """
         Validate data type.
 
@@ -504,6 +570,38 @@ class Value:
 
         """
         if self.data_type == "number":
+            return True
+        else:
+            return False
+
+    def __is_string_type(self):
+        """
+        Validate data type.
+
+        Checks whether the type of the value is string.
+
+        Returns:
+        True if the type is string otherwise false.
+        boolean
+
+        """
+        if self.data_type == "string":
+            return True
+        else:
+            return False
+
+    def __is_blob_type(self):
+        """
+        Validate data type.
+
+        Checks whether the type of the value is blob.
+
+        Returns:
+        True if the type is blob otherwise false.
+        boolean
+
+        """
+        if self.data_type == "blob":
             return True
         else:
             return False

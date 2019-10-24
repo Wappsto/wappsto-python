@@ -39,7 +39,7 @@ class SeluxitRpc:
 
         """
         if not connection.init_ok():
-            self.wapp_log.error(error_msg, exc_info=True)
+            self.wapp_log.error(error_msg, exc_info=False)
             connection.close()
 
     @staticmethod

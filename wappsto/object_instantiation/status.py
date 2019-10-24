@@ -47,21 +47,8 @@ class Status:
         """
         self.wapp_log = logging.getLogger(__name__)
         self.wapp_log.addHandler(logging.NullHandler())
-        self.callback = self.callback_not_set()
+        self.callback = None
         self.current_status = None
-
-    def callback_not_set(self):
-        """
-        Message about no callback being set.
-
-        Temporary method to signify that there is no callback set for the
-        class.
-
-        Returns:
-            "Callback not set" message.
-
-        """
-        return self.wapp_log.info("Callback not set.")
 
     def set_callback(self, callback):
         """

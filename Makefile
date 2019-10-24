@@ -1,6 +1,6 @@
 TEST_PATH=./test
 
-.PHONY: clean-pyc clean-build
+.PHONY: clean-pyc clean-build build
 
 clean-pyc:
 	find . -name '*.pyc' -exec rm --force {} +
@@ -20,5 +20,8 @@ publish: build
 	@echo "You can find the password here: https://phabricator.iot.seluxit.com/w/python_package_index/"
 	python3 -m twine upload -u seluxit dist/*
 
-install:
-	pip install --user --requirement requirements.txt
+install: build
+	pip3 install .
+
+setup:
+	pip3 install --user --requirement requirements.txt

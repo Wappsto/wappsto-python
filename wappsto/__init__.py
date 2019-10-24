@@ -90,17 +90,20 @@ class Wappsto:
             program.
 
         """
-        path = os.path.join(file_path, 'config.txt')
-        with open(path, 'r+') as json_file:
-            data = json.load(json_file)
-            guide = data['guide']
-            if guide == "True":
-                data['guide'] = "False"
-                json_file.seek(0)
-                json.dump(data, json_file)
-                json_file.truncate()
-                return True
-            return False
+        try:
+            path = os.path.join(file_path, 'config.txt')
+            with open(path, 'r+') as json_file:
+                data = json.load(json_file)
+                guide = data['guide']
+                if guide == "True":
+                    data['guide'] = "False"
+                    json_file.seek(0)
+                    json.dump(data, json_file)
+                    json_file.truncate()
+                    return True
+        except FileNotFoundError:
+            pass
+        return False
 
     def get_status(self):
         """
@@ -114,6 +117,12 @@ class Wappsto:
 
         """
         return self.status
+
+    def get_network(self):
+        return self.instance.network_cl
+
+    def get_devices(self):
+        return self.instance.device_list
 
     def get_device(self, name):
         """

@@ -168,7 +168,6 @@ class ClientSocket:
             self.my_socket.connect((self.address, self.port))
             self.connected = True
             self.my_socket.settimeout(None)
-            self.wapp_log.info('Connected to server!')
             return True
 
         except Exception as e:
@@ -235,7 +234,7 @@ class ClientSocket:
         except AttributeError as e:
             error_str = 'Error received incorrect format in put'
             return self.handle_incoming_error(data, e, error_str, return_id)
-        self.wapp_log.info("Control Request from control id: " + control_id)
+        self.wapp_log.debug("Control Request from control id: " + control_id)
 
         try:
             local_data = data.get('params').get('data').get('data')
@@ -245,7 +244,7 @@ class ClientSocket:
             return
         try:
             trace_id = data.get('params').get('meta').get('trace')
-            self.wapp_log.info("Control found trace id: " + trace_id)
+            self.wapp_log.debug("Control found trace id: " + trace_id)
         except AttributeError:
             # ignore
             trace_id = None
@@ -273,9 +272,8 @@ class ClientSocket:
             return_id: ID of the error message.
 
         """
-        self.wapp_log.info(data)
+        self.wapp_log.error(data)
         self.wapp_log.error(error_str, exc_info=True)
-        self.send_error(error_str, return_id)
         return
 
     def send_success_reply(self, return_id):
@@ -328,16 +326,17 @@ class ClientSocket:
         """
         return_id = data.get('id')
         try:
-            get_url_id = data.get('params').get('url')
+            get_url_id = data.get('params').get('url').split('/')
+            get_url_id = get_url_id[-1]
         except AttributeError as e:
             error_str = 'Error received incorrect format in get'
             msg = "Report Request from url ID: {}".format(get_url_id)
-            self.wapp_log.info(msg)
+            self.wapp_log.error(msg)
             return self.handle_incoming_error(data, e, error_str, return_id)
 
         try:
             trace_id = data.get('params').get('meta').get('trace')
-            self.wapp_log.info("Report GET found trace id: {}"
+            self.wapp_log.debug("Report GET found trace id: {}"
                                .format(trace_id))
         except AttributeError:
             trace_id = None
@@ -352,6 +351,47 @@ class ClientSocket:
             error = 'Non-existing ID for get'
             self.send_error(error, return_id)
 
+    def incoming_delete_request(self, data):
+        """
+        Incoming delete handler.
+
+        Sends the event from incoming delete messages to the appropriate handler
+        method.
+
+        Args:
+            data: JSON communication message data.
+
+        Returns:
+            Results of the incoming report handling.
+
+        """
+        return_id = data.get('id')
+        try:
+            get_url_id = data.get('params').get('url').split('/')
+            get_url_id = get_url_id[-1]
+        except AttributeError as e:
+            error_str = 'Error received incorrect format in delete'
+            msg = "Report Request from url ID: {}".format(get_url_id)
+            self.wapp_log.error(msg)
+            return self.handle_incoming_error(data, e, error_str, return_id)
+
+        try:
+            trace_id = data.get('params').get('meta').get('trace')
+            self.wapp_log.debug("Report DELETE found trace id: {}"
+                               .format(trace_id))
+        except AttributeError:
+            trace_id = None
+
+        if self.handlers.handle_incoming_delete(
+                get_url_id,
+                self.sending_queue,
+                trace_id
+        ):
+            self.send_success_reply(return_id)
+        else:
+            error = 'Delete failed'
+            self.send_error(error, return_id)
+
     def receive_thread(self):
         """
         Create the receive thread.
@@ -363,37 +403,41 @@ class ClientSocket:
         while True:
             try:
                 decoded = self.receive_data()
-                decoded_id = decoded.get('id')
-                try:
-                    self.wapp_log.debug('Raw received Json: {}'
-                                        .format(decoded))
-                    if decoded.get('method', False) == 'PUT':
-                        self.incoming_control(decoded)
+                if decoded:
+                    decoded_id = decoded.get('id')
+                    try:
+                        self.wapp_log.debug('Raw received Json: {}'
+                                            .format(decoded))
+                        if decoded.get('method', False) == 'PUT':
+                            self.incoming_control(decoded)
 
-                    elif decoded.get('method', False) == 'GET':
-                        self.incoming_report_request(decoded)
+                        elif decoded.get('method', False) == 'GET':
+                            self.incoming_report_request(decoded)
 
-                    elif decoded.get('error', False):
-                        decoded_error = decoded.get('error')
-                        msg = "Error: {}".format(decoded_error.get('message'))
-                        self.wapp_log.error(msg)
-                        self.remove_id_from_confirm_list(decoded_id)
+                        elif decoded.get('method', False) == 'DELETE':
+                            self.incoming_delete_request(decoded)
 
-                    elif decoded.get('result', False):
-                        msg = "Successful reply for id {}".format(decoded_id)
-                        self.wapp_log.debug(msg)
-                        self.remove_id_from_confirm_list(decoded_id)
+                        elif decoded.get('error', False):
+                            decoded_error = decoded.get('error')
+                            msg = "Error: {}".format(decoded_error.get('message'))
+                            self.wapp_log.error(msg)
+                            self.remove_id_from_confirm_list(decoded_id)
 
-                    else:
-                        self.wapp_log.info("Unhandled method")
-                        error_str = 'Unknown method'
+                        elif decoded.get('result', False):
+                            msg = "Successful reply for id {}".format(decoded_id)
+                            self.wapp_log.debug(msg)
+                            self.remove_id_from_confirm_list(decoded_id)
+
+                        else:
+                            self.wapp_log.info("Unhandled method")
+                            error_str = 'Unknown method'
+                            self.send_error(error_str, decoded_id)
+
+                    except ValueError:
+                        self.wapp_log.info("Value error")
+                        self.wapp_log.info(decoded)
+                        error_str = 'Value error'
                         self.send_error(error_str, decoded_id)
-
-                except ValueError:
-                    self.wapp_log.info("Value error")
-                    self.wapp_log.info(decoded)
-                    error_str = 'Value error'
-                    self.send_error(error_str, decoded_id)
 
             except ValueError:
                 self.wapp_log.info("Value error")
@@ -422,8 +466,7 @@ class ClientSocket:
         while not self.connected:
             self.wapp_log.info("Trying to reconnect in 5 seconds")
             time.sleep(5)
-            self.my_socket.close()
-            self.my_raw_socket.close()
+            self.close()
             try:
                 self.set_sockets()
                 self.my_socket.connect((self.address, self.port))
@@ -445,8 +488,11 @@ class ClientSocket:
             data: JSON communication message data.
 
         """
-        self.wapp_log.debug('Raw Send Json: {}'.format(data))
-        self.my_socket.send(data)
+        if self.connected:
+            self.wapp_log.debug('Raw Send Json: {}'.format(data))
+            self.my_socket.send(data)
+        else:
+            self.wapp_log.error('Sending while not connected')
 
     def send_thread(self):
         """
@@ -553,9 +599,13 @@ class ClientSocket:
         total_decoded = []
         decoded = None
         while True:
-            data = self.my_socket.recv(2000)
-            decoded_data = data.decode('utf-8')
-            total_decoded.append(decoded_data)
+            if self.connected:
+                data = self.my_socket.recv(2000)
+                decoded_data = data.decode('utf-8')
+                total_decoded.append(decoded_data)
+            else:
+                break
+
             try:
                 decoded = json.loads(''.join(total_decoded))
             except json.decoder.JSONDecodeError:
@@ -668,7 +718,7 @@ class ClientSocket:
                 package.rpc_id
             )
             self.send_data(rpc_success_response)
-            self.wapp_log.info("Sending Successful")
+            self.wapp_log.debug("Sending Successful")
 
         except OSError as e:
             self.connected = False
@@ -681,9 +731,14 @@ class ClientSocket:
 
         Closes the socket object connection.
         """
-        self.wapp_log.info("Closing connection...")
-        self.my_socket.close()
-        self.my_raw_socket.close()
+        self.wapp_log.debug("Closing connection...")
+        self.connected = False
+        if self.my_socket:
+            self.my_socket.close()
+            self.my_socket = None
+        if self.my_raw_socket:
+            self.my_raw_socket.close()
+            self.my_raw_socket = None
 
     def init_ok(self):
         """
@@ -710,8 +765,11 @@ class ClientSocket:
             return True
 
         elif decoded.get('error'):
-            msg = decoded.get('error').get('message')
-            self.wapp_log.error(msg, exc_info=True)
+            type = decoded.get('error').get('message')
+            msg = decoded.get('error').get('data').get('message')
+            message = "{}: {}".format(type, msg)
+            self.wapp_log.error(message, exc_info=False)
+            raise Exception("Init failed: {}".format(message))
             return False
 
         else:

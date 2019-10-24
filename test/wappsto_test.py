@@ -120,7 +120,7 @@ class TestValue:
 
     def test_device2_value_length_is_3_passes(self):
         device2 = self.wapp.get_device("test_device_not_all_fields")
-        assert len(device2.value_list) == 3    
+        assert len(device2.value_list) == 3
 
     def test_value_wrong_type_of_value_error_logs(self, caplog):
         value_to_test = None
@@ -130,7 +130,7 @@ class TestValue:
                     if value.number_min is not None:
                         value_to_test = value
         value_to_test.send_control('asd')
-        
+
         assert 'Invalid type of value. Must be a number.' in caplog.text
 
     def test_value_string_over_max_error_logs(self, caplog):
@@ -646,15 +646,6 @@ class TestValueUnitTests:
         self.value_blob.send_control("Imagination")
         no_send_logic_calls = self.value_blob.rpc.get_rpc_state.call_count
         assert no_send_logic_calls is 1
-
-    def test_is_number_type_value_number(self):
-        assert self.value_number.is_number_type() is True
-
-    def test_is_number_type_value_blob(self):
-        assert self.value_blob.is_number_type() is False
-
-    def test_is_number_type_value_string(self):
-        assert self.value_string.is_number_type() is False
 
 
 class TestRealServerConnection:
