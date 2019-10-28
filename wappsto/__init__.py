@@ -124,6 +124,18 @@ class Wappsto:
     def get_devices(self):
         return self.instance.device_list
 
+    def get_by_id(self, id):
+        if self.instance.network_cl.uuid == id:
+            return self.instance.network_cl
+
+        for device in self.get_devices():
+            if device.uuid == id:
+                return device
+
+            for value in device.value_list:
+                if value.uuid == id:
+                    return value
+
     def get_device(self, name):
         """
         Device reference.

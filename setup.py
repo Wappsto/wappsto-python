@@ -21,4 +21,5 @@ setup(
     tests_require=[
         'pytest',
     ],
+    python_requires='>3.6.0',
 )

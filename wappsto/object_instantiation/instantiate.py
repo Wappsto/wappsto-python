@@ -4,7 +4,6 @@ The raspberrypi object instantiation module.
 Represents raspberrypi components from JSON to class instances.
 """
 import json
-from json import JSONDecodeError
 import logging
 from . import save_objects
 from ..connection.network_classes import network
@@ -75,7 +74,6 @@ class Instantiator:
             raise fnfe
 
     def parse_json_file(self):
-        # TODO(Dimitar): Fill in exception
         """
         Parse JSON file.
 
@@ -83,14 +81,14 @@ class Instantiator:
         inside of it to a class attribute.
 
         Raises:
-            Exception: TO BE FILLED IN.
+            Exception: JSONDecodeError
 
         """
         self.wapp_log.debug("Opening file: {}".format(self.json_file_name))
 
         try:
             self.json_container = json.loads(self.decoded.get('data'))
-        except JSONDecodeError as jde:
+        except Exception as jde:
             self.wapp_log.error("Error decoding: {}".format(jde))
             raise jde
 
