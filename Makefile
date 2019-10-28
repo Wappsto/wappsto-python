@@ -18,7 +18,7 @@ build:
 publish: build
 	@echo "Please make sure that you have set 'TWINE_PASSWORD'."
 	@echo "You can find the password here: https://phabricator.iot.seluxit.com/w/python_package_index/"
-	python3 -m twine upload -u seluxit dist/*
+	python3 -m twine upload -u seluxit --skip-existing dist/*
 
 install: build
 	pip3 install .
