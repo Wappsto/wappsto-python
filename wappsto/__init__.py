@@ -136,6 +136,8 @@ class Wappsto:
                 if value.uuid == id:
                     return value
 
+        self.wapp_log.warning("Failed to find object with id: {}".format(id))
+
     def get_device(self, name):
         """
         Device reference.

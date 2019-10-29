@@ -87,10 +87,14 @@ class Instantiator:
         self.wapp_log.debug("Opening file: {}".format(self.json_file_name))
 
         try:
-            self.json_container = json.loads(self.decoded.get('data'))
-        except Exception as jde:
-            self.wapp_log.error("Error decoding: {}".format(jde))
-            raise jde
+            self.json_container = self.decoded.get('data')
+            self.json_container.get('meta')
+        except Exception:
+            try:
+                self.json_container = json.loads(self.decoded.get('data'))
+            except Exception as jde:
+                self.wapp_log.error("Error decoding: {}".format(jde))
+                raise jde
 
         self.wapp_log.debug("RAW JSON DATA:\n\n{}\n\n".format(
             self.json_container)
@@ -238,8 +242,13 @@ class Instantiator:
             A Network class instance.
 
         """
-        decoded_data = json.loads(decoded.get('data'))
-        decoded_meta = json.loads(decoded.get('data')).get('meta')
+        try:
+            decoded_data = decoded.get('data')
+            decoded_meta = decoded_data.get('meta')
+        except Exception:
+            decoded_data = json.loads(decoded.get('data'))
+            decoded_meta = decoded_data.get('meta')
+
         self.uuid = decoded_meta.get('id')
         self.version = decoded_meta.get('version')
         self.name = decoded_data.get('name')
