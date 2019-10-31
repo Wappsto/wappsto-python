@@ -190,6 +190,10 @@ class Initialize:
                         self.state_uuid
                     )
 
+                    #!When doing a control get and waiting on the response
+                    #!the returning data should be checked, not the data generated...
+                    #!then the init_value should be used from there instead!!!
+                    #!See seluxit_rpc.py
                     if value.control_state.uuid in str(data):
                         self.rpc.add_state_control(
                             conn,

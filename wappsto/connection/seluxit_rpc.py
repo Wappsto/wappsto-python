@@ -707,7 +707,11 @@ class SeluxitRpc:
 
         self.send_init_json(connection, json_data)
         self.connection_ok(self, connection, "Error in state control")
+        #!Instead of connection_ok, this should use another function
+        #!that returns the data from the server, so the receiver
+        #!can pass it
         if json_data is not None:
+            #!Send the data from the server, and not the data generated here
             return json_data
         else:
             return False

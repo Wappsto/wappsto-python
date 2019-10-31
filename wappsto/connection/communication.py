@@ -337,8 +337,9 @@ class ClientSocket:
 
         try:
             trace_id = data.get('params').get('meta').get('trace')
-            self.wapp_log.debug("Report GET found trace id: {}"
-                               .format(trace_id))
+            if trace_id:
+                self.wapp_log.debug("Report GET found trace id: {}"
+                                   .format(trace_id))
         except AttributeError:
             trace_id = None
 
@@ -425,8 +426,6 @@ class ClientSocket:
                             self.remove_id_from_confirm_list(decoded_id)
 
                         elif decoded.get('result', False):
-                            msg = "Successful reply for id {}".format(decoded_id)
-                            self.wapp_log.debug(msg)
                             self.remove_id_from_confirm_list(decoded_id)
 
                         else:
@@ -719,7 +718,6 @@ class ClientSocket:
                 package.rpc_id
             )
             self.send_data(rpc_success_response)
-            self.wapp_log.debug("Sending Successful")
 
         except OSError as e:
             self.connected = False

@@ -216,10 +216,6 @@ class Handlers:
                         #value.last_update_of_report = value.get_now()
                         value.handle_refresh()
                         return True
-                    else:
-                        self.wapp_log.warning("Value ID mismatch.")
-                else:
-                    self.wapp_log.warning("Value is write only.")
 
         self.wapp_log.warning("Unhandled get {}".format(report_id))
         return False
