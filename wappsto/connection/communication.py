@@ -244,7 +244,8 @@ class ClientSocket:
             return
         try:
             trace_id = data.get('params').get('meta').get('trace')
-            self.wapp_log.debug("Control found trace id: " + trace_id)
+            if trace_id:
+                self.wapp_log.debug("Control found trace id: " + trace_id)
         except AttributeError:
             # ignore
             trace_id = None

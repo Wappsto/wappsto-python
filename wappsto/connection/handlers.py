@@ -174,8 +174,6 @@ class Handlers:
                             return True
                         else:
                             return False
-                else:
-                    self.wapp_log.warning("Value is read only.")
 
         msg = "Unhandled put {} : {}".format(control_id, incoming_value)
         self.wapp_log.warning(msg)
