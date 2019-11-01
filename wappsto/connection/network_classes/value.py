@@ -366,7 +366,7 @@ class Value:
     def __validate_value_data(self, data_value):
         if self.__is_number_type():
             try:
-                if self.number_min <= int(data_value) <= self.number_max:
+                if self.number_min <= float(data_value) <= self.number_max:
                     return True
                 else:
                     msg = "Invalid number. Range: {}-{}. Your: {}".format(
@@ -377,7 +377,7 @@ class Value:
                     self.wapp_log.error(msg)
                     return False
             except ValueError:
-                msg = "Invalid type of value. Must be a number."
+                msg = "Invalid type of value. Must be a number: {}".format(data_value)
                 self.wapp_log.error(msg)
                 return False
         elif self.__is_string_type():
@@ -405,7 +405,7 @@ class Value:
             self.wapp_log.error(msg)
             return False
 
-    def update(self, data_value):
+    def update(self, data_value, timestamp=None):
         state = self.get_report_state()
         if state is None:
             self.wapp_log.error("Value is write only.")
@@ -417,7 +417,8 @@ class Value:
         return self.__send_logic(
             state,
             'report',
-            data_value=data_value
+            data_value=data_value,
+            timestamp=timestamp
         )
 
     def __call_callback(self, type):
@@ -517,7 +518,7 @@ class Value:
             self.wapp_log.error("Value is read only.")
             return False
 
-    def __send_logic(self, state, type, data_value=None):
+    def __send_logic(self, state, type, data_value=None, timestamp=None):
         """
         Send control or report to a server.
 
@@ -550,6 +551,10 @@ class Value:
                 type,
                 state_obj=state
             )
+            if timestamp:
+                state.timestamp = timestamp
+            else:
+                state.timestamp = self.get_now()
             self.last_update_of_report = state.timestamp
             return self.rpc.send_init_json(self.conn, json_data)
 
