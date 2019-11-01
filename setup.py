@@ -5,7 +5,7 @@ with open("README.md", "r") as file:
 
 setup(
     name="wappsto",
-    version="1.0.5",
+    version="1.0.6",
     author="Seluxit A/S",
     author_email="support@seluxit.com",
     license="Apache-2.0",
