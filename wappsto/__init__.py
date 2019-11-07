@@ -59,6 +59,7 @@ class Wappsto:
         self.socket = None
         self.receive_thread = None
         self.send_thread = None
+        self.connected = False
         self.status = status.Status()
         self.object_saver = save_objects.SaveObjects(self.path_to_calling_file)
         self.guide = self.check_if_guide(self.path_to_calling_file)
@@ -191,28 +192,32 @@ class Wappsto:
         try:
             # Instance the socket class.
             reconnect_attempt_counter = 0
-            self.socket = communication.ClientSocket(
-                rpc=self.rpc,
-                instance=self.instance,
-                address=address,
-                port=port,
-                path_to_calling_file=self.path_to_calling_file
-            )
             self.status.set_status(status.CONNECTING)
             if self.guide:
                 Guider.connecting_to_server()
 
-            # Attempts to connect to the server.
-            self.connected = self.socket.connect()
-            if self.connected:
-                self.status.set_status(status.CONNECTED)
-                if self.guide:
-                    Guider.connected_to_server()
-            # If it cannot connect it begins attempting the connection
-            # until the retry limit is reached
+
             while (not self.connected
                     and reconnect_attempt_counter
                     < RETRY_LIMIT):
+                self.socket = communication.ClientSocket(
+                    rpc=self.rpc,
+                    instance=self.instance,
+                    address=address,
+                    port=port,
+                    path_to_calling_file=self.path_to_calling_file
+                )
+
+                # Attempts to connect to the server.
+                self.connected = self.socket.connect()
+                if self.connected:
+                    self.status.set_status(status.CONNECTED)
+                    if self.guide:
+                        Guider.connected_to_server()
+                    break
+                # If it cannot connect it begins attempting the connection
+                # until the retry limit is reached
+
                 self.status.set_status(status.RECONNECTING)
                 if self.guide:
                     Guider.reconnecting_to_server()
@@ -220,7 +225,7 @@ class Wappsto:
                 self.wapp_log.info(msg)
                 time.sleep(5)
                 reconnect_attempt_counter += 1
-                self.connected = self.socket.connect()
+                self.socket.close()
 
             # If the connection is not established,
             # a custom ServerConnectionException is raised.
