@@ -101,6 +101,17 @@ class SeluxitRpc:
         }
         return json.dumps(error_response).encode('utf-8')
 
+    @staticmethod
+    def is_upgradable():
+        """
+        Check if System is set to upgradable.
+
+        Returns:
+            True, if the system is upgradable,
+            False, if it is not.
+        """
+        return True if os.getenv("UPGRADABLE") in ['true', 'True'] else False
+
     def __init__(self, save_init):
         """
         Initialize the seluxit_rpc class.
@@ -165,6 +176,8 @@ class SeluxitRpc:
         """
         network = "network"
         meta = self.create_meta(network, network_id)
+        if SeluxitRpc.is_upgradable():
+            meta.update({'upgradable': True})
         data_inside = {
             "meta": meta,
             'name': network_name

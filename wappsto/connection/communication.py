@@ -379,8 +379,9 @@ class ClientSocket:
 
         try:
             trace_id = data.get('params').get('meta').get('trace')
-            self.wapp_log.debug("Report DELETE found trace id: {}"
-                               .format(trace_id))
+            self.wapp_log.debug(
+                "Report DELETE found trace id: {}".format(trace_id)
+            )
         except AttributeError:
             trace_id = None
 
