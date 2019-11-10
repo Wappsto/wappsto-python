@@ -14,8 +14,6 @@ here = os.path.abspath(os.path.dirname(__file__))
 
 def find_version(*file_paths):
     path = os.path.join(here, *file_paths)
-    with open("/home/root/log.txt", "w") as f:
-        f.write("{}".format(path))
     with codecs.open(path, 'r') as fp:
         version_file = fp.read()
         version_match = re.search(r"__version__ = ['\"]([^'\"]*)['\"]",
