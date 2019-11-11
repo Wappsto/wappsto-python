@@ -118,7 +118,7 @@ class Instantiator:
             A list of devices instances.
 
         """
-        for device_iterator in self.json_container.get('device'):
+        for device_iterator in self.json_container.get('device', []):
             uuid = device_iterator.get('meta').get('id')
             name = device_iterator.get('name')
             product = device_iterator.get('product')
@@ -147,7 +147,7 @@ class Instantiator:
                                 .format(device_cl, self.device_list)
                                 )
 
-            for value_iterator in device_iterator.get('value'):
+            for value_iterator in device_iterator.get('value', []):
                 uuid = value_iterator.get('meta').get('id')
                 name = value_iterator.get('name')
                 type_of_value = value_iterator.get('type')
@@ -206,7 +206,7 @@ class Instantiator:
                                     .format(value_cl, device_cl.value_list)
                                     )
 
-                for state_iterator in value_iterator.get('state'):
+                for state_iterator in value_iterator.get('state', []):
                     uuid = state_iterator.get('meta').get('id')
                     state_type = state_iterator.get('type')
                     # data = state_iterator.get('data')
