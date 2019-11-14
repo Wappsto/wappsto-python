@@ -181,7 +181,7 @@ class Initialize:
                 if value.control_state is not None:
                     self.state_type = value.control_state.state_type
                     self.state_uuid = value.control_state.uuid
-                    data = self.rpc.get_state_control(
+                    self.rpc.add_state_control(
                         conn,
                         self.value_init_value,
                         self.network_UUID,
@@ -189,20 +189,6 @@ class Initialize:
                         self.value_uuid,
                         self.state_uuid
                     )
-
-                    #!When doing a control get and waiting on the response
-                    #!the returning data should be checked, not the data generated...
-                    #!then the init_value should be used from there instead!!!
-                    #!See seluxit_rpc.py
-                    if value.control_state.uuid in str(data):
-                        self.rpc.add_state_control(
-                            conn,
-                            self.value_init_value,
-                            self.network_UUID,
-                            self.device_uuid,
-                            self.value_uuid,
-                            self.state_uuid
-                        )
 
     def create_message(self):
         """

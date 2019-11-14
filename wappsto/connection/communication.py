@@ -19,6 +19,11 @@ from . import send_data
 from . import initialize
 from . import handlers
 
+try:
+    from json.decoder import JSONDecodeError
+except ImportError:
+    JSONDecodeError = ValueError
+
 t_url = 'https://tracer.iot.seluxit.com/trace?id={}&parent={}&name={}&status={}'  # noqa: E501
 
 
@@ -435,16 +440,13 @@ class ClientSocket:
                             self.send_error(error_str, decoded_id)
 
                     except ValueError:
-                        self.wapp_log.info("Value error")
-                        self.wapp_log.info(decoded)
                         error_str = 'Value error'
+                        self.wapp_log.error("{} [{}]: {}".format(error_str, decoded_id, decoded))
                         self.send_error(error_str, decoded_id)
 
-            except ValueError:
-                self.wapp_log.info("Value error")
-                self.wapp_log.info(decoded)
-                error_str = 'Value error'
-                self.send_error(error_str, decoded_id)
+            except JSONDecodeError:
+                self.wapp_log.error("Json error: {}".format(decoded))
+                ## TODO send json rpc error, parse error
 
             except ConnectionResetError as e:
                 msg = "Received Reset: {}".format(e)
@@ -609,17 +611,11 @@ class ClientSocket:
 
             try:
                 decoded = json.loads(''.join(total_decoded))
-            except json.decoder.JSONDecodeError:
-                pass
-            except ValueError:
+            except JSONDecodeError:
                 if data == b'':
                     self.reconnect()
                 else:
-                    self.wapp_log.info("Value error")
-                    self.wapp_log.info(data)
-                    error_str = 'Value error'
-                    decoded_id = decoded.get('id')
-                    self.send_error(error_str, decoded_id)
+                    self.wapp_log.error("Value error: {}".format(data))
             else:
                 break
 
