@@ -129,7 +129,7 @@ class Handlers:
     def __get_random_id(self):
         network_n = self.instance.network_cl.name
         random_int = random.randint(1, 25000)
-        return "{}".format(network_n + random_int)
+        return "{}{}".format(network_n, random_int)
 
     def handle_incoming_put(
             self,

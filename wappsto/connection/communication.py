@@ -553,7 +553,8 @@ class ClientSocket:
             package.text
         )
 
-        trace_req = request.urlopen(attempt)
+        context = ssl._create_unverified_context()
+        trace_req = request.urlopen(attempt, context=context)
         msg = "Sending tracer https message {} response {}".format(
             attempt,
             trace_req.getcode()
