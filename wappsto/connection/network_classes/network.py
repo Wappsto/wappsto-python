@@ -63,7 +63,7 @@ class Network:
     def handle_delete(self):
         return self.__call_callback('remove')
 
-    def __callback_not_set(self):
+    def __callback_not_set(self, network, event):
         """
         Message about no callback being set.
 
