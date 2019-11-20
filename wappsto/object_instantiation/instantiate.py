@@ -251,7 +251,7 @@ class Instantiator:
 
         self.uuid = decoded_meta.get('id')
         self.version = decoded_meta.get('version')
-        self.name = decoded_data.get('name')
+        self.name = decoded_data.get('name', '')
 
         network_cl = network.Network(
             uuid=self.uuid,
