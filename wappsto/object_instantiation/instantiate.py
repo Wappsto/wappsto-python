@@ -152,7 +152,11 @@ class Instantiator:
                 name = value_iterator.get('name')
                 type_of_value = value_iterator.get('type')
                 permission = value_iterator.get('permission')
-                init_value = value_iterator.get('state')[0].get('data')
+                states = value_iterator.get('state', [])
+                try:
+                    init_value = states[0].get('data', None)
+                except IndexError:
+                    init_value = None
                 data_type = None
                 number_min = None
                 number_max = None
@@ -206,7 +210,7 @@ class Instantiator:
                                     .format(value_cl, device_cl.value_list)
                                     )
 
-                for state_iterator in value_iterator.get('state', []):
+                for state_iterator in states:
                     uuid = state_iterator.get('meta').get('id')
                     state_type = state_iterator.get('type')
                     # data = state_iterator.get('data')
