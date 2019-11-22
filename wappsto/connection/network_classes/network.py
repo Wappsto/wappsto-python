@@ -4,6 +4,7 @@ The network module.
 Stores attributes for the network instance.
 """
 import logging
+from .errors import wappsto_errors
 
 
 class Network:
