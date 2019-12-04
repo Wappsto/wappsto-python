@@ -18,6 +18,7 @@ import logging
 from . import send_data
 from . import initialize
 from . import handlers
+from ..object_instantiation import status
 
 try:
     from json.decoder import JSONDecodeError
@@ -36,7 +37,7 @@ class ClientSocket:
     between the client and the server.
     """
 
-    def __init__(self, rpc, instance, address, port, path_to_calling_file):
+    def __init__(self, rpc, instance, address, port, path_to_calling_file, wappsto_status):
         """
         Create a client socket.
 
@@ -65,6 +66,7 @@ class ClientSocket:
                                     "certificates/client.key")
         self.address = address
         self.port = port
+        self.wappsto_status = wappsto_status
         self.receiving_thread = threading.Thread(target=self.receive_thread)
         self.receiving_thread.setDaemon(True)
         self.connected = False
@@ -465,6 +467,7 @@ class ClientSocket:
         Reconnection attemps in the instance of a connection being interrupted.
         """
         self.wapp_log.info("Server Disconnect")
+        self.wappsto_status.set_status(status.RECONNECTING)
         self.connected = False
         while not self.connected:
             self.wapp_log.info("Trying to reconnect in 5 seconds")
@@ -475,6 +478,7 @@ class ClientSocket:
                 self.my_socket.connect((self.address, self.port))
                 self.wapp_log.info("Reconnected")
                 self.connected = True
+                self.wappsto_status.set_status(status.CONNECTED)
                 reconnect_reply = send_data.SendData(send_data.SEND_RECONNECT)
                 self.sending_queue.put(reconnect_reply)
             except Exception as e:
@@ -638,6 +642,7 @@ class ClientSocket:
             self.send_data(rpc_network)
             for element in self.packet_awaiting_confirm:
                 self.send_data(self.packet_awaiting_confirm[element])
+            self.wappsto_status.set_status(status.RUNNING)
         except OSError as e:
             self.connected = False
             msg = "Error sending reconnect: {}".format(e)

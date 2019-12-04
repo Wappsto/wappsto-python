@@ -207,7 +207,8 @@ class Wappsto:
                     instance=self.instance,
                     address=address,
                     port=port,
-                    path_to_calling_file=self.path_to_calling_file
+                    path_to_calling_file=self.path_to_calling_file,
+                    wappsto_status=self.status
                 )
 
                 # Attempts to connect to the server.
