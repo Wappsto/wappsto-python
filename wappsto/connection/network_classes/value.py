@@ -151,7 +151,7 @@ class Value:
         except ValueError:
             self.wapp_log.error("Delta value must be a number")
 
-    def __callback_not_set(self):
+    def __callback_not_set(self, value, type):
         """
         Message about no callback being set.
 
