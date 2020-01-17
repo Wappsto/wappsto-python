@@ -66,6 +66,10 @@ class ClientSocket:
                                     "certificates/client.key")
         self.address = address
         self.port = port
+        self.ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+        self.ssl_context.verify_mode = ssl.CERT_REQUIRED
+        self.ssl_context.load_cert_chain(self.ssl_client_cert, self.ssl_key)
+        self.ssl_context.load_verify_locations(self.ssl_server_cert)
         self.wappsto_status = wappsto_status
         self.receiving_thread = threading.Thread(target=self.receive_thread)
         self.receiving_thread.setDaemon(True)
@@ -143,19 +147,16 @@ class ClientSocket:
         """
         Wrap socket.
 
-        Wraps the socket using the SSL protocol with the provided server and
-        client certificates, as well as the SSL key.
+        Wraps the socket using the SSL protocol as configured in the SSL
+        context, with hostname verification enabled.
 
         Returns:
-        An SSL wrapped socket with the attached certificates/keys.
+        An SSL wrapped socket.
 
         """
-        return ssl.wrap_socket(
+        return self.ssl_context.wrap_socket(
             self.my_raw_socket,
-            ca_certs=self.ssl_server_cert,
-            certfile=self.ssl_client_cert,
-            keyfile=self.ssl_key,
-            cert_reqs=ssl.CERT_REQUIRED
+            server_hostname=self.address
         )
 
     def connect(self):
