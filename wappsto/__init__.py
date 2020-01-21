@@ -5,7 +5,6 @@ Stores the Wappsto class functionality.
 """
 
 import os
-import json
 import time
 import logging
 import inspect
@@ -15,7 +14,7 @@ from .connection.network_classes.errors import wappsto_errors
 from .object_instantiation import status
 from .object_instantiation import instantiate
 from .object_instantiation import save_objects
-from .user_guide.guider import Guider
+
 RETRY_LIMIT = 5
 
 
@@ -64,14 +63,12 @@ class Wappsto:
         self.connected = False
         self.status = status.Status()
         self.object_saver = save_objects.SaveObjects(self.path_to_calling_file)
-        self.guide = self.check_if_guide(self.path_to_calling_file)
         # Instantiate the objects from JSON
         try:
             self.instance = instantiate.Instantiator(
                 json_file_name=json_file_name,
                 load_from_state_file=load_from_state_file,
                 status=self.status,
-                guide=self.guide,
                 path_to_calling_file=self.path_to_calling_file
             )
         # When the file fails to open a FileNotFoundError is raised and
@@ -80,33 +77,6 @@ class Wappsto:
             self.wapp_log.error("Failed to open file: {}".format(fnfe))
             self.stop(False)
             raise fnfe
-
-    def check_if_guide(self, file_path):
-        """
-        Guide handler method.
-
-        Checks if this is the user's first time using the package, then starts
-        up a guide module to explain the various steps to the user.
-
-        Returns:
-            A boolean flag to designate if this is the first time launching the
-            program.
-
-        """
-        try:
-            path = os.path.join(file_path, 'config.txt')
-            with open(path, 'r+') as json_file:
-                data = json.load(json_file)
-                guide = data['guide']
-                if guide == "True":
-                    data['guide'] = "False"
-                    json_file.seek(0)
-                    json.dump(data, json_file)
-                    json_file.truncate()
-                    return True
-        except FileNotFoundError:
-            pass
-        return False
 
     def get_status(self):
         """
@@ -188,16 +158,11 @@ class Wappsto:
 
         """
         self.status.set_status(status.STARTING)
-        if self.guide:
-            Guider.starting_server()
         # TODO(Dimitar): Change try except wrap to not encompass whole block.
         try:
             # Instance the socket class.
             reconnect_attempt_counter = 0
             self.status.set_status(status.CONNECTING)
-            if self.guide:
-                Guider.connecting_to_server()
-
 
             while (not self.connected
                     and reconnect_attempt_counter
@@ -215,15 +180,11 @@ class Wappsto:
                 self.connected = self.socket.connect()
                 if self.connected:
                     self.status.set_status(status.CONNECTED)
-                    if self.guide:
-                        Guider.connected_to_server()
                     break
                 # If it cannot connect it begins attempting the connection
                 # until the retry limit is reached
 
                 self.status.set_status(status.RECONNECTING)
-                if self.guide:
-                    Guider.reconnecting_to_server()
                 msg = "Cannot connect, attempting again in 5 seconds ..."
                 self.wapp_log.info(msg)
                 time.sleep(5)
@@ -244,8 +205,6 @@ class Wappsto:
             raise ce
 
         self.status.set_status(status.INITIALIZING)
-        if self.guide:
-            Guider.initializing()
         # Initializes the network, and all the subsequent devices, values and
         # states.
         # TODO(Dimitar): Change from generic Exception
@@ -257,8 +216,6 @@ class Wappsto:
             raise e
 
         self.status.set_status(status.STARTING_THREADS)
-        if self.guide:
-            Guider.starting_threads()
         # Starts the sending & receiving threads.
         try:
             self.receive_thread = self.socket.receiving_thread.start()
@@ -270,8 +227,6 @@ class Wappsto:
             raise e
 
         self.status.set_status(status.RUNNING)
-        if self.guide:
-            Guider.running()
 
     def stop(self, save=True):
         """
@@ -288,8 +243,6 @@ class Wappsto:
         # TODO(Dimitar): Add Exception checking if necessary.
         self.connecting = False
         self.status.set_status(status.DISCONNECTING)
-        if self.guide:
-            Guider.disconnecting()
         # Closes the socket connection, if one is established.
         if self.socket:
             self.socket.close()
