@@ -229,7 +229,7 @@ class Handlers:
                 sending_queue,
                 id,
                 trace_id,
-                current_value,
+                None,
                 control_value_id=random_id
             )
 
