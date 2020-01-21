@@ -5,7 +5,6 @@ Stores attributes for the value instance and handles value-related
 methods.
 """
 import logging
-import threading
 import time
 import datetime
 import re

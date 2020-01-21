@@ -11,7 +11,6 @@ from ..connection.network_classes import device
 from ..connection.network_classes import value
 from ..connection.network_classes import state
 from . import status
-from ..user_guide.guider import Guider
 
 
 class Instantiator:
@@ -27,7 +26,6 @@ class Instantiator:
             json_file_name,
             load_from_state_file,
             status,
-            guide,
             path_to_calling_file):
         """
         Initialize the Instantiator class.
@@ -41,8 +39,6 @@ class Instantiator:
                 from the saved files directory.
             status: Reference to the Status instance to update the program's
                 status flag.
-            guide: Reference to the Guider instance to update the first time
-                guide.
 
         Raises:
             JSONDecodeError: Exception when trying to parse the JSON file.
@@ -57,7 +53,6 @@ class Instantiator:
         self.device_list = []
         self.status = status
         self.load_from_state_file = load_from_state_file
-        self.guide = guide
         self.json_file_name = json_file_name
 
         if self.load_from_state_file:
@@ -101,8 +96,6 @@ class Instantiator:
         )
         self.network_cl = self.build_network(self.decoded)
         self.status.set_status(status.INSTANTIATING)
-        if self.guide:
-            Guider.instantiating_objects()
         self.device_list = self.build_device_list()
 
     def build_device_list(self):
@@ -176,7 +169,6 @@ class Instantiator:
                     data_type = 'blob'
                     get_bolb = value_iterator.get('blob')
                     blob_encoding = get_bolb.get('encoding')
-
                     blob_max = value_iterator.get('blob').get('max')
                 elif 'number' in value_iterator:
                     data_type = 'number'
