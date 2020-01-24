@@ -9,7 +9,6 @@ import json
 import datetime
 import os
 import logging
-from random import randint
 
 from jsonrpcclient.requests import Request
 from jsonrpcclient.response import SuccessResponse
