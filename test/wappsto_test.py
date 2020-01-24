@@ -8,8 +8,8 @@ import socket
 import wappsto
 import datetime
 from mock import Mock
-from test import fake_socket
-from test import mock_wappsto_server
+import fake_socket
+import mock_wappsto_server
 from wappsto.connection.seluxit_rpc import SeluxitRpc
 from wappsto.connection.network_classes.state import State
 from wappsto.connection.network_classes.device import Device
