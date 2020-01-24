@@ -99,7 +99,7 @@ class SeluxitRpc:
         """
         
         error_description = {'message':text,'code':-32020,'data':''}
-        error_response = str(ErrorResponse(error=error_description, jsonrpc=JSONRPC, id=message_id))
+        error_response = str(ErrorResponse(jsonrpc=JSONRPC, id=message_id, error=error_description))
         return error_response.encode('utf-8')
 
     @staticmethod
@@ -593,13 +593,12 @@ class SeluxitRpc:
         state = "state"
         device_state["meta"] = self.create_meta(state, report_id)
 
+        if state_obj is not None:
+            state_obj.timestamp = update
+
         if set_type == 'report':
-            if state_obj is not None:
-                state_obj.timestamp = update
             set_type = 'Report'
         else:
-            if state_obj is not None:
-                state_obj.timestamp = update
             set_type = 'Control'
 
         device_state['type'] = set_type
@@ -712,10 +711,7 @@ class SeluxitRpc:
             get: Defines if the request is of type GET. (default: {False})
 
         """
-        base_url = '/network/{}/device/{}/value/'.format(
-            network_id,
-            device_id
-        )
+        base_url = '/network/{}/device/{}/value/'.format(network_id,device_id)
         if put:
             if get:
                 if state == 'state':
