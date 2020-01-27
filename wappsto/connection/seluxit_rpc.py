@@ -714,42 +714,35 @@ class SeluxitRpc:
         base_url = '/network/{}/device/{}/value/'.format(network_id,device_id)
         if put:
             if get:
+                verb = 'GET'
                 if state == 'state':
                     url = "{}{}/{}/{}".format(base_url,value_id,state,state_id)
                 else:
                     url = "{}{}".format(base_url,value_id)
 
                 if trace_id:
-                    self.data_json_rpc = Request('GET',
-                                             url = "{}?trace={}".format(url,trace_id),
-                                             data = data)
-                else:
-                    self.data_json_rpc = Request('GET',
-                                             url = url,
-                                             data = data)
+                    url = "{}?trace={}".format(url,trace_id)
             else:
+                verb = 'PUT'
                 if state == 'state':
                     url = "{}{}/{}/{}".format(base_url,value_id,state,state_id)
                 else:
                     url = "{}{}".format(base_url,value_id)
                     
                 if trace_id:
-                    self.data_json_rpc = Request('PUT',
-                                             url = "{}?trace={}".format(url,trace_id),
-                                             data = data)
-                else:
-                    self.data_json_rpc = Request('PUT',
-                                             url = url,
-                                             data = data)
+                    url = "{}?trace={}".format(url,trace_id)
         else:
+            verb = 'POST'
             if state == 'state':
-                self.data_json_rpc = Request('POST',
-                                             url = "{}{}/{}".format(base_url,value_id,state),
-                                             data = data)
+                url = "{}{}/{}".format(base_url,value_id,state)
             else:
-                self.data_json_rpc = Request('POST',
-                                             url = base_url)
-
+                url = base_url
+                data = None
+                
+        self.data_json_rpc = Request(verb,
+                                     url = url,
+                                     data = data)
+    
     # Used by initialize
     def add_network(
             self,
