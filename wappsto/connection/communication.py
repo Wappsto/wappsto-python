@@ -189,6 +189,7 @@ class ClientSocket:
         Initializes the object instances on the sending/receiving queue.
         """
         self.initialize_code.initialize_all(self, self.instance)
+        self.confirm_initialize_all()
 
     def add_id_to_confirm_list(self, data):
         """
@@ -412,54 +413,7 @@ class ClientSocket:
         """
         self.wapp_log.debug("ReceiveThread Started!")
         while True:
-            try:
-                decoded = self.receive_data()
-                if decoded:
-                    decoded_id = decoded.get('id')
-                    try:
-                        self.wapp_log.debug('Raw received Json: {}'
-                                            .format(decoded))
-                        if decoded.get('method', False) == 'PUT':
-                            self.incoming_control(decoded)
-
-                        elif decoded.get('method', False) == 'GET':
-                            self.incoming_report_request(decoded)
-
-                        elif decoded.get('method', False) == 'DELETE':
-                            self.incoming_delete_request(decoded)
-
-                        elif decoded.get('error', False):
-                            decoded_error = decoded.get('error')
-                            msg = "Error: {}".format(decoded_error.get('message'))
-                            self.wapp_log.error(msg)
-                            self.remove_id_from_confirm_list(decoded_id)
-
-                        elif decoded.get('result', False):
-                            self.remove_id_from_confirm_list(decoded_id)
-
-                        else:
-                            self.wapp_log.info("Unhandled method")
-                            error_str = 'Unknown method'
-                            self.send_error(error_str, decoded_id)
-
-                    except ValueError:
-                        error_str = 'Value error'
-                        self.wapp_log.error("{} [{}]: {}".format(error_str, decoded_id, decoded))
-                        self.send_error(error_str, decoded_id)
-
-            except JSONDecodeError:
-                self.wapp_log.error("Json error: {}".format(decoded))
-                ## TODO send json rpc error, parse error
-
-            except ConnectionResetError as e:
-                msg = "Received Reset: {}".format(e)
-                self.wapp_log.error(msg, exc_info=True)
-                self.reconnect()
-
-            except OSError as oe:
-                msg = "Received OS Error: {}".format(oe)
-                self.wapp_log.error(msg, exc_info=True)
-                self.reconnect()
+            self.receive_message()
 
     def reconnect(self):
         """
@@ -743,38 +697,59 @@ class ClientSocket:
             self.my_raw_socket.close()
             self.my_raw_socket = None
 
-    def init_ok(self):
-        """
-        Return an ok from connecting.
+    def confirm_initialize_all(self):
+        while len(self.packet_awaiting_confirm) > 0:
+            self.receive_message()
 
-        Return a message to signify that the connection was started
-        successfully.
+    def receive_message(self):
+        try:
+            decoded = self.receive_data()
+            self.receive(decoded)
+            
+        except JSONDecodeError:
+            self.wapp_log.error("Json error: {}".format(decoded))
+            ## TODO send json rpc error, parse error
 
-        Returns:
-            A positive response.
+        except ConnectionResetError as e:
+            msg = "Received Reset: {}".format(e)
+            self.wapp_log.error(msg, exc_info=True)
+            self.reconnect()
 
-        """
-        decoded = self.receive_data()
+        except OSError as oe:
+            msg = "Received OS Error: {}".format(oe)
+            self.wapp_log.error(msg, exc_info=True)
+            self.reconnect()
 
-        self.wapp_log.debug("Received after assembly: {}".format(decoded))
+    def receive(self, decoded):
+        if decoded:
+            decoded_id = decoded.get('id')
+            try:
+                self.wapp_log.debug('Raw received Json: {}'
+                                    .format(decoded))
+                if decoded.get('method', False) == 'PUT':
+                    self.incoming_control(decoded)
 
-        if decoded is None:
-            self.wapp_log.info("Server disconnected")
-            return False
+                elif decoded.get('method', False) == 'GET':
+                    self.incoming_report_request(decoded)
 
-        if decoded.get('result', False):
-            decoded_result = decoded.get('result')
-            self.wapp_log.debug('Init result {}'.format(decoded_result))
-            return True
+                elif decoded.get('method', False) == 'DELETE':
+                    self.incoming_delete_request(decoded)
 
-        elif decoded.get('error'):
-            type = decoded.get('error').get('message')
-            msg = decoded.get('error').get('data').get('message')
-            message = "{}: {}".format(type, msg)
-            self.wapp_log.error(message, exc_info=False)
-            raise Exception("Init failed: {}".format(message))
-            return False
+                elif decoded.get('error', False):
+                    decoded_error = decoded.get('error')
+                    msg = "Error: {}".format(decoded_error.get('message'))
+                    self.wapp_log.error(msg)
+                    self.remove_id_from_confirm_list(decoded_id)
 
-        else:
-            self.wapp_log.error(decoded, exc_info=True)
-            return False
+                elif decoded.get('result', False):
+                    self.remove_id_from_confirm_list(decoded_id)
+
+                else:
+                    self.wapp_log.info("Unhandled method")
+                    error_str = 'Unknown method'
+                    self.send_error(error_str, decoded_id)
+
+            except ValueError:
+                error_str = 'Value error'
+                self.wapp_log.error("{} [{}]: {}".format(error_str, decoded_id, decoded))
+                self.send_error(error_str, decoded_id)

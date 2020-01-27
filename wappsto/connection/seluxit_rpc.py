@@ -838,7 +838,8 @@ class SeluxitRpc:
         """
         json_data = self.get_rpc_network(network_id, network_name, put=False)
         self.send_init_json(connection, json_data)
-        self.connection_ok(self, connection, "Error in add network")
+        
+        connection.add_id_to_confirm_list(json_data)
 
     def add_device(
             self,
@@ -889,7 +890,8 @@ class SeluxitRpc:
             put=False
         )
         self.send_init_json(connection, json_data)
-        self.connection_ok(self, connection, "Error in add device")
+        
+        connection.add_id_to_confirm_list(json_data)
 
     def send_init_json(self, connection, json_data):
         """Send initial JSON data.
@@ -955,8 +957,9 @@ class SeluxitRpc:
         )
 
         self.send_init_json(connection, json_data)
-        self.connection_ok(self, connection, "Error in value string")
-
+        
+        connection.add_id_to_confirm_list(json_data)
+        
     def add_value_number(
             self,
             connection,
@@ -1011,8 +1014,9 @@ class SeluxitRpc:
         )
 
         self.send_init_json(connection, json_data)
-        self.connection_ok(self, connection, "Error in value number")
-
+        
+        connection.add_id_to_confirm_list(json_data)
+        
     def add_value_blob(
             self,
             connection,
@@ -1061,7 +1065,8 @@ class SeluxitRpc:
         )
 
         self.send_init_json(connection, json_data)
-        self.connection_ok(self, connection, "Error in value blob")
+        
+        connection.add_id_to_confirm_list(json_data)
 
     def add_value_set(
             self,
@@ -1145,7 +1150,8 @@ class SeluxitRpc:
         )
 
         self.send_init_json(connection, json_data)
-        self.connection_ok(self, connection, "Error in state report")
+        
+        connection.add_id_to_confirm_list(json_data)
 
     def add_state_control(
             self,
@@ -1181,4 +1187,5 @@ class SeluxitRpc:
         )
 
         self.send_init_json(connection, json_data)
-        self.connection_ok(self, connection, "Error in state control")
+        
+        connection.add_id_to_confirm_list(json_data)
