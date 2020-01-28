@@ -213,7 +213,7 @@ class Handlers:
                             current_value,
                             control_value_id=random_id
                         )
-                        #value.last_update_of_report = value.get_now()
+                        # value.last_update_of_report = value.get_now()
                         value.handle_refresh()
                         return True
 
@@ -241,23 +241,26 @@ class Handlers:
                 try:
                     return device.handle_delete()
                 except AttributeError:
-                    self.wapp_log.warning("Unhandled device delete for {}".format(id))
+                    self.wapp_log.warning("Unhandled device delete for {}"
+                                          .format(id))
                     return False
             for value in device.value_list:
                 if value.uuid == id:
                     try:
                         return value.handle_delete()
                     except AttributeError:
-                        self.wapp_log.warning("Unhandled value delete for {}".format(id))
+                        self.wapp_log.warning("Unhandled value delete for {}"
+                                              .format(id))
                         return False
                 for state in value.state_list:
                     if state.uuid == id:
                         try:
                             return state.handle_delete()
                         except AttributeError:
-                            self.wapp_log.warning("Unhandled state delete for {}".format(id))
+                            self.wapp_log.warning("Unhandled state " +
+                                                  "delete for {}"
+                                                  .format(id))
                             return False
-
 
         self.wapp_log.warning("Unhandled delete {}".format(id))
         return False

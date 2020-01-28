@@ -37,7 +37,8 @@ class ClientSocket:
     between the client and the server.
     """
 
-    def __init__(self, rpc, instance, address, port, path_to_calling_file, wappsto_status):
+    def __init__(self, rpc, instance, address, port, path_to_calling_file,
+                 wappsto_status):
         """
         Create a client socket.
 
@@ -347,7 +348,7 @@ class ClientSocket:
             trace_id = data.get('params').get('meta').get('trace')
             if trace_id:
                 self.wapp_log.debug("Report GET found trace id: {}"
-                                   .format(trace_id))
+                                    .format(trace_id))
         except AttributeError:
             trace_id = None
 
@@ -365,8 +366,8 @@ class ClientSocket:
         """
         Incoming delete handler.
 
-        Sends the event from incoming delete messages to the appropriate handler
-        method.
+        Sends the event from incoming delete messages to the
+        appropriate handler method.
 
         Args:
             data: JSON communication message data.
@@ -430,7 +431,8 @@ class ClientSocket:
 
                         elif decoded.get('error', False):
                             decoded_error = decoded.get('error')
-                            msg = "Error: {}".format(decoded_error.get('message'))
+                            msg = "Error: {}".format(decoded_error
+                                                     .get('message'))
                             self.wapp_log.error(msg)
                             self.remove_id_from_confirm_list(decoded_id)
 
@@ -444,12 +446,14 @@ class ClientSocket:
 
                     except ValueError:
                         error_str = 'Value error'
-                        self.wapp_log.error("{} [{}]: {}".format(error_str, decoded_id, decoded))
+                        self.wapp_log.error("{} [{}]: {}".format(error_str,
+                                                                 decoded_id,
+                                                                 decoded))
                         self.send_error(error_str, decoded_id)
 
             except JSONDecodeError:
                 self.wapp_log.error("Json error: {}".format(decoded))
-                ## TODO send json rpc error, parse error
+                # TODO send json rpc error, parse error
 
             except ConnectionResetError as e:
                 msg = "Received Reset: {}".format(e)

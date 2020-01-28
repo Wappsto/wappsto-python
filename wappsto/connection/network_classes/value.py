@@ -189,9 +189,10 @@ class Value:
         self.report_state = state
         self.state_list.append(state)
         msg = "Report state {} has been added.".format(state)
-        #self.reporting_thread = threading.Thread(target=self.__send_report_thread)
-        #self.reporting_thread.setDaemon(True)
-        #self.reporting_thread.start()
+        # self.reporting_thread = threading.Thread(target=
+        #                                           self.__send_report_thread)
+        # self.reporting_thread.setDaemon(True)
+        # self.reporting_thread.start()
         self.wapp_log.debug(msg)
 
     def add_control_state(self, state):
@@ -291,7 +292,8 @@ class Value:
         value = self.last_controlled
         if state is not None:
             while True:
-                if self.last_controlled is not None and self.__is_number_type():
+                if (self.last_controlled is not None and
+                        self.__is_number_type()):
                     value_check = self.last_controlled
                     if value != value_check:
                         self.difference = fabs(int(value) - int(value_check))
@@ -376,7 +378,9 @@ class Value:
                     self.wapp_log.error(msg)
                     return False
             except ValueError:
-                msg = "Invalid type of value. Must be a number: {}".format(data_value)
+                msg = "Invalid type of value. Must be a number: {}".format(
+                    data_value
+                )
                 self.wapp_log.error(msg)
                 return False
         elif self.__is_string_type():
@@ -431,7 +435,7 @@ class Value:
 
     def handle_control(self, data_value):
         self.data_value = data_value
-        #self.last_update_of_control = state.timestamp
+        # self.last_update_of_control = state.timestamp
         self.last_controlled = data_value
 
         return self.__call_callback('set')
