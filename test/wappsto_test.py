@@ -15,7 +15,7 @@ PORT = 11006
 TEST_JSON = "test_JSON/b03f246d-63ef-446d-be58-ef1d1e83b338.json"
 TEST_JSON_prettyprint = "test_JSON/b03f246d-63ef-446d-be58-ef1d1e83b338_prettyprint.json"
 
-def correct_conn(*args, **kwargs):
+def check_for_correct_conn(*args, **kwargs):
     if args[0][0] != ADDRESS or args[0][1] != PORT:
         raise wappsto_errors.ServerConnectionException
 
@@ -23,7 +23,7 @@ def fake_connect(self, address, port):
     response = '{"jsonrpc": "2.0", "id": "1", "result": {"value": "True", "meta": {"server_send_time": "2020-01-22T08:22:55.315Z"}}}'
     with patch('wappsto.communication.ssl.SSLContext.wrap_socket') as context:
         context.recv = Mock(return_value = response.encode('utf-8'))
-        context.connect = Mock(side_effect= correct_conn)
+        context.connect = Mock(side_effect = check_for_correct_conn)
         with patch('time.sleep', return_value=None), patch('wappsto.communication.socket.socket'), patch('wappsto.communication.ssl.SSLContext.wrap_socket', return_value=context):
             self.service.start(address=address, port=port)
 
