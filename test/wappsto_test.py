@@ -8,16 +8,22 @@ from unittest.mock import patch
 
 from wappsto.connection import send_data
 from wappsto.object_instantiation import status
+from wappsto.connection.network_classes.errors import wappsto_errors
 
 ADDRESS = "wappsto.com"
 PORT = 11006
 TEST_JSON = "test_JSON/b03f246d-63ef-446d-be58-ef1d1e83b338.json"
 TEST_JSON_prettyprint = "test_JSON/b03f246d-63ef-446d-be58-ef1d1e83b338_prettyprint.json"
 
+def correct_conn(*args, **kwargs):
+    if args[0][0] != ADDRESS or args[0][1] != PORT:
+        raise wappsto_errors.ServerConnectionException
+
 def fake_connect(self, address, port):
     response = '{"jsonrpc": "2.0", "id": "1", "result": {"value": "True", "meta": {"server_send_time": "2020-01-22T08:22:55.315Z"}}}'
     with patch('wappsto.communication.ssl.SSLContext.wrap_socket') as context:
-        context.recv = Mock(return_value= response.encode('utf-8'))
+        context.recv = Mock(return_value = response.encode('utf-8'))
+        context.connect = Mock(side_effect= correct_conn)
         with patch('time.sleep', return_value=None), patch('wappsto.communication.socket.socket'), patch('wappsto.communication.ssl.SSLContext.wrap_socket', return_value=context):
             self.service.start(address=address, port=port)
 
@@ -45,13 +51,16 @@ class TestConnClass:
         self.service.RETRY_LIMIT = 1
     
     @pytest.mark.parametrize("address,port,expected_status", [(ADDRESS,PORT,status.RUNNING),
-                                                     (ADDRESS,-1,status.RUNNING),
-                                                     ("wappstoFail.com",PORT,status.RUNNING)])
+                                                     (ADDRESS,-1,status.DISCONNECTING),
+                                                     ("wappstoFail.com",PORT,status.DISCONNECTING)])
     def test_connection(self,address,port,expected_status):
         #Arrange
         
         #Act
-        fake_connect(self, address, port)
+        try:
+            fake_connect(self, address, port)
+        except wappsto_errors.ServerConnectionException:
+            pass
         
         #Assert
         assert self.service.status.get_status() == expected_status
@@ -122,8 +131,7 @@ class TestReceiveThreadClass:
         #Arrange
         response = '{"jsonrpc": "2.0", "id": "'+ str(id) +'", "params": {"url": "/network/b03f246d-63ef-446d-be58-ef1d1e83b338/device/a0e087c1-9678-491c-ac47-5b065dea3ac0/value/7ce2afdd-3be3-4945-862e-c73a800eb209/state/a7b4f66b-2558-4559-9fcc-c60768083164", "data": {"meta": {"id": "a7b4f66b-2558-4559-9fcc-c60768083164", "type": "state", "version": "2.0"}, "type": "Report", "status": "Send", "data": "93", "timestamp": "2020-01-22T08:22:57.216500Z"}}, "method": "'+verb+'"}'
         self.service.socket.my_socket.recv = Mock(return_value= response.encode('utf-8'))
-        self.service.socket.sending_queue.put = Mock()
-        self.service.socket.sending_queue.put.side_effect = Exception
+        self.service.socket.sending_queue.put = Mock(side_effect = Exception)
         
         #Act
         try:
@@ -152,8 +160,7 @@ class TestReceiveThreadClass:
         #Arrange
         response = '{"jsonrpc": "2.0", "id": "'+ str(id) +'", "'+type+'": {"value": "True", "meta": {"server_send_time": "2020-01-22T08:22:55.315Z"}}}'
         self.service.socket.my_socket.recv = Mock(return_value= response.encode('utf-8'))
-        self.service.socket.remove_id_from_confirm_list = Mock()
-        self.service.socket.remove_id_from_confirm_list.side_effect = Exception
+        self.service.socket.remove_id_from_confirm_list = Mock(side_effect = Exception)
         
         #Act
         try:
@@ -198,8 +205,7 @@ class TestSendThreadClass:
             rpc_id=id
         )
         self.service.socket.sending_queue.put(reply)
-        self.service.socket.my_socket.send = Mock()
-        self.service.socket.my_socket.send.side_effect = Exception
+        self.service.socket.my_socket.send = Mock(side_effect = Exception)
         
         #Act
         try:
