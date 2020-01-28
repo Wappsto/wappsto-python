@@ -715,22 +715,16 @@ class SeluxitRpc:
         if put:
             if get:
                 verb = 'GET'
-                if state == 'state':
-                    url = "{}{}/{}/{}".format(base_url,value_id,state,state_id)
-                else:
-                    url = "{}{}".format(base_url,value_id)
-
-                if trace_id:
-                    url = "{}?trace={}".format(url,trace_id)
             else:
                 verb = 'PUT'
-                if state == 'state':
-                    url = "{}{}/{}/{}".format(base_url,value_id,state,state_id)
-                else:
-                    url = "{}{}".format(base_url,value_id)
-                    
-                if trace_id:
-                    url = "{}?trace={}".format(url,trace_id)
+                
+            if state == 'state':
+                url = "{}{}/{}/{}".format(base_url,value_id,state,state_id)
+            else:
+                url = "{}{}".format(base_url,value_id)
+            
+            if trace_id:
+                url = "{}?trace={}".format(url,trace_id)
         else:
             verb = 'POST'
             if state == 'state':
