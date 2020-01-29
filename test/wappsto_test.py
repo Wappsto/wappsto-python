@@ -27,6 +27,53 @@ def fake_connect(self, address, port):
         with patch('time.sleep', return_value=None), patch('wappsto.communication.socket.socket'), patch('wappsto.communication.ssl.SSLContext.wrap_socket', return_value=context):
             self.service.start(address=address, port=port)
 
+def get_send_thread_values(self, type, args, id):
+    results = []
+    if type == 1:
+        results.append(TestResult(args['id'], id))
+        results.append(TestResult(bool(args['result']), True))
+    elif type == 2:
+        results.append(TestResult(args['id'], id))
+        results.append(TestResult(args['error'], json.loads('{"code": -32020, "message": null}')))
+    elif type == 3:
+        results.append(TestResult(args['params']['data']['type'], "Report"))
+        results.append(TestResult(args['method'], "PUT"))
+    elif type == 4:
+        results.append(TestResult(args['params']['data']['meta']['type'], "network"))
+        results.append(TestResult(args['method'], "POST"))
+    elif type == 5:
+        results.append(TestResult(args['params']['data']['type'], "Control"))
+        results.append(TestResult(args['method'], "PUT"))
+    return results
+
+def fix_object(self, callback_exists, testing_object):
+    if callback_exists:
+        test_callback = Mock(return_value=True)
+        testing_object.set_callback(test_callback)
+    else:
+        testing_object.callback = None
+    return testing_object
+
+def create_response(self, verb, callback_exists):
+    if verb == "DELETE":
+        network = self.service.get_network()
+        network = fix_object(self, callback_exists, network)
+        response = '{"jsonrpc": "2.0", "id": "1", "params": {"url": "' + str(network.uuid) + '"}, "method": "DELETE"}'
+    elif verb == "PUT":
+        value = self.service.instance.device_list[0].value_list[0]
+        value = fix_object(self, callback_exists, value)
+        response = '{"jsonrpc": "2.0", "id": "1", "params": {"data": {"meta": {"id": "'+str(value.control_state.uuid)+'"}, "data": "93"}}, "method": "PUT"}'
+    elif verb == "GET":
+        value = self.service.instance.device_list[0].value_list[0]
+        value = fix_object(self, callback_exists, value)
+        response = '{"jsonrpc": "2.0", "id": "1", "params": {"url": "' + str(value.report_state.uuid) + '"}, "method": "GET"}'
+    else:
+        response = '{"jsonrpc": "2.0", "id": "1", "params": {"url": "/network/b03f246d-63ef-446d-be58-ef1d1e83b338/device/a0e087c1-9678-491c-ac47-5b065dea3ac0/value/7ce2afdd-3be3-4945-862e-c73a800eb209/state/a7b4f66b-2558-4559-9fcc-c60768083164", "data": {"meta": {"id": "a7b4f66b-2558-4559-9fcc-c60768083164", "type": "state", "version": "2.0"}, "type": "Report", "status": "Send", "data": "93", "timestamp": "2020-01-22T08:22:57.216500Z"}}, "method": "??????"}'
+    
+    return response
+
+#################################### TESTS ####################################
+
 class TestJsonLoadClass:
     def setup_method(self):
         self.test_json_prettyprint_location = os.path.join(os.path.dirname(__file__), TEST_JSON_prettyprint)
@@ -50,11 +97,16 @@ class TestConnClass:
         self.service = wappsto.Wappsto(json_file_name=test_json_location)
         self.service.RETRY_LIMIT = 1
     
-    @pytest.mark.parametrize("address,port,expected_status", [(ADDRESS,PORT,status.RUNNING),
-                                                     (ADDRESS,-1,status.DISCONNECTING),
-                                                     ("wappstoFail.com",PORT,status.DISCONNECTING)])
-    def test_connection(self,address,port,expected_status):
+    @pytest.mark.parametrize("address,port,callback_exists,expected_status", [(ADDRESS,PORT,True,status.RUNNING),
+                                                     (ADDRESS,-1,True,status.DISCONNECTING),
+                                                     ("wappstoFail.com",PORT,True,status.DISCONNECTING),
+                                                     (ADDRESS,PORT,False,status.RUNNING),
+                                                     (ADDRESS,-1,False,status.DISCONNECTING),
+                                                     ("wappstoFail.com",PORT,False,status.DISCONNECTING)])
+    def test_connection(self,address,port,callback_exists,expected_status):
         #Arrange
+        status_service = self.service.get_status()
+        fix_object(self, callback_exists, status_service)
         
         #Act
         try:
@@ -123,13 +175,18 @@ class TestReceiveThreadClass:
         self.recv_reset = self.service.socket.my_socket.recv
         self.put_reset = self.service.socket.sending_queue.put
         
-    @pytest.mark.parametrize("id,verb", [(93043873,'PUT'),
-                                         (93043873,'GET'),
-                                         (93043873,'DELETE'),
-                                         (93043873,"test_wrong_verb")])
-    def test_receive_thread_method(self,id,verb):
+    @pytest.mark.parametrize("id,verb,callback_exists,expected", [(1,'PUT',True, send_data.SEND_SUCCESS),
+                                                                  (1,'PUT',False, send_data.SEND_FAILED),
+                                                                  (1,'DELETE',True, send_data.SEND_SUCCESS),
+                                                                  (1,'DELETE',False, send_data.SEND_SUCCESS),
+                                                                  (1,'GET',True, send_data.SEND_SUCCESS),
+                                                                  (1,'GET',False, send_data.SEND_SUCCESS),
+                                                                  (1,'wrong_verb',False, send_data.SEND_FAILED),
+                                                                  (1,'wrong_verb',True, send_data.SEND_FAILED)])
+    def test_receive_thread_method(self,id,verb,callback_exists,expected):
         #Arrange
-        response = '{"jsonrpc": "2.0", "id": "'+ str(id) +'", "params": {"url": "/network/b03f246d-63ef-446d-be58-ef1d1e83b338/device/a0e087c1-9678-491c-ac47-5b065dea3ac0/value/7ce2afdd-3be3-4945-862e-c73a800eb209/state/a7b4f66b-2558-4559-9fcc-c60768083164", "data": {"meta": {"id": "a7b4f66b-2558-4559-9fcc-c60768083164", "type": "state", "version": "2.0"}, "type": "Report", "status": "Send", "data": "93", "timestamp": "2020-01-22T08:22:57.216500Z"}}, "method": "'+verb+'"}'
+        
+        response = create_response(self, verb, callback_exists)
         self.service.socket.my_socket.recv = Mock(return_value= response.encode('utf-8'))
         self.service.socket.sending_queue.put = Mock(side_effect = Exception)
         
@@ -142,6 +199,7 @@ class TestReceiveThreadClass:
         
         #Assert
         assert int(args[0].rpc_id) == id
+        assert args[0].msg_id == expected
 
     def teardown_method(self, test_receive_thread_method):
         self.service.socket.my_socket.recv = self.recv_reset
@@ -217,36 +275,16 @@ class TestSendThreadClass:
         args = json.loads(args[0].decode('utf-8'))
         
         #Assert
-        for result in self.get_send_thread_values(type, args, id):
+        for result in get_send_thread_values(self, type, args, id):
             assert result.received == result.expected
     
     def teardown_method(self):
         self.service.socket.my_socket.send = self.send_reset
     
-    def get_send_thread_values(self, type, args, id):
-        results = []
-        if type == 1:
-            results.append(TestResult(args['id'], id))
-            results.append(TestResult(bool(args['result']), True))
-        elif type == 2:
-            results.append(TestResult(args['id'], id))
-            results.append(TestResult(args['error'], json.loads('{"code": -32020, "message": null}')))
-        elif type == 3:
-            results.append(TestResult(args['params']['data']['type'], "Report"))
-            results.append(TestResult(args['method'], "PUT"))
-        elif type == 4:
-            results.append(TestResult(args['params']['data']['meta']['type'], "network"))
-            results.append(TestResult(args['method'], "POST"))
-        elif type == 5:
-            results.append(TestResult(args['params']['data']['type'], "Control"))
-            results.append(TestResult(args['method'], "PUT"))
-        return results
-    
     @classmethod
     def teardown_class(self):
         self.service.stop()
-    
-    
+
 class TestResult:
     def __init__(self, received, expected):
         self.received = received
