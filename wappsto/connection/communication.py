@@ -52,6 +52,8 @@ class ClientSocket:
             instance: Instance of network, devices, values and states.
             address: Server address.
             port: Server port.
+            path_to_calling_file: path to OS directory of calling file.
+            wappsto_status: status object.
 
         """
         self.wapp_log = logging.getLogger(__name__)

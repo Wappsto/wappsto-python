@@ -292,8 +292,8 @@ class Value:
         value = self.last_controlled
         if state is not None:
             while True:
-                if (self.last_controlled is not None and
-                        self.__is_number_type()):
+                if (self.last_controlled is not None
+                        and self.__is_number_type()):
                     value_check = self.last_controlled
                     if value != value_check:
                         self.difference = fabs(int(value) - int(value_check))
@@ -409,6 +409,20 @@ class Value:
             return False
 
     def update(self, data_value, timestamp=None):
+        """
+        Update value.
+
+        Check if value has a state and validates the information in data_value
+        if both of these checks pass then method __send_logic is called.
+
+        Args:
+            data_value: the new value.
+            timestamp: time of action.
+
+        Returns:
+            True/False indicating the result of operation.
+
+        """
         state = self.get_report_state()
         if state is None:
             self.wapp_log.error("Value is write only.")
@@ -431,9 +445,31 @@ class Value:
         return False
 
     def handle_refresh(self):
+        """
+        Handles the refresh request.
+
+        Calls __call_callback method with input of 'refresh'
+
+        Returns:
+            results of __call_callback
+
+        """
         return self.__call_callback('refresh')
 
     def handle_control(self, data_value):
+        """
+        Handles the control request.
+
+        Sets data_value and last_controlled values of this Value object, with
+        value provided and calls __call_callback method with input of 'set'.
+
+        Args:
+            data_value: the new value.
+
+        Returns:
+            results of __call_callback
+
+        """
         self.data_value = data_value
         # self.last_update_of_control = state.timestamp
         self.last_controlled = data_value

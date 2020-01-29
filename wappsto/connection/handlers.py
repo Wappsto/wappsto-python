@@ -221,6 +221,22 @@ class Handlers:
         return False
 
     def handle_incoming_delete(self, id, sending_queue, trace_id):
+        """
+        Handle incoming request to delete.
+
+        Deals with requests to delete network/device/value/state, depending on
+        the information provided in arguments.
+
+        Args:
+            id: ID of element to perform delete action to.
+            sending_queue: Reference to queue where alements to be sent are
+            saved.
+            trace_id: ID used for tracing the performed actions.
+
+        Returns:
+            True or False, depending on the result received during execution.
+
+        """
         random_id = None
         if trace_id:
             random_id = self.__get_random_id()
@@ -257,9 +273,8 @@ class Handlers:
                         try:
                             return state.handle_delete()
                         except AttributeError:
-                            self.wapp_log.warning("Unhandled state " +
-                                                  "delete for {}"
-                                                  .format(id))
+                            msg = "Unhandled state delete for {}".format(id)
+                            self.wapp_log.warning(msg)
                             return False
 
         self.wapp_log.warning("Unhandled delete {}".format(id))

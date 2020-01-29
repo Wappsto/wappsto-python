@@ -62,6 +62,15 @@ class Network:
             raise
 
     def handle_delete(self):
+        """
+        Handle delete.
+
+        Calls the __call_callback method with initial input of "remove".
+
+        Returns:
+            result of __call_callback method.
+
+        """
         return self.__call_callback('remove')
 
     def __callback_not_set(self, network, event):

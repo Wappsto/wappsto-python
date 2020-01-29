@@ -18,7 +18,6 @@ JSONRPC = "2.0"
 
 
 class SeluxitRpc:
-
     """
     Check connection status.
 
@@ -40,6 +39,7 @@ class SeluxitRpc:
         occured.
 
         Args:
+            self: reference to calling object.
             connection: Reference to the connection socket.
             error_msg: Error message to display.
 
@@ -87,7 +87,8 @@ class SeluxitRpc:
 
     @staticmethod
     def get_rpc_fail_response(message_id, text):
-        """Get fail response.
+        """
+        Get fail response.
 
         Returns a fail, JSON formatted, encoded in utf-8 response with a error
         message.
@@ -100,7 +101,6 @@ class SeluxitRpc:
             JSON formatted data.
 
         """
-
         error_description = {'message': text, 'code': -32020, 'data': ''}
         error_response = str(ErrorResponse(jsonrpc=JSONRPC, id=message_id,
                                            error=error_description))
@@ -714,7 +714,7 @@ class SeluxitRpc:
 
         Args:
             device_id: Unique identifying number of device.
-            natwork_id: Unique identifying number of network.
+            network_id: Unique identifying number of network.
             value_id: Unique identifying number of value.
             data: Passed data around which a message will be created.
             put: Determines whether or not it is put request.
@@ -865,7 +865,7 @@ class SeluxitRpc:
             name: Name of the value.
             specific_type: The type of value.
             permission: Permission of a value.
-            max_val: Maximum of a value's string.
+            max_val_len: Maximum of a value's string.
             encoding: Value's encoding.
             period: Time after which a value should send report.
             delta: Difference between val1 and val2 over time to check for.
