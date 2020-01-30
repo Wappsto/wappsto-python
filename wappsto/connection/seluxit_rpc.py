@@ -675,7 +675,6 @@ class SeluxitRpc:
                 url = "{}{}/{}".format(base_url, value_id, state)
             else:
                 url = base_url
-                data = None
 
         self.data_json_rpc = Request(verb,
                                      url=url,

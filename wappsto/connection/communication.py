@@ -411,8 +411,7 @@ class ClientSocket:
         """
         Create the receive thread.
 
-        Starts a socket to receive data and decode it. Based on the type of
-        request, directs the decoded data to the appropriate methods.
+        Starts a while True loop checking if something is received.
         """
         self.wapp_log.debug("ReceiveThread Started!")
         while True:
@@ -701,17 +700,29 @@ class ClientSocket:
             self.my_raw_socket = None
 
     def confirm_initialize_all(self):
+        """
+        Confirms that all responses are received.
+
+        Goes through the list saving expected responses and checks if they are
+        received.
+        """
         while len(self.packet_awaiting_confirm) > 0:
             self.receive_message()
 
     def receive_message(self):
+        """
+        Receives message.
+
+        Receives message and passes it to receive method, and catches
+        encountered exceptions.
+        """
         try:
             decoded = self.receive_data()
             self.receive(decoded)
-            
+
         except JSONDecodeError:
             self.wapp_log.error("Json error: {}".format(decoded))
-            ## TODO send json rpc error, parse error
+            # TODO send json rpc error, parse error
 
         except ConnectionResetError as e:
             msg = "Received Reset: {}".format(e)
@@ -724,6 +735,15 @@ class ClientSocket:
             self.reconnect()
 
     def receive(self, decoded):
+        """
+        Performs acction on received message.
+
+        Based on the type of message, directs the decoded data to the
+        appropriate methods.
+
+        Args:
+            decoded: the received message
+        """
         if decoded:
             decoded_id = decoded.get('id')
             try:
@@ -754,5 +774,7 @@ class ClientSocket:
 
             except ValueError:
                 error_str = 'Value error'
-                self.wapp_log.error("{} [{}]: {}".format(error_str, decoded_id, decoded))
+                self.wapp_log.error("{} [{}]: {}".format(error_str,
+                                                         decoded_id,
+                                                         decoded))
                 self.send_error(error_str, decoded_id)
