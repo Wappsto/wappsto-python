@@ -37,7 +37,8 @@ class ClientSocket:
     between the client and the server.
     """
 
-    def __init__(self, rpc, instance, address, port, path_to_calling_file, wappsto_status):
+    def __init__(self, rpc, instance, address, port, path_to_calling_file,
+                 wappsto_status):
         """
         Create a client socket.
 
@@ -51,6 +52,8 @@ class ClientSocket:
             instance: Instance of network, devices, values and states.
             address: Server address.
             port: Server port.
+            path_to_calling_file: path to OS directory of calling file.
+            wappsto_status: status object.
 
         """
         self.wapp_log = logging.getLogger(__name__)
@@ -348,7 +351,7 @@ class ClientSocket:
             trace_id = data.get('params').get('meta').get('trace')
             if trace_id:
                 self.wapp_log.debug("Report GET found trace id: {}"
-                                   .format(trace_id))
+                                    .format(trace_id))
         except AttributeError:
             trace_id = None
 
@@ -366,8 +369,8 @@ class ClientSocket:
         """
         Incoming delete handler.
 
-        Sends the event from incoming delete messages to the appropriate handler
-        method.
+        Sends the event from incoming delete messages to the
+        appropriate handler method.
 
         Args:
             data: JSON communication message data.
@@ -413,7 +416,61 @@ class ClientSocket:
         """
         self.wapp_log.debug("ReceiveThread Started!")
         while True:
+<<<<<<< HEAD
             self.receive_message()
+=======
+            try:
+                decoded = self.receive_data()
+                if decoded:
+                    decoded_id = decoded.get('id')
+                    try:
+                        self.wapp_log.debug('Raw received Json: {}'
+                                            .format(decoded))
+                        if decoded.get('method', False) == 'PUT':
+                            self.incoming_control(decoded)
+
+                        elif decoded.get('method', False) == 'GET':
+                            self.incoming_report_request(decoded)
+
+                        elif decoded.get('method', False) == 'DELETE':
+                            self.incoming_delete_request(decoded)
+
+                        elif decoded.get('error', False):
+                            decoded_error = decoded.get('error')
+                            msg = "Error: {}".format(decoded_error
+                                                     .get('message'))
+                            self.wapp_log.error(msg)
+                            self.remove_id_from_confirm_list(decoded_id)
+
+                        elif decoded.get('result', False):
+                            self.remove_id_from_confirm_list(decoded_id)
+
+                        else:
+                            self.wapp_log.info("Unhandled method")
+                            error_str = 'Unknown method'
+                            self.send_error(error_str, decoded_id)
+
+                    except ValueError:
+                        error_str = 'Value error'
+                        self.wapp_log.error("{} [{}]: {}".format(error_str,
+                                                                 decoded_id,
+                                                                 decoded))
+                        self.send_error(error_str, decoded_id)
+
+            except JSONDecodeError:
+                self.wapp_log.error("Json error: {}".format(decoded))
+                # TODO send json rpc error, parse error
+
+            except ConnectionResetError as e:
+                msg = "Received Reset: {}".format(e)
+                self.wapp_log.error(msg, exc_info=True)
+                self.reconnect()
+
+            except OSError as oe:
+                msg = "Received OS Error: {}".format(oe)
+                self.wapp_log.error(msg, exc_info=True)
+                self.reconnect()
+>>>>>>> master
 
     def reconnect(self):
         """
