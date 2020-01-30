@@ -172,7 +172,7 @@ class Wappsto:
             self.stop(False)
             raise device_not_found
 
-    def start(self, address="wappsto.com", port=21005):
+    def start(self, address="wappsto.com", port=11006):
         """
         Start the server connection.
 
@@ -180,8 +180,8 @@ class Wappsto:
 
         Args:
             address: Address to connect the service to.
-                (default: {"qa.wappsto.com"})
-            port: Port to connect the address to. (default: {31006})
+                (default: {"wappsto.com"})
+            port: Port to connect the address to. (default: {11006})
 
         Raises:
             ServerConnectionException: "Unable to connect to the server.
