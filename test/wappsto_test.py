@@ -151,7 +151,12 @@ class TestValueSendClass:
                                                      (100, 100),
                                                      (0, 0),
                                                      (-1, None),
-                                                     (120, None)])
+                                                     (120, None),
+                                                     (-0.1, None),
+                                                     (0.1, 0),
+                                                     (3.3, 3),
+                                                     (3.0, 3),
+                                                     (3.9, 3)])
     def test_send_value_update(self, test_input, expected):
         # Arrange
         self.service.socket.my_socket.send = Mock()
@@ -163,15 +168,13 @@ class TestValueSendClass:
             value.update(test_input)
             args, kwargs = self.service.socket.my_socket.send.call_args
             arg = json.loads(args[0].decode('utf-8'))
-            result = int(arg['params']['data']['data'])
+            result = float(arg['params']['data']['data'])
 
         except TypeError:
-            # service.socket.my_socket.send was not called (call_args throws
-            # TypeError)
             result = None
 
         # Assert
-        assert result is expected
+        assert result == expected
 
     def teardown_method(self):
         self.service.socket.my_socket.send = self.send_reset
