@@ -16,6 +16,7 @@ from jsonrpcclient.response import ErrorResponse
 
 JSONRPC = "2.0"
 
+
 class SeluxitRpc:
     """
     Check connection status.
@@ -38,6 +39,7 @@ class SeluxitRpc:
         occured.
 
         Args:
+            self: reference to calling object.
             connection: Reference to the connection socket.
             error_msg: Error message to display.
 
@@ -79,12 +81,14 @@ class SeluxitRpc:
             JSON formatted data.
 
         """
-        success_response = str(SuccessResponse(jsonrpc=JSONRPC, id=message_id, result=True))
+        success_response = str(SuccessResponse(jsonrpc=JSONRPC, id=message_id,
+                                               result=True))
         return success_response.encode('utf-8')
 
     @staticmethod
     def get_rpc_fail_response(message_id, text):
-        """Get fail response.
+        """
+        Get fail response.
 
         Returns a fail, JSON formatted, encoded in utf-8 response with a error
         message.
@@ -97,9 +101,9 @@ class SeluxitRpc:
             JSON formatted data.
 
         """
-        
-        error_description = {'message':text,'code':-32020,'data':''}
-        error_response = str(ErrorResponse(jsonrpc=JSONRPC, id=message_id, error=error_description))
+        error_description = {'message': text, 'code': -32020, 'data': ''}
+        error_response = str(ErrorResponse(jsonrpc=JSONRPC, id=message_id,
+                                           error=error_description))
         return error_response.encode('utf-8')
 
     @staticmethod
@@ -160,10 +164,14 @@ class SeluxitRpc:
         }
 
         if put:
-            self.data_json_rpc = Request('PUT', url = '/{}/{}'.format(network, network_id), data = data_inside)
+            self.data_json_rpc = Request('PUT',
+                                         url='/{}/{}'.format(network,
+                                                             network_id),
+                                         data=data_inside)
         else:
-            self.data_json_rpc = Request('POST', url = '/{}'.format(network), data = data_inside)
-        
+            self.data_json_rpc = Request('POST',
+                                         url='/{}'.format(network),
+                                         data=data_inside)
         return json.dumps(self.data_json_rpc).encode('utf-8')
 
     def get_rpc_device(
@@ -233,13 +241,18 @@ class SeluxitRpc:
             device_data['communication'] = communication
 
         if put:
-            self.data_json_rpc = Request('PUT', 
-                                         url = '/network/{}/{}/{}'.format(network_id,device,device_id), 
-                                         data = device_data)
+            self.data_json_rpc = Request('PUT',
+                                         url='/network/{}/{}/{}'.format(
+                                             network_id,
+                                             device,
+                                             device_id),
+                                         data=device_data)
         else:
-            self.data_json_rpc = Request('POST', 
-                                         url = '/network/{}/{}'.format(network_id, device), 
-                                         data = device_data)
+            self.data_json_rpc = Request('POST',
+                                         url='/network/{}/{}'.format(
+                                             network_id,
+                                             device),
+                                         data=device_data)
 
         self.wapp_log.info(self.data_json_rpc)
         return json.dumps(self.data_json_rpc).encode('utf-8')
@@ -602,7 +615,7 @@ class SeluxitRpc:
             set_type = 'Control'
 
         device_state['type'] = set_type
-        
+
         if get is True and put is False:
             self.create_json_message(
                 device_id,
@@ -670,11 +683,11 @@ class SeluxitRpc:
 
         self.send_init_json(connection, json_data)
         self.connection_ok(self, connection, "Error in state control")
-        #!Instead of connection_ok, this should use another function
-        #!that returns the data from the server, so the receiver
-        #!can pass it
+        # !Instead of connection_ok, this should use another function
+        # !that returns the data from the server, so the receiver
+        # !can pass it
         if json_data is not None:
-            #!Send the data from the server, and not the data generated here
+            # !Send the data from the server, and not the data generated here
             return json_data
         else:
             return False
@@ -701,7 +714,7 @@ class SeluxitRpc:
 
         Args:
             device_id: Unique identifying number of device.
-            natwork_id: Unique identifying number of network.
+            network_id: Unique identifying number of network.
             value_id: Unique identifying number of value.
             data: Passed data around which a message will be created.
             put: Determines whether or not it is put request.
@@ -711,32 +724,32 @@ class SeluxitRpc:
             get: Defines if the request is of type GET. (default: {False})
 
         """
-        base_url = '/network/{}/device/{}/value/'.format(network_id,device_id)
+        base_url = '/network/{}/device/{}/value/'.format(network_id, device_id)
         if put:
             if get:
                 verb = 'GET'
             else:
                 verb = 'PUT'
-                
+
             if state == 'state':
-                url = "{}{}/{}/{}".format(base_url,value_id,state,state_id)
+                url = "{}{}/{}/{}".format(base_url, value_id, state, state_id)
             else:
-                url = "{}{}".format(base_url,value_id)
-            
+                url = "{}{}".format(base_url, value_id)
+
             if trace_id:
-                url = "{}?trace={}".format(url,trace_id)
+                url = "{}?trace={}".format(url, trace_id)
         else:
             verb = 'POST'
             if state == 'state':
-                url = "{}{}/{}".format(base_url,value_id,state)
+                url = "{}{}/{}".format(base_url, value_id, state)
             else:
                 url = base_url
                 data = None
-                
+
         self.data_json_rpc = Request(verb,
-                                     url = url,
-                                     data = data)
-    
+                                     url=url,
+                                     data=data)
+
     # Used by initialize
     def add_network(
             self,
@@ -852,7 +865,7 @@ class SeluxitRpc:
             name: Name of the value.
             specific_type: The type of value.
             permission: Permission of a value.
-            max_val: Maximum of a value's string.
+            max_val_len: Maximum of a value's string.
             encoding: Value's encoding.
             period: Time after which a value should send report.
             delta: Difference between val1 and val2 over time to check for.
