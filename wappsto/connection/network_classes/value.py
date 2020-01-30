@@ -381,33 +381,35 @@ class Value:
                         str(data_value)
                     )
                     self.wapp_log.error(msg)
-                    return False
+                    return None
             except ValueError:
                 msg = "Invalid type of value. Must be a number: {}".format(
                     str(data_value)
                 )
                 self.wapp_log.error(msg)
-                return False
+                return None
         elif self.__is_string_type():
-            if self.string_max is None and len(str(data_value)) <= int(self.string_max):
+            if (self.string_max is None
+                    and len(str(data_value)) <= int(self.string_max)):
                 return data_value
             else:
                 msg = ("Value {} not in correct range for {}"
                        .format(data_value, self.name))
                 self.wapp_log.error(msg)
-                return False
+                return None
         elif self.__is_blob_type():
-            if self.blob_max is None and len(str(data_value)) <= int(self.blob_max):
+            if (self.blob_max is None
+                    and len(str(data_value)) <= int(self.blob_max)):
                 return data_value
             else:
                 msg = ("Value {} not in correct range for {}"
                        .format(data_value, self.name))
                 self.wapp_log.error(msg)
-                return False
+                return None
         else:
             msg = ("Value type {} is invalid".format(self.date_type))
             self.wapp_log.error(msg)
-            return False
+            return None
 
     def update(self, data_value, timestamp=None):
         """
