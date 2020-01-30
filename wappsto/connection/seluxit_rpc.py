@@ -31,24 +31,6 @@ class SeluxitRpc:
     """
 
     @staticmethod
-    def connection_ok(self, connection, error_msg):
-        """
-        Check connection status.
-
-        Check the connection status and send an error message if errors have
-        occured.
-
-        Args:
-            self: reference to calling object.
-            connection: Reference to the connection socket.
-            error_msg: Error message to display.
-
-        """
-        if not connection.init_ok():
-            self.wapp_log.error(error_msg, exc_info=False)
-            connection.close()
-
-    @staticmethod
     def create_meta(network, network_id):
         """Create meta.
 
@@ -641,57 +623,6 @@ class SeluxitRpc:
             )
         return json.dumps(self.data_json_rpc).encode('utf-8')
 
-    def get_state_control(
-            self,
-            connection,
-            data,
-            network_id,
-            device_id,
-            value_id,
-            control_id,
-            get=True
-    ):
-        """
-        Retrieve the control state from the server.
-
-        Gets a value's control state information.Uses the generic
-        get_rpc_state() method.
-
-        Args:
-            connection: A reference to the socket instance.
-            data: Data from the value's control state.
-            network_id: Unique identifying number of the network.
-            device_id: Unique identifying number of the device.
-            value_id: Unique identifying number of the value.
-            control_id: The value's control state ID.
-            get: Defines if the request is of type GET. (default: {True})
-
-        Returns:
-            JSON formatted data if any is retrieved, False otherwise.
-
-        """
-        json_data = self.get_rpc_state(
-            data,
-            network_id,
-            device_id,
-            value_id,
-            control_id,
-            "control",
-            get=get,
-            put=False
-        )
-
-        self.send_init_json(connection, json_data)
-        self.connection_ok(self, connection, "Error in state control")
-        # !Instead of connection_ok, this should use another function
-        # !that returns the data from the server, so the receiver
-        # !can pass it
-        if json_data is not None:
-            # !Send the data from the server, and not the data generated here
-            return json_data
-        else:
-            return False
-
     def create_json_message(
             self,
             device_id,
@@ -769,7 +700,7 @@ class SeluxitRpc:
         """
         json_data = self.get_rpc_network(network_id, network_name, put=False)
         self.send_init_json(connection, json_data)
-        self.connection_ok(self, connection, "Error in add network")
+        connection.add_id_to_confirm_list(json_data)
 
     def add_device(
             self,
@@ -820,7 +751,7 @@ class SeluxitRpc:
             put=False
         )
         self.send_init_json(connection, json_data)
-        self.connection_ok(self, connection, "Error in add device")
+        connection.add_id_to_confirm_list(json_data)
 
     def send_init_json(self, connection, json_data):
         """Send initial JSON data.
@@ -886,7 +817,7 @@ class SeluxitRpc:
         )
 
         self.send_init_json(connection, json_data)
-        self.connection_ok(self, connection, "Error in value string")
+        connection.add_id_to_confirm_list(json_data)
 
     def add_value_number(
             self,
@@ -942,7 +873,7 @@ class SeluxitRpc:
         )
 
         self.send_init_json(connection, json_data)
-        self.connection_ok(self, connection, "Error in value number")
+        connection.add_id_to_confirm_list(json_data)
 
     def add_value_blob(
             self,
@@ -992,7 +923,7 @@ class SeluxitRpc:
         )
 
         self.send_init_json(connection, json_data)
-        self.connection_ok(self, connection, "Error in value blob")
+        connection.add_id_to_confirm_list(json_data)
 
     def add_value_set(
             self,
@@ -1040,7 +971,7 @@ class SeluxitRpc:
         )
 
         self.send_init_json(connection, json_data)
-        self.connection_ok(self, connection, "Error in value set")
+        connection.add_id_to_confirm_list(json_data)
 
     def add_state_report(
             self,
@@ -1076,7 +1007,7 @@ class SeluxitRpc:
         )
 
         self.send_init_json(connection, json_data)
-        self.connection_ok(self, connection, "Error in state report")
+        connection.add_id_to_confirm_list(json_data)
 
     def add_state_control(
             self,
@@ -1112,4 +1043,4 @@ class SeluxitRpc:
         )
 
         self.send_init_json(connection, json_data)
-        self.connection_ok(self, connection, "Error in state control")
+        connection.add_id_to_confirm_list(json_data)
