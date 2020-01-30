@@ -42,7 +42,7 @@ class Wappsto:
         Args:
             json_file_name: name of a json file containing all information
                 about a network (default: {None})
-            load_from_state_files: Defines if the data should be loaded from
+            load_from_state_file: Defines if the data should be loaded from
                 saved files (default: {False})
             save_init: Determines whether or not save json data
                 (default: {False})
@@ -92,12 +92,42 @@ class Wappsto:
         return self.status
 
     def get_network(self):
+        """
+        Wappsto network.
+
+        Retrieves the network class instance.
+
+        Returns:
+            A reference to the network object instance.
+
+        """
         return self.instance.network_cl
 
     def get_devices(self):
+        """
+        Wappsto devices.
+
+        Retrieves the devices list containing instances of devices
+
+        Returns:
+            A list of devices.
+
+        """
         return self.instance.device_list
 
     def get_by_id(self, id):
+        """
+        Wappsto get by id.
+
+        Retrieves the instance of a class if its id matches the provided one
+
+        Args:
+            id: unique identifier used for searching
+
+        Returns:
+            A reference to the network/device/value object instance.
+
+        """
         if self.instance.network_cl.uuid == id:
             return self.instance.network_cl
 

@@ -41,5 +41,8 @@ setup(
     tests_require=[
         'pytest',
     ],
+    install_requires=[
+       'jsonrpcclient'
+    ],
     python_requires='>3.4.0',
 )

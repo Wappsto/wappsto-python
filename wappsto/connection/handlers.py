@@ -213,7 +213,7 @@ class Handlers:
                             current_value,
                             control_value_id=random_id
                         )
-                        #value.last_update_of_report = value.get_now()
+                        # value.last_update_of_report = value.get_now()
                         value.handle_refresh()
                         return True
 
@@ -221,6 +221,22 @@ class Handlers:
         return False
 
     def handle_incoming_delete(self, id, sending_queue, trace_id):
+        """
+        Handle incoming request to delete.
+
+        Deals with requests to delete network/device/value/state, depending on
+        the information provided in arguments.
+
+        Args:
+            id: ID of element to perform delete action to.
+            sending_queue: Reference to queue where alements to be sent are
+            saved.
+            trace_id: ID used for tracing the performed actions.
+
+        Returns:
+            True or False, depending on the result received during execution.
+
+        """
         random_id = None
         if trace_id:
             random_id = self.__get_random_id()
@@ -241,23 +257,25 @@ class Handlers:
                 try:
                     return device.handle_delete()
                 except AttributeError:
-                    self.wapp_log.warning("Unhandled device delete for {}".format(id))
+                    self.wapp_log.warning("Unhandled device delete for {}"
+                                          .format(id))
                     return False
             for value in device.value_list:
                 if value.uuid == id:
                     try:
                         return value.handle_delete()
                     except AttributeError:
-                        self.wapp_log.warning("Unhandled value delete for {}".format(id))
+                        self.wapp_log.warning("Unhandled value delete for {}"
+                                              .format(id))
                         return False
                 for state in value.state_list:
                     if state.uuid == id:
                         try:
                             return state.handle_delete()
                         except AttributeError:
-                            self.wapp_log.warning("Unhandled state delete for {}".format(id))
+                            msg = "Unhandled state delete for {}".format(id)
+                            self.wapp_log.warning(msg)
                             return False
-
 
         self.wapp_log.warning("Unhandled delete {}".format(id))
         return False

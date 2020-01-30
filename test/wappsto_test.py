@@ -1,672 +1,291 @@
 #!/usr/bin/env python3
 import os
-import sys
-import time
 import json
 import pytest
-import socket
 import wappsto
-import datetime
 from mock import Mock
-from test import fake_socket
-from test import mock_wappsto_server
-from wappsto.connection.seluxit_rpc import SeluxitRpc
-from wappsto.connection.network_classes.state import State
-from wappsto.connection.network_classes.device import Device
-from wappsto.connection.network_classes.errors.wappsto_errors import ServerConnectionException as ServerConnectionException
-from wappsto.connection.network_classes.errors.wappsto_errors import CallbackNotCallableException as CallbackNotCallableException
-# Bypassing top-level import issues
-from pathlib import Path
-file = Path(__file__).resolve()
-parent, root = file.parent, file.parents[1]
-sys.path.append(str(root))
-try:
-    sys.path.remove(str(parent))
-except ValueError:
-    pass
+from unittest.mock import patch
 
+from wappsto.connection import send_data
+from wappsto.object_instantiation import status
+from wappsto.connection.network_classes.errors import wappsto_errors
 
+ADDRESS = "wappsto.com"
+PORT = 11006
+TEST_JSON = "test_JSON/b03f246d-63ef-446d-be58-ef1d1e83b338.json"
+TEST_JSON_prettyprint = "test_JSON/b03f246d-63ef-446d-be58-ef1d1e83b338_prettyprint.json"
 
+def check_for_correct_conn(*args, **kwargs):
+    if args[0][0] != ADDRESS or args[0][1] != PORT:
+        raise wappsto_errors.ServerConnectionException
 
-def fake_set(self):
-    self.wapp_log.info("Totally SSL wrapped the socket. Totally.")
-    return self.my_raw_socket
+def fake_connect(self, address, port):
+    response = '{"jsonrpc": "2.0", "id": "1", "result": {"value": "True", "meta": {"server_send_time": "2020-01-22T08:22:55.315Z"}}}'
+    with patch('wappsto.communication.ssl.SSLContext.wrap_socket') as context:
+        context.recv = Mock(return_value = response.encode('utf-8'))
+        context.connect = Mock(side_effect = check_for_correct_conn)
+        with patch('time.sleep', return_value=None), patch('wappsto.communication.socket.socket'), patch('wappsto.communication.ssl.SSLContext.wrap_socket', return_value=context):
+            self.service.start(address=address, port=port)
 
+def get_send_thread_values(self, type, args, id):
+    results = []
+    if type == 1:
+        results.append(TestResult(args['id'], id))
+        results.append(TestResult(bool(args['result']), True))
+    elif type == 2:
+        results.append(TestResult(args['id'], id))
+        results.append(TestResult(args['error'], json.loads('{"code": -32020, "message": null}')))
+    elif type == 3:
+        results.append(TestResult(args['params']['data']['type'], "Report"))
+        results.append(TestResult(args['method'], "PUT"))
+    elif type == 4:
+        results.append(TestResult(args['params']['data']['meta']['type'], "network"))
+        results.append(TestResult(args['method'], "POST"))
+    elif type == 5:
+        results.append(TestResult(args['params']['data']['type'], "Control"))
+        results.append(TestResult(args['method'], "PUT"))
+    return results
 
-class TestInstantiation:
+def fix_object(self, callback_exists, testing_object):
+    if callback_exists:
+        test_callback = Mock(return_value=True)
+        testing_object.set_callback(test_callback)
+    else:
+        testing_object.callback = None
+    return testing_object
 
+def create_response(self, verb, callback_exists):
+    if verb == "DELETE":
+        network = self.service.get_network()
+        network = fix_object(self, callback_exists, network)
+        response = '{"jsonrpc": "2.0", "id": "1", "params": {"url": "' + str(network.uuid) + '"}, "method": "DELETE"}'
+    elif verb == "PUT":
+        value = self.service.instance.device_list[0].value_list[0]
+        value = fix_object(self, callback_exists, value)
+        response = '{"jsonrpc": "2.0", "id": "1", "params": {"data": {"meta": {"id": "'+str(value.control_state.uuid)+'"}, "data": "93"}}, "method": "PUT"}'
+    elif verb == "GET":
+        value = self.service.instance.device_list[0].value_list[0]
+        value = fix_object(self, callback_exists, value)
+        response = '{"jsonrpc": "2.0", "id": "1", "params": {"url": "' + str(value.report_state.uuid) + '"}, "method": "GET"}'
+    else:
+        response = '{"jsonrpc": "2.0", "id": "1", "params": {"url": "/network/b03f246d-63ef-446d-be58-ef1d1e83b338/device/a0e087c1-9678-491c-ac47-5b065dea3ac0/value/7ce2afdd-3be3-4945-862e-c73a800eb209/state/a7b4f66b-2558-4559-9fcc-c60768083164", "data": {"meta": {"id": "a7b4f66b-2558-4559-9fcc-c60768083164", "type": "state", "version": "2.0"}, "type": "Report", "status": "Send", "data": "93", "timestamp": "2020-01-22T08:22:57.216500Z"}}, "method": "??????"}'
+    
+    return response
+
+#################################### TESTS ####################################
+
+class TestJsonLoadClass:
     def setup_method(self):
-        self.json_ok_two_devices = os.path.join(
-            os.path.dirname(__file__),
-            'test_JSON/e9ec36e2-0bd5-4fef-8e7b-9c200e93ebce.json'
-        )
-        self.json_incorrect = os.path.join(
-            os.path.dirname(__file__),
-            'test_JSON/e9ec36e2-0bd5-4fef-8e7b-9c200e93ebce_invalid.json'
-        )
+        self.test_json_prettyprint_location = os.path.join(os.path.dirname(__file__), TEST_JSON_prettyprint)
+        self.test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
+    
+    def test_load_prettyprint_json(self):
+        #Arrange
+        with open(self.test_json_location,"r") as json_file:
+            decoded = json.load(json_file)
+        
+        #Act
+        service = wappsto.Wappsto(json_file_name=self.test_json_prettyprint_location)
+        
+        #Assert
+        assert service.instance.decoded == decoded
 
-    def test_instantiation_device_list_passes(self):
-
-        assert len(wappsto.Wappsto(json_file_name=self.json_ok_two_devices).instance.device_list) > 0
-
-    def test_instantiation_device_list_2_devices_passes(self):
-
-        assert len(wappsto.Wappsto(json_file_name=self.json_ok_two_devices).instance.device_list) == 2
-
-    def test_instantiation_parsing_fails(self):
-
-        with pytest.raises(json.decoder.JSONDecodeError):
-            wappsto.Wappsto(json_file_name=self.json_incorrect)
-
-    def test_instantiation_parsing_invalid_JSON_errors(self):
-        with pytest.raises(Exception):
-            wappsto.Wappsto(json_file_name=self.json_incorrect)
-
-    def test_instantiation_parsing_file_not_found_errors(self):
-
-        with pytest.raises(FileNotFoundError):
-            wappsto.Wappsto(json_file_name="blabla")
-
-
-class TestDevice:
-
-    @classmethod
+class TestConnClass:
+    
     def setup_method(self):
-        self.json_ok_two_devices = os.path.join(os.path.dirname(__file__), 'test_JSON/e9ec36e2-0bd5-4fef-8e7b-9c200e93ebce.json')
-        self.json_incorrect = os.path.join(os.path.dirname(__file__), 'test_JSON/e9ec36e2-0bd5-4fef-8e7b-9c200e93ebce_invalid.json')
-        self.wapp = wappsto.Wappsto(json_file_name=self.json_ok_two_devices)
-
-    def test_finding_device_passes(self):
-        device = self.wapp.get_device("test_device_all_fieldsasdasd")
-        assert device is not None
-
-    def test_finding_device_errors(self):
-        self.test_wapp = wappsto.Wappsto(json_file_name=self.json_ok_two_devices)
-        with pytest.raises(Exception):
-            self.test_wapp.get_device("asdfasf")
-
-    def test_set_value_callback_passes(self):
-        device = self.wapp.get_device("test_device_all_fieldsasdasd")
-        value = device.get_value("test_value_with_number")
-        def value_callback(self):
+        test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
+        self.service = wappsto.Wappsto(json_file_name=test_json_location)
+        self.service.RETRY_LIMIT = 1
+    
+    @pytest.mark.parametrize("address,port,callback_exists,expected_status", [(ADDRESS,PORT,True,status.RUNNING),
+                                                     (ADDRESS,-1,True,status.DISCONNECTING),
+                                                     ("wappstoFail.com",PORT,True,status.DISCONNECTING),
+                                                     (ADDRESS,PORT,False,status.RUNNING),
+                                                     (ADDRESS,-1,False,status.DISCONNECTING),
+                                                     ("wappstoFail.com",PORT,False,status.DISCONNECTING)])
+    def test_connection(self,address,port,callback_exists,expected_status):
+        #Arrange
+        status_service = self.service.get_status()
+        fix_object(self, callback_exists, status_service)
+        
+        #Act
+        try:
+            fake_connect(self, address, port)
+        except wappsto_errors.ServerConnectionException:
             pass
-        value.set_callback(value_callback)
-        assert value.callback == value_callback
+        
+        #Assert
+        assert self.service.status.get_status() == expected_status
 
-    def test_set_value_callback_with_return_passes(self):
-        device = self.wapp.get_device("test_device_all_fieldsasdasd")
-        value = device.get_value("test_value_with_number")
-        def value_callback(self):
-            return 3
-        value.set_callback(value_callback)
-        assert value.callback(self) == 3
-
-
-class TestValue:
-
-    @classmethod
-    def setup_method(self):
-        self.json_ok_two_devices = os.path.join(os.path.dirname(__file__), 'test_JSON/e9ec36e2-0bd5-4fef-8e7b-9c200e93ebce.json')
-        self.wapp = wappsto.Wappsto(json_file_name=self.json_ok_two_devices)
-
-    def test_finding_value_passes(self):
-        device = self.wapp.get_device("test_device_all_fieldsasdasd")
-        value = device.get_value("test_value_with_number")
-        assert value is not None
-
-    def test_device1_value_length_is_3_passes(self):
-        device1 = self.wapp.get_device("test_device_all_fieldsasdasd")
-        assert len(device1.value_list) == 3
-
-    def test_device2_value_length_is_3_passes(self):
-        device2 = self.wapp.get_device("test_device_not_all_fields")
-        assert len(device2.value_list) == 3
-
-    def test_value_wrong_type_of_value_error_logs(self, caplog):
-        value_to_test = None
-        for device in self.wapp.instance.device_list:
-            for value in device.value_list:
-                if value.control_state is not None:
-                    if value.number_min is not None:
-                        value_to_test = value
-        value_to_test.send_control('asd')
-
-        assert 'Invalid type of value. Must be a number.' in caplog.text
-
-    def test_value_string_over_max_error_logs(self, caplog):
-        value_to_test = None
-        for device in self.wapp.instance.device_list:
-            for value in device.value_list:
-                if value.control_state is not None:
-                    if value.string_max is not None:
-                        if value.string_max < 3:
-                            value_to_test = value
-        msg = 'asd'
-        value_to_test.send_control(msg)
-
-        assert 'Value {} not in correct range for {}'.format(msg, value_to_test.name) in caplog.text
-
-    def test_set_not_callable_callback_errors(self, caplog):
-         for device in self.wapp.instance.device_list:
-            for value in device.value_list:
-                if value.name == 'test_value_with_number':
-                    with pytest.raises(CallbackNotCallableException):
-                        value.set_callback(3)
-
-
-class TestState:
-    @classmethod
-    def setup_method(self):
-        self.json_ok_two_devices = os.path.join(os.path.dirname(__file__), 'test_JSON/e9ec36e2-0bd5-4fef-8e7b-9c200e93ebce.json')
-        self.wapp = wappsto.Wappsto(json_file_name=self.json_ok_two_devices)
-
-    def test_finding_state_passes(self):
-        device = self.wapp.get_device("test_device_all_fieldsasdasd")
-        value = device.get_value("test_value_blob")
-
-        assert value.get_report_state() is not None and value.get_control_state() is not None
-
-
-class TestStatus:
-
-    @classmethod
-    def setup_method(self):
-        self.json_ok_two_devices = os.path.join(os.path.dirname(__file__), 'test_JSON/e9ec36e2-0bd5-4fef-8e7b-9c200e93ebce.json')
-        self.json_incorrect = os.path.join(os.path.dirname(__file__), 'test_JSON/e9ec36e2-0bd5-4fef-8e7b-9c200e93ebce_invalid.json')
-
-        self.wapp = wappsto.Wappsto(json_file_name=self.json_ok_two_devices)
-
-    def test_get_status_reference_passes(self):
-        status = self.wapp.get_status()
-
-        assert status is not None
-
-    def test_set_status_callback_passes(self):
-        status = self.wapp.get_status()
-
-        def status_callback(self):
-            pass
-        status.set_callback(status_callback)
-
-        assert status.callback is status_callback
-
-
-class TestSendReceive:
-
-    @pytest.fixture(autouse=True)
-    def mock_server_sockets(self, mocker):
-        from wappsto.connection.communication import ClientSocket
-        mocker.patch.object(socket, 'socket', new=fake_socket.FakeSocket)
-        mocker.patch.object(ClientSocket, 'ssl_wrap', new=fake_set)
-        mocker.patch.object(ClientSocket, 'init_ok', new=lambda f: True)
-
+class TestValueSendClass:
+    
     @classmethod
     def setup_class(self):
-        one = 'test_JSON/62606aea-fc31-4706-8074-83a705fb29e5.json'
-        two = 'test_JSON/e9ec36e2-0bd5-4fef-8e7b-9c200e93ebce.json'
-        three = 'test_JSON/e9ec36e2-0bd5-4fef-8e7b-9c200e93ebce_invalid.json'
-        self.json_value_one = os.path.join(os.path.dirname(__file__),one)
-        self.json_ok_two_devices = os.path.join(os.path.dirname(__file__),two)
-        self.json_incorrect = os.path.join(os.path.dirname(__file__), three)
-        self.wapp = wappsto.Wappsto(json_file_name=self.json_value_one)
-
-    def test_wappsto_send_receive_response_passes(self, mocker):
-        self.wapp.start(address="127.0.0.1", port=8080)
-        message_ids = self.wapp.socket.my_socket.list_of_message_ids
-        assert len(message_ids) == 15
-
-    def test_wappsto_refresh_button_changes_updates_timestamp_passes(self):
-        self.wapp.start(address="127.0.0.1", port=8080)
-        device = self.wapp.get_device("Lamp")
-        time1 = device.get_value("ON/OFF").last_update_of_report
-
-        def w(value, type):
-            if type == "report":
-                x = "It is a report callback"
-            else:
-                x = "It is a control callback"
-
-        device.get_value("ON/OFF").set_callback(w)
-        time.sleep(2)
-        self.wapp.socket.my_socket.refresh_button("ON/OFF")
-        device = self.wapp.get_device("Lamp")
-        time2 = device.get_value("ON/OFF").report_state.timestamp
-        self.clear_logs()
-        assert time1 is not time2
-
-    def test_wappsto_delta_test_first(self):
-        self.wapp.start(address="127.0.0.1", port=8080)
-        delta = 0.1
-        list = []
-        values_list = [0, 1, 1, 0, 2]
-        value = self.wapp.get_device("Lamp").get_value("ON/OFF")
-        value.set_delta(delta)
-        for i in range(len(values_list)):
-            value.last_controlled = values_list[i]
-            value_prepared = value.last_update_of_report[11:-8]
-            list.append(datetime.datetime.strptime(value_prepared, '%H:%M:%S'))
-            time.sleep(2)
-        time.sleep(1)
-        self.clear_logs()
-        control_set_length = set(list)
-        assert len(control_set_length) == 4
-
-    def test_wappsto_delta_test_second(self):
-        self.wapp.start(address="127.0.0.1", port=8080)
-        delta = 100
-        list = []
-        values_list = [0, 1, 1, 1, 0]
-        value = self.wapp.get_device("Lamp").get_value("ON/OFF")
-        value.set_delta(delta)
-        for i in range(len(values_list)):
-            value.last_controlled = values_list[i]
-            value_prepared = value.last_update_of_report[11:-8]
-            list.append(datetime.datetime.strptime(value_prepared, '%H:%M:%S'))
-            time.sleep(2)
-        time.sleep(1)
-        self.clear_logs()
-        control_set_length = set(list)
-        assert len(control_set_length) == 1
-
-    def test_wappsto_period_test(self):
-        self.wapp.start(address="127.0.0.1", port=8080)
-        refreshment_time = 2
-        assert_count = 0
-        value = self.wapp.get_device("Lamp").get_value("ON/OFF")
-        value.set_period(refreshment_time)
-        for i in range(refreshment_time):
-            time.sleep(3)
-        file = open("server_logging", "r")
-        for line in file:
-            if "Sending report [PERIOD]." in line:
-                assert_count = assert_count + 1
-        self.clear_logs()
-        assert assert_count in [3, 4]
-
-    def test_wappsto_period_test_with_refreshment(self):
-        assert_count = 0
-        self.wapp.start(address="127.0.0.1", port=8080)
-        refreshment_time = 3
-        value = self.wapp.get_device("Lamp").get_value("ON/OFF")
-        value.set_period(refreshment_time)
-        for i in range(2):
-            self.wapp.socket.my_socket.refresh_button("ON/OFF")
-            time.sleep(4)
-        time.sleep(1)
-        file = open("server_logging", "r")
-        for line in file:
-            if "Sending report [PERIOD]." in line:
-                assert_count = assert_count + 1
-        self.clear_logs()
-
-        assert assert_count == 3
-
-    def test_wappsto_period_test_with_refreshment_no_period_refresh(self):
-        assert_count = 0
-        self.wapp.start(address="127.0.0.1", port=8080)
-        refreshment_time = 10
-        value = self.wapp.get_device("Lamp").get_value("ON/OFF")
-        value.set_period(refreshment_time)
-        for i in range(3):
-            self.wapp.socket.my_socket.refresh_button("ON/OFF")
-            time.sleep(2)
-        time.sleep(1)
-        file = open("server_logging", "r")
-        for line in file:
-            if "Sending report [PERIOD]." in line:
-                assert_count = assert_count + 1
-        self.clear_logs()
-        assert assert_count == 0
-
-    def test_wappsto_value_incorrect_range(self):
-        self.wapp.start(address="127.0.0.1", port=8080)
-        value = self.wapp.get_device("Lamp").get_value("ON/OFF")
-        value.send_control(8)
-        time.sleep(1)
-        assert_count = 0
-        file = open("server_logging", "r")
-        for line in file:
-            if "Invalid number. Range:" in line:
-                assert_count = assert_count + 1
-        self.clear_logs()
-        assert assert_count == 1
-
-    def test_wappsto_value_correct_range(self):
-        self.wapp.start(address="127.0.0.1", port=8080)
-        value = self.wapp.get_device("Lamp").get_value("ON/OFF")
-        value.send_control(1)
-        time.sleep(0.5)
-        assert value.data_value == 1
-
-    def test_wappsto_set_delta_for_string_value(self):
-        self.wapp.start(address="127.0.0.1", port=8080)
-        delta = 10
-        value = self.wapp.get_device("Lamp").get_value("Displaying text")
-        value.set_delta(delta)
-        result = False
-        file = open("server_logging", "r")
-        for line in file:
-            if "Cannot set the delta for this value." in line:
-                result = True
-        assert result is True
-        self.clear_logs()
-
-
-    def test_wappsto_set_incorrect_delta_type(self):
-        self.wapp.start(address="127.0.0.1", port=8080)
-        delta = "It is not a number"
-        value = self.wapp.get_device("Lamp").get_value("ON/OFF")
-        value.set_delta(delta)
-        result = False
-        file = open("server_logging", "r")
-        for line in file:
-            if "Delta value must be a number" in line:
-                result = True
-        assert result is True
-        self.clear_logs()
-
-    def test_wappsto_set_period_for_value_without_report_state(self):
-        self.wapp.start(address="127.0.0.1", port=8080)
-        period = 4
-        value = self.wapp.get_device("Lamp").get_value("ON/OFF")
-        value.report_state = None
-        value.set_period(period)
-        result = False
-        file = open("server_logging", "r")
-        for line in file:
-            if "Cannot set the period for this value." in line:
-                result = True
-        assert result is True
-        self.clear_logs()
-
-    def clear_logs(self):
-        open("server_logging", "w").close()
-
-
-class TestSaveObjectInstances:
-
-    @pytest.fixture(autouse=True)
-    def clean_files(self):
-        folder = os.path.join(os.path.dirname(__file__), 'saved_instances/')
-        if os.path.exists(folder):
-            for f in os.listdir(folder):
-                if os.path.isfile(os.path.join(folder, f)):
-                    os.remove(os.path.join(folder, f))
-
-    @pytest.fixture(autouse=True)
-    def mock_server_sockets(self, mocker):
-        from wappsto.connection.communication import ClientSocket
-        mocker.patch.object(socket, 'socket', new=fake_socket.FakeSocket)
-        mocker.patch.object(ClientSocket, 'ssl_wrap', new=fake_set)
-        mocker.patch.object(ClientSocket, 'init_ok', new=lambda f: True)
-
-    @classmethod
-    def setup_class(self):
-        one = 'test_JSON/62606aea-fc31-4706-8074-83a705fb29e5.json'
-        two = 'test_JSON/e9ec36e2-0bd5-4fef-8e7b-9c200e93ebce.json'
-        three = 'test_JSON/e9ec36e2-0bd5-4fef-8e7b-9c200e93ebce_invalid.json'
-        self.json_value_one = os.path.join(os.path.dirname(__file__), one)
-        self.json_ok_two_devices = os.path.join(os.path.dirname(__file__), two)
-        self.json_incorrect = os.path.join(os.path.dirname(__file__), three)
-        self.wapp = wappsto.Wappsto(json_file_name=self.json_value_one)
-        self.path_to_saved = os.path.join(self.wapp.path_to_calling_file, 'saved_instances/')
-
-    def test_if_file_not_empty_passes(self, capsys):
-        self.wapp.start(address="127.0.0.1", port=8080)
-        self.wapp.stop()
-
-        result = None
-        with open(os.path.join(self.path_to_saved, '62606aea-fc31-4706-8074-83a705fb29e5.json'), "r") as f:
-            result = f.read()
-
-        assert result is not None or ""
-
-    def test_directory_creation_passes(self):
-        folder = os.path.join(os.path.dirname(__file__), 'saved_instances/')
-
-        if os.path.isdir(folder):
-            os.rmdir(folder)
-
-        self.wapp.start(address="127.0.0.1", port=8080)
-        self.wapp.stop()
-
-        assert os.path.isdir(folder)
-
-
-class TestLoadObjectInstances:
-
-    @pytest.fixture(autouse=True)
-    def clean_files(self):
-        folder = os.path.join(os.path.dirname(__file__), 'saved_instances/')
-
-        if os.path.exists(folder):
-            for f in os.listdir(folder):
-                if os.path.isfile(os.path.join(folder, f)):
-                    os.remove(os.path.join(folder, f))
-
-    @pytest.fixture(autouse=True)
-    def mock_server_sockets(self, mocker):
-        from wappsto.connection.communication import ClientSocket
-        mocker.patch.object(socket, 'socket', new=fake_socket.FakeSocket)
-        mocker.patch.object(ClientSocket, 'ssl_wrap', new=fake_set)
-        mocker.patch.object(ClientSocket, 'init_ok', new=lambda f: True)
-
-    @classmethod
-    def setup_class(self):
-        one = 'test_JSON/62606aea-fc31-4706-8074-83a705fb29e5.json'
-        two = 'test_JSON/e9ec36e2-0bd5-4fef-8e7b-9c200e93ebce.json'
-        three = 'test_JSON/e9ec36e2-0bd5-4fef-8e7b-9c200e93ebce_invalid.json'
-        self.json_value_one = os.path.join(os.path.dirname(__file__),one)
-        self.json_ok_two_devices = os.path.join(os.path.dirname(__file__),two)
-        self.json_incorrect = os.path.join(os.path.dirname(__file__), three)
-        self.wapp = wappsto.Wappsto(json_file_name=self.json_value_one)
-        self.path_to_saved = os.path.join(self.wapp.path_to_calling_file, 'saved_instances/')
-
-    def test_load_files(self):
-
-        self.wapp1 = wappsto.Wappsto(json_file_name=self.json_value_one)
-        self.wapp1.start(address="127.0.0.1", port=8080)
-        self.wapp1.stop()
-
-        self.wapp2 = wappsto.Wappsto(load_from_state_file=True)
-        self.wapp2.start(address="127.0.0.1", port=8080)
-
-        assert self.wapp2.instance is not None
-
-    def test_loading_empty_saved_instances_directory_errors(self, clean_files):
-        with pytest.raises(ValueError):
-            self.wapp_test = wappsto.Wappsto(load_from_state_file=True)
-
-    @classmethod
+        test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
+        self.service = wappsto.Wappsto(json_file_name=test_json_location)
+        fake_connect(self, ADDRESS, PORT)
+    
+    def setup_method(self):
+        self.send_reset = self.service.socket.my_socket.send
+        
+    @pytest.mark.parametrize("test_input,expected", [(8, 8), 
+                                                     (100, 100), 
+                                                     (0, 0), 
+                                                     (-1, None), 
+                                                     (120, None)])
+    def test_send_value_update(self, test_input, expected):
+        #Arrange
+        self.service.socket.my_socket.send = Mock()
+        device = self.service.get_devices()[0]
+        value = device.value_list[0]
+        
+        #Act
+        try:
+            value.update(test_input)
+            args, kwargs = self.service.socket.my_socket.send.call_args
+            arg = json.loads(args[0].decode('utf-8'))
+            result = int(arg['params']['data']['data'])
+                
+        except TypeError:
+            # service.socket.my_socket.send was not called (call_args throws TypeError)
+            result = None
+        
+        #Assert
+        assert result is expected
+        
     def teardown_method(self):
-        for f in os.listdir(self.path_to_saved):
-            if os.path.isfile(os.path.join(self.path_to_saved, f)):
-                os.remove(os.path.join(self.path_to_saved, f))
-
-
-class TestValueUnitTests:
-
+        self.service.socket.my_socket.send = self.send_reset
+        
     @classmethod
-    def setup_method(self):
-        self.parent_device = Mock(spec=Device)
-        self.parent_device.uuid = "1"
-        self.report_state = Mock(spec=State)
-        self.report_state.uuid = "1.1.1"
-        self.report_state.timestamp = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-        self.control_state = Mock(spec=State)
-        self.control_state.uuid = "1.1.2"
-        self.rpc = Mock(spec=SeluxitRpc)
-        self.value_number = wappsto.connection.network_classes.value.Value(
-            self.parent_device, "1.1", "value_number", "number", "number",
-            "rw", 0, 5, 1, 1, "cm", None, None, None, None,
-        )
+    def teardown_class(self):
+        self.service.stop()
 
-        self.value_blob = wappsto.connection.network_classes.value.Value(
-            self.parent_device, "1.2", "value_blob", "blob", "blob",
-            "rw", None, None, None, None, None, None, None, "utf-8", "15"
-        )
-
-        self.value_string = wappsto.connection.network_classes.value.Value(
-            self.parent_device, "1.3", "value_string", "string", "string",
-            "rw", None, None, None, None, None, "utf-8", "15", None, None
-        )
-
-
-    def test_value_set_period_report_state_not_exists(self):
-        self.value_number.set_period(2)
-        assert self.value_number.period is None
-
-    def test_value_set_period_less_than_zero(self):
-        self.value_number.set_period(-5)
-        assert self.value_number.period is None
-
-    def test_value_set_delta_without_report_state(self):
-        self.value_number.set_delta(2)
-        assert self.value_number.delta is None
-
-    def test_value_set_delta_with_report_state(self):
-        self.value_number.add_report_state(self.report_state)
-        self.value_number.set_delta(2)
-        assert self.value_number.delta == 2
-
-    def test_value_set_delta_less_than_zero(self):
-        self.value_number.add_report_state(self.report_state)
-        self.value_number.set_delta(-1)
-        assert self.value_number.delta is None
-
-    def test_value_set_delta_for_not_number_type_value(self):
-        self.value_blob.add_report_state(self.report_state)
-        self.value_blob.set_delta(2)
-        assert self.value_blob.delta is None
-
-    def test_callback_is_not_set_after_initialization_blob(self):
-        assert self.value_blob.callback is None
-
-    def test_callback_is_not_set_after_initialization_number(self):
-        assert self.value_number.callback is None
-
-    def test_callback_is_not_set_after_initialization_string(self):
-        assert self.value_string.callback is None
-
-    def test_set_callback_not_callable(self):
-        wappsto_errors_folder = wappsto.connection.network_classes.errors
-        exc = wappsto_errors_folder.wappsto_errors.CallbackNotCallableException
-        with pytest.raises(exc):
-            self.value_number.set_callback("Function")
-
-    def test_set_callback_callable(self):
-        wappsto_errors_folder = wappsto.connection.network_classes.errors
-        exc = wappsto_errors_folder.wappsto_errors.CallbackNotCallableException
-
-        def callback_method(a,b):
-            return a+b
-        assert self.value_number.set_callback(callback=callback_method) is True
-
-    def test_send_report_difference_bigger_than_delta(self):
-        self.value_number.difference = 5
-        self.value_number.delta = 2
-        self.value_number.rpc = self.rpc
-        self.value_number.delta_report = 1
-        self.value_number.send_report_delta(self.report_state)
-        no_send_logic_calls = self.value_number.rpc.get_rpc_state.call_count
-        assert no_send_logic_calls is 1
-
-    def test_send_report_difference_equals_delta(self):
-        self.value_number.difference = 5
-        self.value_number.delta = 5
-        self.value_number.rpc = self.rpc
-        self.value_number.delta_report = 1
-        self.value_number.send_report_delta(self.report_state)
-        no_send_logic_calls = self.value_number.rpc.get_rpc_state.call_count
-        assert no_send_logic_calls is 1
-
-    def test_send_report_difference_smaller_than_delta(self):
-        self.value_number.difference = 3
-        self.value_number.delta = 10
-        self.value_number.rpc = self.rpc
-        self.value_number.delta_report = 1
-        self.value_number.send_report_delta(self.report_state)
-        no_send_logic_calls = self.value_number.rpc.get_rpc_state.call_count
-        assert no_send_logic_calls is 0
-
-    def test_send_control_without_control_state_returns_false(self):
-        result = self.value_number.send_control(2)
-        assert result is False
-
-    def test_send_control_exceed_allowed_above_number_value_number(self):
-        self.value_number.add_control_state(self.control_state)
-        result = self.value_number.send_control(10)
-        assert result is False
-
-    def test_send_control_exceed_allowed_below_number_value_number(self):
-        self.value_number.add_control_state(self.control_state)
-        result = self.value_number.send_control(-50)
-        assert result is False
-
-    def test_send_control_allowed_number_value_number(self):
-        self.value_number.add_control_state(self.control_state)
-        self.value_number.rpc = self.rpc
-        self.value_number.send_control(2)
-        no_send_logic_calls = self.value_number.rpc.get_rpc_state.call_count
-        assert no_send_logic_calls is 1
-
-    def test_send_control_string_max_is_none_value_string(self):
-        self.value_string.add_control_state(self.control_state)
-        self.value_string.rpc = self.rpc
-        self.value_string.string_max = None
-        self.value_string.send_control("Hello" * 30)
-        no_send_logic_calls = self.value_string.rpc.get_rpc_state.call_count
-        assert no_send_logic_calls is 1
-
-    def test_send_control_blob_max_is_none_value_blob(self):
-        self.value_blob.add_control_state(self.control_state)
-        self.value_blob.rpc = self.rpc
-        self.value_blob.blob_max = None
-        self.value_blob.send_control("Hello" * 20)
-        no_send_logic_calls = self.value_blob.rpc.get_rpc_state.call_count
-        assert no_send_logic_calls is 1
-
-    def test_send_control_string_max_is_15_value_valid_value_string(self):
-        self.value_string.add_control_state(self.control_state)
-        self.value_string.rpc = self.rpc
-        self.value_string.send_control("Imagination")
-        no_send_logic_calls = self.value_string.rpc.get_rpc_state.call_count
-        assert no_send_logic_calls is 1
-
-    def test_send_control_string_max_is_15_value_invalid_value_string(self):
-        self.value_string.add_control_state(self.control_state)
-        self.value_string.rpc = self.rpc
-        self.value_string.send_control("Imagination" * 10)
-        no_send_logic_calls = self.value_string.rpc.get_rpc_state.call_count
-        assert no_send_logic_calls is 0
-
-    def test_send_control_blob_max_is_15_value_valid_value_string(self):
-        self.value_blob.add_control_state(self.control_state)
-        self.value_blob.rpc = self.rpc
-        self.value_blob.send_control("Imagination")
-        no_send_logic_calls = self.value_blob.rpc.get_rpc_state.call_count
-        assert no_send_logic_calls is 1
-
-
-class TestRealServerConnection:
-
-    @pytest.fixture(autouse=True)
-    def clear_logs(self):
-        open("server_logging", "w").close()
-
+class TestReceiveThreadClass:
+    
     @classmethod
     def setup_class(self):
-        self.server = mock_wappsto_server.MockServer("127.0.0.1", 8080)
-        self.server.threaded_run()
-        one = 'test_JSON/62606aea-fc31-4706-8074-83a705fb29e5.json'
-        self.json_value_one = os.path.join(os.path.dirname(__file__), one)
-        self.wapp = wappsto.Wappsto(json_file_name=self.json_value_one)
+        test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
+        self.service = wappsto.Wappsto(json_file_name=test_json_location)
+        fake_connect(self, ADDRESS, PORT)
+    
+    '''
+    Testing test_receive_thread_method specificaly
+    '''
+    def setup_method(self, test_receive_thread_method):
+        self.recv_reset = self.service.socket.my_socket.recv
+        self.put_reset = self.service.socket.sending_queue.put
+        
+    @pytest.mark.parametrize("id,verb,callback_exists,expected", [(1,'PUT',True, send_data.SEND_SUCCESS),
+                                                                  (1,'PUT',False, send_data.SEND_FAILED),
+                                                                  (1,'DELETE',True, send_data.SEND_SUCCESS),
+                                                                  (1,'DELETE',False, send_data.SEND_SUCCESS),
+                                                                  (1,'GET',True, send_data.SEND_SUCCESS),
+                                                                  (1,'GET',False, send_data.SEND_SUCCESS),
+                                                                  (1,'wrong_verb',False, send_data.SEND_FAILED),
+                                                                  (1,'wrong_verb',True, send_data.SEND_FAILED)])
+    def test_receive_thread_method(self,id,verb,callback_exists,expected):
+        #Arrange
+        
+        response = create_response(self, verb, callback_exists)
+        self.service.socket.my_socket.recv = Mock(return_value= response.encode('utf-8'))
+        self.service.socket.sending_queue.put = Mock(side_effect = Exception)
+        
+        #Act
+        try:
+            #runs until mock object is run and its side_effect raises exception
+            self.service.socket.receive_thread()
+        except Exception:
+            args, kwargs = self.service.socket.sending_queue.put.call_args
+        
+        #Assert
+        assert int(args[0].rpc_id) == id
+        assert args[0].msg_id == expected
 
-    def test_connection_to_mock_server(self):
-        self.wapp.start("127.0.0.1", 8080)
-        result = False
-        file = open("server_logging", "r")
-        for line in file:
-            if "Connected to server!" in line:
-                result = True
-        assert result is True
+    def teardown_method(self, test_receive_thread_method):
+        self.service.socket.my_socket.recv = self.recv_reset
+        self.service.socket.sending_queue.put = self.put_reset
+    
+    '''
+    Testing test_receive_thread_other specificaly
+    '''    
+    def setup_method(self, test_receive_thread_other):
+        self.recv_reset = self.service.socket.my_socket.recv
+        self.remove_id_from_confirm_list_reset = self.service.socket.remove_id_from_confirm_list
+    
+    @pytest.mark.parametrize("id,type", [(93043873,"error"),
+                                         (93043873,"result")])
+    def test_receive_thread_other(self,id,type):
+        #Arrange
+        response = '{"jsonrpc": "2.0", "id": "'+ str(id) +'", "'+type+'": {"value": "True", "meta": {"server_send_time": "2020-01-22T08:22:55.315Z"}}}'
+        self.service.socket.my_socket.recv = Mock(return_value= response.encode('utf-8'))
+        self.service.socket.remove_id_from_confirm_list = Mock(side_effect = Exception)
+        
+        #Act
+        try:
+            #runs until mock object is run and its side_effect raises exception
+            self.service.socket.receive_thread()
+        except Exception:
+            args, kwargs = self.service.socket.remove_id_from_confirm_list.call_args
+        
+        #Assert
+        assert int(args[0]) == id
+    
+    def teardown_method(self, test_receive_thread_other):
+        self.service.socket.my_socket.recv = self.recv_reset
+        self.service.socket.remove_id_from_confirm_list = self.remove_id_from_confirm_list_reset
+        
+    @classmethod
+    def teardown_class(self):
+        self.service.stop()
+
+
+class TestSendThreadClass:
+    
+    @classmethod
+    def setup_class(self):
+        test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
+        self.service = wappsto.Wappsto(json_file_name=test_json_location)
+        fake_connect(self, ADDRESS, PORT)
+
+    def setup_method(self, test_receive_thread_other):
+        self.send_reset = self.service.socket.my_socket.send
+
+    #SEND_TRACE no added yet
+    @pytest.mark.parametrize("id,type", [(93043873,send_data.SEND_SUCCESS),
+                                         (93043873,send_data.SEND_FAILED),
+                                         (93043873,send_data.SEND_REPORT),
+                                         (93043873,send_data.SEND_RECONNECT),
+                                         (93043873,send_data.SEND_CONTROL)])
+    def test_send_thread(self,id,type):
+        #Arrange
+        reply = send_data.SendData(
+            type,
+            rpc_id=id
+        )
+        self.service.socket.sending_queue.put(reply)
+        self.service.socket.my_socket.send = Mock(side_effect = Exception)
+        
+        #Act
+        try:
+            #runs until mock object is run and its side_effect raises exception
+            self.service.socket.send_thread()
+        except Exception:
+            args, kwargs = self.service.socket.my_socket.send.call_args
+        
+        args = json.loads(args[0].decode('utf-8'))
+        
+        #Assert
+        for result in get_send_thread_values(self, type, args, id):
+            assert result.received == result.expected
+    
+    def teardown_method(self):
+        self.service.socket.my_socket.send = self.send_reset
+    
+    @classmethod
+    def teardown_class(self):
+        self.service.stop()
+
+class TestResult:
+    def __init__(self, received, expected):
+        self.received = received
+        self.expected = expected
