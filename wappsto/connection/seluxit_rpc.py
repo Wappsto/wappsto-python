@@ -119,6 +119,27 @@ class SeluxitRpc:
         except OSError:
             pass
 
+    def get_rpc_whole_json(self, network_id, json_data):
+        """
+        Creates request containing the whole json file.
+
+        The method is used while starting initializing and it fills 
+        data_json_rpc dictionary with url and data containing json object.
+
+        Args:
+            network_id: Unique identifying number of a network
+            json_data: Data read from json file.
+
+        Returns:
+            JSON formatted data of network
+
+        """
+        self.data_json_rpc = Request('POST',
+                                     url='/{}/{}'.format("network",
+                                                         network_id),
+                                     data=json_data)
+        return json.dumps(self.data_json_rpc).encode('utf-8')
+
     def get_rpc_network(self, network_id, network_name, put=True):
         """
         Retrieve network from server.
@@ -679,6 +700,27 @@ class SeluxitRpc:
         self.data_json_rpc = Request(verb,
                                      url=url,
                                      data=data)
+
+    def add_whole_json(
+            self,
+            connection,
+            network_id,
+            json_data
+    ):
+        """Add an instance of the whole json file.
+
+        While initializing adds network/device/value/state to send and 
+        receive queue.
+
+        Args:
+            connection: A reference to the socket instance.
+            network_id: Unique identifying number of the network.
+            json_data: Data read from json file.
+
+        """
+        message = self.get_rpc_whole_json(network_id, json_data)
+        self.send_init_json(connection, message)
+        connection.add_id_to_confirm_list(message)
 
     # Used by initialize
     def add_network(
