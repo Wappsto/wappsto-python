@@ -201,25 +201,26 @@ class TestReceiveThreadClass:
         self.recv_reset = self.service.socket.my_socket.recv
         self.put_reset = self.service.socket.sending_queue.put
 
-    @pytest.mark.parametrize("id,verb,callback_exists,expected,trace_id",
-                             [(1, 'PUT', True, send_data.SEND_SUCCESS, None),
-                              (1, 'PUT', False, send_data.SEND_FAILED, None),
-                              (1, 'DELETE', True, send_data.SEND_SUCCESS, None),
-                              (1, 'DELETE', False, send_data.SEND_SUCCESS, None),
-                              (1, 'GET', True, send_data.SEND_SUCCESS, None),
-                              (1, 'GET', False, send_data.SEND_SUCCESS, None),
-                              (1, 'wrong_verb', False, send_data.SEND_FAILED, None),
-                              (1, 'wrong_verb', True, send_data.SEND_FAILED, None),
-                              (1, 'PUT', True, send_data.SEND_SUCCESS, 321),
-                              (1, 'PUT', False, send_data.SEND_FAILED, 321),
-                              (1, 'DELETE', True, send_data.SEND_SUCCESS, 321),
-                              (1, 'DELETE', False, send_data.SEND_SUCCESS, 321),
-                              (1, 'GET', True, send_data.SEND_SUCCESS, 321),
-                              (1, 'GET', False, send_data.SEND_SUCCESS, 321),
-                              (1, 'wrong_verb', False, send_data.SEND_FAILED, 321),
-                              (1, 'wrong_verb', True, send_data.SEND_FAILED, 321)
+    @pytest.mark.parametrize("id,verb,callback_exists,trace_id,expected_rpc_id,expected_msg_id,expected_trace_id",
+                             [(1, 'PUT', True, None, '1', send_data.SEND_SUCCESS, None),
+                              (1, 'PUT', False, None, '1', send_data.SEND_FAILED, None),
+                              (1, 'DELETE', True, None, '1', send_data.SEND_SUCCESS, None),
+                              (1, 'DELETE', False, None, '1', send_data.SEND_SUCCESS, None),
+                              (1, 'GET', True, None, '1', send_data.SEND_SUCCESS, None),
+                              (1, 'GET', False, None, '1', send_data.SEND_SUCCESS, None),
+                              (1, 'wrong_verb', False, None, '1', send_data.SEND_FAILED, None),
+                              (1, 'wrong_verb', True, None, '1', send_data.SEND_FAILED, None),
+                              (1, 'PUT', True, 321, None, send_data.SEND_TRACE, '321'),
+                              (1, 'PUT', False, 321, '1', send_data.SEND_FAILED, None),
+                              (1, 'DELETE', True, 321, None, send_data.SEND_TRACE, '321'),
+                              (1, 'DELETE', False, 321, None, send_data.SEND_TRACE, '321'),
+                              (1, 'GET', True, 321, None, send_data.SEND_TRACE, '321'),
+                              (1, 'GET', False, 321, None, send_data.SEND_TRACE, '321'),
+                              (1, 'wrong_verb', False, 321, '1', send_data.SEND_FAILED, None),
+                              (1, 'wrong_verb', True, 321, '1', send_data.SEND_FAILED, None)
                              ])
-    def test_receive_thread_method(self, id, verb, callback_exists, expected, trace_id):
+    def test_receive_thread_method(self, id, verb, callback_exists, trace_id, 
+                                   expected_rpc_id, expected_msg_id, expected_trace_id):
         # Arrange
         response = create_response(self, verb, callback_exists, trace_id)
         self.service.socket.my_socket.recv = Mock(
@@ -235,16 +236,9 @@ class TestReceiveThreadClass:
             args, kwargs = self.service.socket.sending_queue.put.call_args
 
         # Assert
-        if (trace_id 
-                and not (not callback_exists and verb == "PUT") 
-                and not verb == "wrong_verb"):
-            assert args[0].trace_id == str(trace_id)
-            assert args[0].rpc_id == None
-            assert args[0].msg_id == send_data.SEND_TRACE
-        else:
-            assert args[0].trace_id == None
-            assert args[0].rpc_id == str(id)
-            assert args[0].msg_id == expected
+        assert args[0].rpc_id == expected_rpc_id
+        assert args[0].msg_id == expected_msg_id
+        assert args[0].trace_id == expected_trace_id
 
     def teardown_method(self, test_receive_thread_method):
         self.service.socket.my_socket.recv = self.recv_reset
