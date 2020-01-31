@@ -60,23 +60,27 @@ def fix_object(self, callback_exists, testing_object):
     return testing_object
 
 
-def create_response(self, verb, callback_exists):
+def create_response(self, verb, callback_exists, trace_id):
+    value = self.service.instance.device_list[0].value_list[0]
+    value = fix_object(self, callback_exists, value)
+    id = str(value.control_state.uuid)
+    url = str(value.report_state.uuid)
+    trace = ''
+
     if verb == "DELETE":
         network = self.service.get_network()
         network = fix_object(self, callback_exists, network)
-        response = '{"jsonrpc": "2.0", "id": "1", "params": {"url": "' + str(network.uuid) + '"}, "method": "DELETE"}'
-    elif verb == "PUT":
-        value = self.service.instance.device_list[0].value_list[0]
-        value = fix_object(self, callback_exists, value)
-        response = '{"jsonrpc": "2.0", "id": "1", "params": {"data": {"meta": {"id": "'+str(value.control_state.uuid)+'"}, "data": "93"}}, "method": "PUT"}'
-    elif verb == "GET":
-        value = self.service.instance.device_list[0].value_list[0]
-        value = fix_object(self, callback_exists, value)
-        response = '{"jsonrpc": "2.0", "id": "1", "params": {"url": "' + str(value.report_state.uuid) + '"}, "method": "GET"}'
+        url = str(network.uuid)
+    elif verb == "PUT" or verb == "GET":
+        pass
+        # may be used later
     else:
-        response = '{"jsonrpc": "2.0", "id": "1", "params": {"url": "/network/b03f246d-63ef-446d-be58-ef1d1e83b338/device/a0e087c1-9678-491c-ac47-5b065dea3ac0/value/7ce2afdd-3be3-4945-862e-c73a800eb209/state/a7b4f66b-2558-4559-9fcc-c60768083164", "data": {"meta": {"id": "a7b4f66b-2558-4559-9fcc-c60768083164", "type": "state", "version": "2.0"}, "type": "Report", "status": "Send", "data": "93", "timestamp": "2020-01-22T08:22:57.216500Z"}}, "method": "??????"}'
+        return '{"jsonrpc": "2.0", "id": "1", "params": {"url": "/network/b03f246d-63ef-446d-be58-ef1d1e83b338/device/a0e087c1-9678-491c-ac47-5b065dea3ac0/value/7ce2afdd-3be3-4945-862e-c73a800eb209/state/a7b4f66b-2558-4559-9fcc-c60768083164", "data": {"meta": {"id": "a7b4f66b-2558-4559-9fcc-c60768083164", "type": "state", "version": "2.0"}, "type": "Report", "status": "Send", "data": "93", "timestamp": "2020-01-22T08:22:57.216500Z"}}, "method": "??????"}'
 
-    return response
+    if trace_id is not None:
+        trace = '"meta": {"trace": "'+str(trace_id)+'"},'
+
+    return '{"jsonrpc": "2.0", "id": "1", "params": {"url": "'+url+'",'+trace+' "data": {"meta": {"id": "'+id+'"}, "data": "93"}}, "method": "'+verb+'"}'
 
 
 class TestResult:
@@ -197,18 +201,27 @@ class TestReceiveThreadClass:
         self.recv_reset = self.service.socket.my_socket.recv
         self.put_reset = self.service.socket.sending_queue.put
 
-    @pytest.mark.parametrize("id,verb,callback_exists,expected",
-                             [(1, 'PUT', True, send_data.SEND_SUCCESS),
-                              (1, 'PUT', False, send_data.SEND_FAILED),
-                              (1, 'DELETE', True, send_data.SEND_SUCCESS),
-                              (1, 'DELETE', False, send_data.SEND_SUCCESS),
-                              (1, 'GET', True, send_data.SEND_SUCCESS),
-                              (1, 'GET', False, send_data.SEND_SUCCESS),
-                              (1, 'wrong_verb', False, send_data.SEND_FAILED),
-                              (1, 'wrong_verb', True, send_data.SEND_FAILED)])
-    def test_receive_thread_method(self, id, verb, callback_exists, expected):
+    @pytest.mark.parametrize("id,verb,callback_exists,expected,trace_id",
+                             [(1, 'PUT', True, send_data.SEND_SUCCESS, None),
+                              (1, 'PUT', False, send_data.SEND_FAILED, None),
+                              (1, 'DELETE', True, send_data.SEND_SUCCESS, None),
+                              (1, 'DELETE', False, send_data.SEND_SUCCESS, None),
+                              (1, 'GET', True, send_data.SEND_SUCCESS, None),
+                              (1, 'GET', False, send_data.SEND_SUCCESS, None),
+                              (1, 'wrong_verb', False, send_data.SEND_FAILED, None),
+                              (1, 'wrong_verb', True, send_data.SEND_FAILED, None),
+                              (1, 'PUT', True, send_data.SEND_SUCCESS, 321),
+                              (1, 'PUT', False, send_data.SEND_FAILED, 321),
+                              (1, 'DELETE', True, send_data.SEND_SUCCESS, 321),
+                              (1, 'DELETE', False, send_data.SEND_SUCCESS, 321),
+                              (1, 'GET', True, send_data.SEND_SUCCESS, 321),
+                              (1, 'GET', False, send_data.SEND_SUCCESS, 321),
+                              (1, 'wrong_verb', False, send_data.SEND_FAILED, 321),
+                              (1, 'wrong_verb', True, send_data.SEND_FAILED, 321)
+                             ])
+    def test_receive_thread_method(self, id, verb, callback_exists, expected, trace_id):
         # Arrange
-        response = create_response(self, verb, callback_exists)
+        response = create_response(self, verb, callback_exists, trace_id)
         self.service.socket.my_socket.recv = Mock(
             return_value=response.encode('utf-8'))
         self.service.socket.sending_queue.put = Mock(side_effect=Exception)
@@ -222,8 +235,16 @@ class TestReceiveThreadClass:
             args, kwargs = self.service.socket.sending_queue.put.call_args
 
         # Assert
-        assert int(args[0].rpc_id) == id
-        assert args[0].msg_id == expected
+        if (trace_id 
+                and not (not callback_exists and verb == "PUT") 
+                and not verb == "wrong_verb"):
+            assert args[0].trace_id == str(trace_id)
+            assert args[0].rpc_id == None
+            assert args[0].msg_id == send_data.SEND_TRACE
+        else:
+            assert args[0].trace_id == None
+            assert args[0].rpc_id == str(id)
+            assert args[0].msg_id == expected
 
     def teardown_method(self, test_receive_thread_method):
         self.service.socket.my_socket.recv = self.recv_reset
