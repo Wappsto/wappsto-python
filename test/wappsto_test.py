@@ -147,25 +147,32 @@ class TestValueSendClass:
     def setup_method(self):
         self.send_reset = self.service.socket.my_socket.send
 
-    @pytest.mark.parametrize("test_input,expected", [(8, 8),
-                                                     (100, 100),
-                                                     (0, 0),
-                                                     (-1, None),
-                                                     (120, None),
-                                                     (-0.1, None),
-                                                     (0.1, 0),
-                                                     (3.3, 3),
-                                                     (3.0, 3),
-                                                     (3.9, 3)])
-    def test_send_value_update(self, test_input, expected):
+    @pytest.mark.parametrize("input,step_size,expected", [(8, 1, 8),
+                                                     (100, 1, 100),
+                                                     (0, 1, 0),
+                                                     (-1, 1, None),
+                                                     (120, 1, None),
+                                                     (-0.1, 1, None),
+                                                     (0.1, 1, 0),
+                                                     (3.3, 1, 3),
+                                                     (3.0, 1, 3),
+                                                     (3.9, 1, 3),
+                                                     (3, 2, 2),
+                                                     (3.999, 2, 2),
+                                                     (4, 2, 4),
+                                                     (1.01, 0.02, 1.0),
+                                                     (2.002, 0.02, 2.0),
+                                                     (2.002, 0.0002, 2.002)])
+    def test_send_value_update(self, input, step_size, expected):
         # Arrange
         self.service.socket.my_socket.send = Mock()
         device = self.service.get_devices()[0]
         value = device.value_list[0]
+        value.number_step = step_size
 
         # Act
         try:
-            value.update(test_input)
+            value.update(input)
             args, kwargs = self.service.socket.my_socket.send.call_args
             arg = json.loads(args[0].decode('utf-8'))
             result = float(arg['params']['data']['data'])

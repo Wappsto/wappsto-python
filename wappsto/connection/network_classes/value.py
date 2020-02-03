@@ -7,6 +7,7 @@ methods.
 import logging
 import time
 import datetime
+import decimal
 import re
 from math import fabs
 from .errors import wappsto_errors
@@ -367,10 +368,10 @@ class Value:
     def __validate_value_data(self, data_value):
         if self.__is_number_type():
             try:
-                data_value = float(data_value)
-
                 # Ensures that data_value follows the steps
-                data_value = data_value - (data_value % self.number_step)
+                data_value = decimal.Decimal(str(data_value))
+                number_step = decimal.Decimal(str(self.number_step))
+                data_value = data_value - abs(data_value % number_step)
 
                 if self.number_min <= data_value <= self.number_max:
                     return str(data_value)
