@@ -3,6 +3,7 @@ import os
 import json
 import pytest
 import wappsto
+import urllib.parse
 from mock import Mock
 from unittest.mock import patch
 
@@ -293,10 +294,9 @@ class TestSendThreadClass:
     def setup_method(self, test_receive_thread_other):
         self.send_reset = self.service.socket.my_socket.send
 
-    #SEND_TRACE no added yet
     @pytest.mark.parametrize("id,type", [(93043873, send_data.SEND_SUCCESS),
-                                         (93043873, send_data.SEND_FAILED),
                                          (93043873, send_data.SEND_REPORT),
+                                         (93043873, send_data.SEND_FAILED),
                                          (93043873, send_data.SEND_RECONNECT),
                                          (93043873, send_data.SEND_CONTROL)])
     def test_send_thread(self, id, type):
@@ -321,6 +321,30 @@ class TestSendThreadClass:
         # Assert
         for result in get_send_thread_values(self, type, args, id):
             assert result.received == result.expected
+
+    @pytest.mark.parametrize("rpc_id,expected_trace_id,type", [(93043873, 332, send_data.SEND_TRACE)])
+    def test_send_thread_send_trace(self, rpc_id, expected_trace_id, type):
+        # Arrange
+        reply = send_data.SendData(
+            type,
+            trace_id = expected_trace_id,
+            rpc_id=rpc_id
+        )
+        self.service.socket.sending_queue.put(reply)
+        
+        # Act
+        with patch('urllib.request.urlopen', side_effect=Exception) as urlopen:
+            try:
+                # runs until mock object is run and its side_effect raises
+                # exception
+                self.service.socket.send_thread()
+            except Exception:
+                args, kwargs = urlopen.call_args
+                arg = urllib.parse.parse_qs(args[0])
+        result_trace_id = int(arg['https://tracer.iot.seluxit.com/trace?id'][0])
+        
+        # Assert
+        assert result_trace_id == expected_trace_id
 
     def teardown_method(self):
         self.service.socket.my_socket.send = self.send_reset
