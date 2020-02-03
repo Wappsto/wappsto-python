@@ -26,6 +26,7 @@ except ImportError:
     JSONDecodeError = ValueError
 
 t_url = 'https://tracer.iot.seluxit.com/trace?id={}&parent={}&name={}&status={}'  # noqa: E501
+AUTOMATIC_TRACE = False
 
 
 class ClientSocket:
@@ -470,20 +471,55 @@ class ClientSocket:
         while True:
             package = self.sending_queue.get()
             if self.connected:
+                
+                network_n = self.network.name
+                random_int = random.randint(1, 25000)
+                random_id = "{}{}".format(network_n, random_int)
+                
                 if package.msg_id == send_data.SEND_SUCCESS:
                     self.send_success(package)
+                    
+                    if AUTOMATIC_TRACE:
+                        self.handlers.send_trace(sending_queue,
+                                                 package.network_id,
+                                                 random_id,
+                                                 "success")
 
                 elif package.msg_id == send_data.SEND_REPORT:
                     self.send_report(package)
+                    
+                    if AUTOMATIC_TRACE:
+                        self.handlers.send_trace(sending_queue,
+                                                 package.network_id,
+                                                 random_id,
+                                                 "report")
 
                 elif package.msg_id == send_data.SEND_FAILED:
                     self.send_failed(package)
+                    
+                    if AUTOMATIC_TRACE:
+                        self.handlers.send_trace(sending_queue,
+                                                 package.network_id,
+                                                 random_id,
+                                                 "failed")
 
                 elif package.msg_id == send_data.SEND_RECONNECT:
                     self.send_reconnect()
+                    
+                    if AUTOMATIC_TRACE:
+                        self.handlers.send_trace(sending_queue,
+                                                 package.network_id,
+                                                 random_id,
+                                                 "reconnect")
 
                 elif package.msg_id == send_data.SEND_CONTROL:
                     self.send_control(package)
+                    
+                    if AUTOMATIC_TRACE:
+                        self.handlers.send_trace(sending_queue,
+                                                 package.network_id,
+                                                 random_id,
+                                                 "control")
 
                 elif package.msg_id == send_data.SEND_TRACE:
                     self.send_trace(package)
