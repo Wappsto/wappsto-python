@@ -47,7 +47,7 @@ class Initialize:
 
         self.rpc.add_whole_json(conn,
                                 instance.network_cl.uuid,
-                                instance.json_container)
+                                instance.build_json())
 
         msg = "The whole network {} added to Sending queue {}.".format(
             instance.network_cl.name,

@@ -80,6 +80,17 @@ def create_response(self, verb, callback_exists):
     return response
 
 
+def get_expected_json(self):
+    expected_json = json.loads(json.loads(open(self.test_json_location).read()).get('data'))
+    for device in expected_json['device']:
+        for value in device['value']:
+            states = value['state']
+            if len(states) > 1:
+                for state in states:
+                    state['data'] = states[0]['data']
+    return expected_json
+
+
 class TestResult:
     def __init__(self, received, expected):
         self.received = received
@@ -127,8 +138,8 @@ class TestConnClass:
         # Arrange
         status_service = self.service.get_status()
         fix_object(self, callback_exists, status_service)
-        expected_json = json.loads(json.loads(open(self.test_json_location).read()).get('data'))
-
+        expected_json = get_expected_json(self)
+        
         # Act
         try:
             fake_connect(self, address, port)
@@ -140,6 +151,9 @@ class TestConnClass:
             expected_json = None
             pass
 
+        sent_json = json.dumps(sent_json, sort_keys=True)
+        expected_json = json.dumps(expected_json, sort_keys=True)
+        
         # Assert
         assert sent_json == expected_json
         assert self.service.status.get_status() == expected_status

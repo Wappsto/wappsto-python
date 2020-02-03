@@ -258,3 +258,99 @@ class Instantiator:
         self.wapp_log.debug("Network {} built.".format(network_cl))
 
         return network_cl
+
+    def build_json(self):
+        """
+        Create json object.
+
+        Builds a json object using existing information saved in
+        network/device/value/state objects.
+
+        Returns:
+            JSON object.
+
+        """
+        devices = []
+        for device_iterator in self.device_list:
+            values = []
+            for value_iterator in device_iterator.value_list:
+                states = []
+                for state_iterator in value_iterator.state_list:
+                    state = {
+                        'data': value_iterator.init_value,
+                        'type': state_iterator.state_type,
+                        'timestamp': state_iterator.timestamp,
+                        'meta':
+                        {
+                            'id': state_iterator.uuid,
+                            'type': 'state',
+                            'version': '2.0',
+                            "contract": []
+                        }
+                    }
+                    states.append(state)
+
+                if value_iterator.data_type == 'string':
+                    details = {
+                        'encoding': value_iterator.string_encoding,
+                        'max': value_iterator.string_max
+                    }
+                elif value_iterator.data_type == 'blob':
+                    details = {
+                        'encoding': value_iterator.blob_encoding,
+                        'max': value_iterator.string_max
+                    }
+                elif value_iterator.data_type == 'number':
+                    details = {
+                        'min': value_iterator.number_min,
+                        'max': value_iterator.number_max,
+                        'step': value_iterator.number_step,
+                        'unit': value_iterator.number_unit
+                    }
+
+                value = {
+                    'name': value_iterator.name,
+                    'type': value_iterator.type_of_value,
+                    'permission': value_iterator.permission,
+                    'state': states,
+                    value_iterator.data_type: details,
+                    'meta':
+                    {
+                        'id': value_iterator.uuid,
+                        'type': 'value',
+                        'version': '2.0'
+                    }
+                }
+                values.append(value)
+
+            device = {
+                'name': device_iterator.name,
+                'product': device_iterator.product,
+                'protocol': device_iterator.protocol,
+                'serial': device_iterator.serial_number,
+                'manufacturer': device_iterator.manufacturer,
+                'communication': device_iterator.communication,
+                'description': device_iterator.description,
+                'value': values,
+                'version': '',
+                'meta':
+                {
+                    'id': device_iterator.uuid,
+                    'version': device_iterator.version,
+                    'type': 'device'
+                }
+            }
+            devices.append(device)
+
+        network = {
+            'name': self.network_cl.name,
+            'device': devices,
+            'meta':
+            {
+                'id': self.network_cl.uuid,
+                'version': self.network_cl.version,
+                'type': 'network'
+            }
+        }
+
+        return network
