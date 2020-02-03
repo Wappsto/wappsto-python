@@ -22,6 +22,7 @@ def check_for_correct_conn(*args, **kwargs):
 
 
 def fake_connect(self, address, port):
+    wappsto.RETRY_LIMIT = 2
     with patch('wappsto.communication.ssl.SSLContext.wrap_socket') as context:
         context.connect = Mock(side_effect=check_for_correct_conn)
         with patch('time.sleep', return_value=None), patch('wappsto.communication.ClientSocket.add_id_to_confirm_list'), patch('wappsto.communication.socket.socket'), patch('wappsto.communication.ssl.SSLContext.wrap_socket', return_value=context):
@@ -88,7 +89,9 @@ class TestResult:
 
 
 class TestJsonLoadClass:
-    def setup_method(self):
+    
+    @classmethod
+    def setup_class(self):
         self.test_json_prettyprint_location = os.path.join(
             os.path.dirname(__file__),
             TEST_JSON_prettyprint)
@@ -111,9 +114,8 @@ class TestJsonLoadClass:
 class TestConnClass:
 
     def setup_method(self):
-        test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
-        self.service = wappsto.Wappsto(json_file_name=test_json_location)
-        self.service.RETRY_LIMIT = 1
+        self.test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
+        self.service = wappsto.Wappsto(json_file_name=self.test_json_location)
 
     @pytest.mark.parametrize("address,port,callback_exists,expected_status", [(ADDRESS, PORT, True, status.RUNNING),
                                                      (ADDRESS, -1, True, status.DISCONNECTING),
@@ -125,14 +127,21 @@ class TestConnClass:
         # Arrange
         status_service = self.service.get_status()
         fix_object(self, callback_exists, status_service)
+        expected_json = json.loads(json.loads(open(self.test_json_location).read()).get('data'))
 
         # Act
         try:
             fake_connect(self, address, port)
+            args, kwargs = self.service.socket.my_socket.send.call_args
+            arg = json.loads(args[0].decode('utf-8'))
+            sent_json = arg['params']['data']
         except wappsto_errors.ServerConnectionException:
+            sent_json = None
+            expected_json = None
             pass
 
         # Assert
+        assert sent_json == expected_json
         assert self.service.status.get_status() == expected_status
 
 
@@ -143,9 +152,6 @@ class TestValueSendClass:
         test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
         self.service = wappsto.Wappsto(json_file_name=test_json_location)
         fake_connect(self, ADDRESS, PORT)
-
-    def setup_method(self):
-        self.send_reset = self.service.socket.my_socket.send
 
     @pytest.mark.parametrize("input,step_size,expected", [(8, 1, 8),
                                                      (100, 1, 100),
@@ -183,9 +189,6 @@ class TestValueSendClass:
         # Assert
         assert result == expected
 
-    def teardown_method(self):
-        self.service.socket.my_socket.send = self.send_reset
-
     @classmethod
     def teardown_class(self):
         self.service.stop()
@@ -202,10 +205,6 @@ class TestReceiveThreadClass:
     '''
     Testing test_receive_thread_method specificaly
     '''
-
-    def setup_method(self, test_receive_thread_method):
-        self.recv_reset = self.service.socket.my_socket.recv
-        self.put_reset = self.service.socket.sending_queue.put
 
     @pytest.mark.parametrize("id,verb,callback_exists,expected",
                              [(1, 'PUT', True, send_data.SEND_SUCCESS),
@@ -235,17 +234,9 @@ class TestReceiveThreadClass:
         assert int(args[0].rpc_id) == id
         assert args[0].msg_id == expected
 
-    def teardown_method(self, test_receive_thread_method):
-        self.service.socket.my_socket.recv = self.recv_reset
-        self.service.socket.sending_queue.put = self.put_reset
-
     '''
     Testing test_receive_thread_other specificaly
     '''
-
-    def setup_method(self, test_receive_thread_other):
-        self.recv_reset = self.service.socket.my_socket.recv
-        self.remove_id_from_confirm_list_reset = self.service.socket.remove_id_from_confirm_list
 
     @pytest.mark.parametrize("id,type", [(93043873, "error"),
                                          (93043873, "result")])
@@ -268,10 +259,6 @@ class TestReceiveThreadClass:
         # Assert
         assert int(args[0]) == id
 
-    def teardown_method(self, test_receive_thread_other):
-        self.service.socket.my_socket.recv = self.recv_reset
-        self.service.socket.remove_id_from_confirm_list = self.remove_id_from_confirm_list_reset
-
     @classmethod
     def teardown_class(self):
         self.service.stop()
@@ -285,10 +272,7 @@ class TestSendThreadClass:
         self.service = wappsto.Wappsto(json_file_name=test_json_location)
         fake_connect(self, ADDRESS, PORT)
 
-    def setup_method(self, test_receive_thread_other):
-        self.send_reset = self.service.socket.my_socket.send
-
-    #SEND_TRACE no added yet
+    #SEND_TRACE not added yet
     @pytest.mark.parametrize("id,type", [(93043873, send_data.SEND_SUCCESS),
                                          (93043873, send_data.SEND_FAILED),
                                          (93043873, send_data.SEND_REPORT),
@@ -316,9 +300,6 @@ class TestSendThreadClass:
         # Assert
         for result in get_send_thread_values(self, type, args, id):
             assert result.received == result.expected
-
-    def teardown_method(self):
-        self.service.socket.my_socket.send = self.send_reset
 
     @classmethod
     def teardown_class(self):
