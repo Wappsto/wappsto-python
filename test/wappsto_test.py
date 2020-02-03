@@ -3,6 +3,7 @@ import os
 import json
 import pytest
 import wappsto
+import urllib.parse
 from mock import Mock
 from unittest.mock import patch
 
@@ -61,23 +62,27 @@ def fix_object(self, callback_exists, testing_object):
     return testing_object
 
 
-def create_response(self, verb, callback_exists):
+def create_response(self, verb, callback_exists, trace_id):
+    value = self.service.instance.device_list[0].value_list[0]
+    value = fix_object(self, callback_exists, value)
+    id = str(value.control_state.uuid)
+    url = str(value.report_state.uuid)
+    trace = ''
+
     if verb == "DELETE":
         network = self.service.get_network()
         network = fix_object(self, callback_exists, network)
-        response = '{"jsonrpc": "2.0", "id": "1", "params": {"url": "' + str(network.uuid) + '"}, "method": "DELETE"}'
-    elif verb == "PUT":
-        value = self.service.instance.device_list[0].value_list[0]
-        value = fix_object(self, callback_exists, value)
-        response = '{"jsonrpc": "2.0", "id": "1", "params": {"data": {"meta": {"id": "'+str(value.control_state.uuid)+'"}, "data": "93"}}, "method": "PUT"}'
-    elif verb == "GET":
-        value = self.service.instance.device_list[0].value_list[0]
-        value = fix_object(self, callback_exists, value)
-        response = '{"jsonrpc": "2.0", "id": "1", "params": {"url": "' + str(value.report_state.uuid) + '"}, "method": "GET"}'
+        url = str(network.uuid)
+    elif verb == "PUT" or verb == "GET":
+        pass
+        # may be used later
     else:
-        response = '{"jsonrpc": "2.0", "id": "1", "params": {"url": "/network/b03f246d-63ef-446d-be58-ef1d1e83b338/device/a0e087c1-9678-491c-ac47-5b065dea3ac0/value/7ce2afdd-3be3-4945-862e-c73a800eb209/state/a7b4f66b-2558-4559-9fcc-c60768083164", "data": {"meta": {"id": "a7b4f66b-2558-4559-9fcc-c60768083164", "type": "state", "version": "2.0"}, "type": "Report", "status": "Send", "data": "93", "timestamp": "2020-01-22T08:22:57.216500Z"}}, "method": "??????"}'
+        return '{"jsonrpc": "2.0", "id": "1", "params": {"url": "/network/b03f246d-63ef-446d-be58-ef1d1e83b338/device/a0e087c1-9678-491c-ac47-5b065dea3ac0/value/7ce2afdd-3be3-4945-862e-c73a800eb209/state/a7b4f66b-2558-4559-9fcc-c60768083164", "data": {"meta": {"id": "a7b4f66b-2558-4559-9fcc-c60768083164", "type": "state", "version": "2.0"}, "type": "Report", "status": "Send", "data": "93", "timestamp": "2020-01-22T08:22:57.216500Z"}}, "method": "??????"}'
 
-    return response
+    if trace_id is not None:
+        trace = '"meta": {"trace": "'+str(trace_id)+'"},'
+
+    return '{"jsonrpc": "2.0", "id": "1", "params": {"url": "'+url+'",'+trace+' "data": {"meta": {"id": "'+id+'"}, "data": "93"}}, "method": "'+verb+'"}'
 
 
 class TestResult:
@@ -196,18 +201,32 @@ class TestReceiveThreadClass:
     Testing test_receive_thread_method specificaly
     '''
 
-    @pytest.mark.parametrize("id,verb,callback_exists,expected",
-                             [(1, 'PUT', True, send_data.SEND_SUCCESS),
-                              (1, 'PUT', False, send_data.SEND_FAILED),
-                              (1, 'DELETE', True, send_data.SEND_SUCCESS),
-                              (1, 'DELETE', False, send_data.SEND_SUCCESS),
-                              (1, 'GET', True, send_data.SEND_SUCCESS),
-                              (1, 'GET', False, send_data.SEND_SUCCESS),
-                              (1, 'wrong_verb', False, send_data.SEND_FAILED),
-                              (1, 'wrong_verb', True, send_data.SEND_FAILED)])
-    def test_receive_thread_method(self, id, verb, callback_exists, expected):
+    def setup_method(self, test_receive_thread_method):
+        self.recv_reset = self.service.socket.my_socket.recv
+        self.put_reset = self.service.socket.sending_queue.put
+
+    @pytest.mark.parametrize("id,verb,callback_exists,trace_id,expected_rpc_id,expected_msg_id,expected_trace_id",
+                             [(1, 'PUT', True, None, '1', send_data.SEND_SUCCESS, None),
+                              (1, 'PUT', False, None, '1', send_data.SEND_FAILED, None),
+                              (1, 'DELETE', True, None, '1', send_data.SEND_SUCCESS, None),
+                              (1, 'DELETE', False, None, '1', send_data.SEND_SUCCESS, None),
+                              (1, 'GET', True, None, '1', send_data.SEND_SUCCESS, None),
+                              (1, 'GET', False, None, '1', send_data.SEND_SUCCESS, None),
+                              (1, 'wrong_verb', False, None, '1', send_data.SEND_FAILED, None),
+                              (1, 'wrong_verb', True, None, '1', send_data.SEND_FAILED, None),
+                              (1, 'PUT', True, 321, None, send_data.SEND_TRACE, '321'),
+                              (1, 'PUT', False, 321, '1', send_data.SEND_FAILED, None),
+                              (1, 'DELETE', True, 321, None, send_data.SEND_TRACE, '321'),
+                              (1, 'DELETE', False, 321, None, send_data.SEND_TRACE, '321'),
+                              (1, 'GET', True, 321, None, send_data.SEND_TRACE, '321'),
+                              (1, 'GET', False, 321, None, send_data.SEND_TRACE, '321'),
+                              (1, 'wrong_verb', False, 321, '1', send_data.SEND_FAILED, None),
+                              (1, 'wrong_verb', True, 321, '1', send_data.SEND_FAILED, None)
+                             ])
+    def test_receive_thread_method(self, id, verb, callback_exists, trace_id, 
+                                   expected_rpc_id, expected_msg_id, expected_trace_id):
         # Arrange
-        response = create_response(self, verb, callback_exists)
+        response = create_response(self, verb, callback_exists, trace_id)
         self.service.socket.my_socket.recv = Mock(
             return_value=response.encode('utf-8'))
         self.service.socket.sending_queue.put = Mock(side_effect=Exception)
@@ -221,8 +240,9 @@ class TestReceiveThreadClass:
             args, kwargs = self.service.socket.sending_queue.put.call_args
 
         # Assert
-        assert int(args[0].rpc_id) == id
-        assert args[0].msg_id == expected
+        assert args[0].rpc_id == expected_rpc_id
+        assert args[0].msg_id == expected_msg_id
+        assert args[0].trace_id == expected_trace_id
 
     '''
     Testing test_receive_thread_other specificaly
@@ -262,10 +282,12 @@ class TestSendThreadClass:
         self.service = wappsto.Wappsto(json_file_name=test_json_location)
         fake_connect(self, ADDRESS, PORT)
 
-    #SEND_TRACE not added yet
+    def setup_method(self, test_receive_thread_other):
+        self.send_reset = self.service.socket.my_socket.send
+
     @pytest.mark.parametrize("id,type", [(93043873, send_data.SEND_SUCCESS),
-                                         (93043873, send_data.SEND_FAILED),
                                          (93043873, send_data.SEND_REPORT),
+                                         (93043873, send_data.SEND_FAILED),
                                          (93043873, send_data.SEND_RECONNECT),
                                          (93043873, send_data.SEND_CONTROL)])
     def test_send_thread(self, id, type):
@@ -290,6 +312,33 @@ class TestSendThreadClass:
         # Assert
         for result in get_send_thread_values(self, type, args, id):
             assert result.received == result.expected
+
+    @pytest.mark.parametrize("rpc_id,expected_trace_id,type", [(93043873, 332, send_data.SEND_TRACE)])
+    def test_send_thread_send_trace(self, rpc_id, expected_trace_id, type):
+        # Arrange
+        reply = send_data.SendData(
+            type,
+            trace_id = expected_trace_id,
+            rpc_id=rpc_id
+        )
+        self.service.socket.sending_queue.put(reply)
+        
+        # Act
+        with patch('urllib.request.urlopen', side_effect=Exception) as urlopen:
+            try:
+                # runs until mock object is run and its side_effect raises
+                # exception
+                self.service.socket.send_thread()
+            except Exception:
+                args, kwargs = urlopen.call_args
+                arg = urllib.parse.parse_qs(args[0])
+        result_trace_id = int(arg['https://tracer.iot.seluxit.com/trace?id'][0])
+        
+        # Assert
+        assert result_trace_id == expected_trace_id
+
+    def teardown_method(self):
+        self.service.socket.my_socket.send = self.send_reset
 
     @classmethod
     def teardown_class(self):
