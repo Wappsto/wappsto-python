@@ -182,7 +182,6 @@ class TestValueSendClass:
             args, kwargs = self.service.socket.my_socket.send.call_args
             arg = json.loads(args[0].decode('utf-8'))
             result = float(arg['params']['data']['data'])
-
         except TypeError:
             result = None
 
