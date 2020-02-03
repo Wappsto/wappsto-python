@@ -46,7 +46,6 @@ class Initialize:
         self.wapp_log.addHandler(logging.NullHandler())
 
         self.rpc.add_whole_json(conn,
-                                instance.network_cl.uuid,
                                 instance.json_container)
 
         msg = "The whole network {} added to Sending queue {}.".format(
