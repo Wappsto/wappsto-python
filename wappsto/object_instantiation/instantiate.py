@@ -366,4 +366,17 @@ class Instantiator:
         return network
 
     def remove_none_from_object(self, obj):
-        return dict([(k,v) for k,v in obj.items() if v is not None])
+        """
+        Get object without None values.
+
+        Gets objects and returns different object not containing any keys,
+        where value is None.
+
+        Args:
+            obj: dictionary object.
+
+        Returns:
+            Dictionary object without None values.
+
+        """
+        return dict([(k, v) for k, v in obj.items() if v is not None])
