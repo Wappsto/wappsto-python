@@ -9,10 +9,7 @@ import json
 import datetime
 import os
 import logging
-
-from jsonrpcclient.requests import Request
-from jsonrpcclient.response import SuccessResponse
-from jsonrpcclient.response import ErrorResponse
+from jsonrpcclient import requests, response
 
 JSONRPC = "2.0"
 
@@ -63,8 +60,9 @@ class SeluxitRpc:
             JSON formatted data.
 
         """
-        success_response = str(SuccessResponse(jsonrpc=JSONRPC, id=message_id,
-                                               result=True))
+        success_response = str(response.SuccessResponse(jsonrpc=JSONRPC,
+                                                        id=message_id,
+                                                        result=True))
         return success_response.encode('utf-8')
 
     @staticmethod
@@ -84,8 +82,9 @@ class SeluxitRpc:
 
         """
         error_description = {'message': text, 'code': -32020, 'data': ''}
-        error_response = str(ErrorResponse(jsonrpc=JSONRPC, id=message_id,
-                                           error=error_description))
+        error_response = str(response.ErrorResponse(jsonrpc=JSONRPC,
+                                                    id=message_id,
+                                                    error=error_description))
         return error_response.encode('utf-8')
 
     @staticmethod
@@ -146,14 +145,15 @@ class SeluxitRpc:
         }
 
         if put:
-            self.data_json_rpc = Request('PUT',
-                                         url='/{}/{}'.format(network,
-                                                             network_id),
-                                         data=data_inside)
+            self.data_json_rpc = requests.Request('PUT',
+                                                  url='/{}/{}'.format(
+                                                      network,
+                                                      network_id),
+                                                  data=data_inside)
         else:
-            self.data_json_rpc = Request('POST',
-                                         url='/{}'.format(network),
-                                         data=data_inside)
+            self.data_json_rpc = requests.Request('POST',
+                                                  url='/{}'.format(network),
+                                                  data=data_inside)
         return json.dumps(self.data_json_rpc).encode('utf-8')
 
     def get_rpc_state(
@@ -292,9 +292,9 @@ class SeluxitRpc:
             else:
                 url = base_url
 
-        self.data_json_rpc = Request(verb,
-                                     url=url,
-                                     data=data)
+        self.data_json_rpc = requests.Request(verb,
+                                              url=url,
+                                              data=data)
 
     def get_rpc_whole_json(self, json_data):
         """
@@ -310,9 +310,9 @@ class SeluxitRpc:
             JSON formatted data of network
 
         """
-        self.data_json_rpc = Request('POST',
-                                     url='/{}'.format("network"),
-                                     data=json_data)
+        self.data_json_rpc = requests.Request('POST',
+                                              url='/{}'.format("network"),
+                                              data=json_data)
         return json.dumps(self.data_json_rpc).encode('utf-8')
 
     def add_whole_json(
