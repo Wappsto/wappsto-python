@@ -289,7 +289,8 @@ class Instantiator:
                     }
 
                     state = self.get_object_without_none_values(state)
-                    state['meta'] = self.get_object_without_none_values(state['meta'])
+                    state['meta'] = self.get_object_without_none_values(
+                        state['meta'])
                     states.append(state)
 
                 if value_iterator.data_type == 'string':
@@ -325,7 +326,8 @@ class Instantiator:
                 }
 
                 value = self.get_object_without_none_values(value)
-                value['meta'] = self.get_object_without_none_values(value['meta'])
+                value['meta'] = self.get_object_without_none_values(
+                    value['meta'])
                 values.append(value)
 
             device = {
@@ -347,7 +349,8 @@ class Instantiator:
             }
 
             device = self.get_object_without_none_values(device)
-            device['meta'] = self.get_object_without_none_values(device['meta'])
+            device['meta'] = self.get_object_without_none_values(
+                device['meta'])
             devices.append(device)
 
         network = {
@@ -379,4 +382,5 @@ class Instantiator:
             Dictionary object without None values.
 
         """
-        return dict([(key, value) for key, value in obj.items() if value is not None])
+        return dict([(key, value) for key, value in obj.items()
+                     if value is not None])
