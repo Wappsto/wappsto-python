@@ -288,8 +288,8 @@ class Instantiator:
                         }
                     }
 
-                    state = self.remove_none_from_object(state)
-                    state['meta'] = self.remove_none_from_object(state['meta'])
+                    state = self.get_object_without_none_values(state)
+                    state['meta'] = self.get_object_without_none_values(state['meta'])
                     states.append(state)
 
                 if value_iterator.data_type == 'string':
@@ -324,8 +324,8 @@ class Instantiator:
                     }
                 }
 
-                value = self.remove_none_from_object(value)
-                value['meta'] = self.remove_none_from_object(value['meta'])
+                value = self.get_object_without_none_values(value)
+                value['meta'] = self.get_object_without_none_values(value['meta'])
                 values.append(value)
 
             device = {
@@ -346,8 +346,8 @@ class Instantiator:
                 }
             }
 
-            device = self.remove_none_from_object(device)
-            device['meta'] = self.remove_none_from_object(device['meta'])
+            device = self.get_object_without_none_values(device)
+            device['meta'] = self.get_object_without_none_values(device['meta'])
             devices.append(device)
 
         network = {
@@ -361,11 +361,11 @@ class Instantiator:
             }
         }
 
-        network = self.remove_none_from_object(network)
-        network['meta'] = self.remove_none_from_object(network['meta'])
+        network = self.get_object_without_none_values(network)
+        network['meta'] = self.get_object_without_none_values(network['meta'])
         return network
 
-    def remove_none_from_object(self, obj):
+    def get_object_without_none_values(self, obj):
         """
         Get object without None values.
 
@@ -379,4 +379,4 @@ class Instantiator:
             Dictionary object without None values.
 
         """
-        return dict([(k, v) for k, v in obj.items() if v is not None])
+        return dict([(key, value) for key, value in obj.items() if value is not None])
