@@ -277,7 +277,7 @@ class Instantiator:
                 states = []
                 for state_iterator in value_iterator.state_list:
                     state = {
-                        'data': value_iterator.init_value,
+                        'data': value_iterator.last_controlled,
                         'type': state_iterator.state_type,
                         'timestamp': state_iterator.timestamp,
                         'meta':
@@ -338,8 +338,8 @@ class Instantiator:
                 'manufacturer': device_iterator.manufacturer,
                 'communication': device_iterator.communication,
                 'description': device_iterator.description,
+                'version': device_iterator.version,
                 'value': values,
-                'version': '2.0',
                 'meta':
                 {
                     'id': device_iterator.uuid,

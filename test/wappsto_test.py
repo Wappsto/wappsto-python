@@ -154,7 +154,7 @@ class TestConnClass:
         fix_object(self, callback_exists, status_service)
         expected_json = get_expected_json(self)
         if value_changed_to_none:
-            self.service.instance.network_cl.uuid = None
+            self.service.instance.network_cl.name = None
 
         # Act
         try:
