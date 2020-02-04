@@ -310,6 +310,7 @@ class Instantiator:
                         'step': value_iterator.number_step,
                         'unit': value_iterator.number_unit
                     }
+                details = self.get_object_without_none_values(details)
 
                 value = {
                     'name': value_iterator.name,
