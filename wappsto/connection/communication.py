@@ -12,6 +12,7 @@ import time
 import json
 import queue
 import ssl
+import random
 # REPLACED request WITH NATIVE MODULE
 import urllib.request as request
 import logging
@@ -471,52 +472,53 @@ class ClientSocket:
         while True:
             package = self.sending_queue.get()
             if self.connected:
-                
-                network_n = self.network.name
-                random_int = random.randint(1, 25000)
-                random_id = "{}{}".format(network_n, random_int)
-                
+
+                if AUTOMATIC_TRACE:
+                    network_n = self.network.name
+                    random_int = random.randint(1, 25000)
+                    random_id = "{}{}".format(network_n, random_int)
+
                 if package.msg_id == send_data.SEND_SUCCESS:
                     self.send_success(package)
-                    
+
                     if AUTOMATIC_TRACE:
-                        self.handlers.send_trace(sending_queue,
+                        self.handlers.send_trace(self.sending_queue,
                                                  package.network_id,
                                                  random_id,
                                                  "success")
 
                 elif package.msg_id == send_data.SEND_REPORT:
                     self.send_report(package)
-                    
+
                     if AUTOMATIC_TRACE:
-                        self.handlers.send_trace(sending_queue,
+                        self.handlers.send_trace(self.sending_queue,
                                                  package.network_id,
                                                  random_id,
                                                  "report")
 
                 elif package.msg_id == send_data.SEND_FAILED:
                     self.send_failed(package)
-                    
+
                     if AUTOMATIC_TRACE:
-                        self.handlers.send_trace(sending_queue,
+                        self.handlers.send_trace(self.sending_queue,
                                                  package.network_id,
                                                  random_id,
                                                  "failed")
 
                 elif package.msg_id == send_data.SEND_RECONNECT:
                     self.send_reconnect()
-                    
+
                     if AUTOMATIC_TRACE:
-                        self.handlers.send_trace(sending_queue,
+                        self.handlers.send_trace(self.sending_queue,
                                                  package.network_id,
                                                  random_id,
                                                  "reconnect")
 
                 elif package.msg_id == send_data.SEND_CONTROL:
                     self.send_control(package)
-                    
+
                     if AUTOMATIC_TRACE:
-                        self.handlers.send_trace(sending_queue,
+                        self.handlers.send_trace(self.sending_queue,
                                                  package.network_id,
                                                  random_id,
                                                  "control")
