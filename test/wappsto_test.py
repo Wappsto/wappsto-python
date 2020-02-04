@@ -85,6 +85,20 @@ def create_response(self, verb, callback_exists, trace_id):
     return '{"jsonrpc": "2.0", "id": "1", "params": {"url": "'+url+'",'+trace+' "data": {"meta": {"id": "'+id+'"}, "data": "93"}}, "method": "'+verb+'"}'
 
 
+def get_expected_json(self):
+    # gets the loaded json and modifies it according to the expected changes when compared to the sent json
+    expected_json = json.loads(self.service.instance.decoded.get('data'))
+    for device in expected_json['device']:
+        device['version'] = '2.0'
+        for value in device['value']:
+            states = value['state']
+            if len(states) > 1:
+                for state in states:
+                    state['data'] = states[0]['data']
+                    del state['meta']['contract']
+    return expected_json
+
+
 class TestResult:
     def __init__(self, received, expected):
         self.received = received
@@ -122,17 +136,25 @@ class TestConnClass:
         self.test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
         self.service = wappsto.Wappsto(json_file_name=self.test_json_location)
 
-    @pytest.mark.parametrize("address,port,callback_exists,expected_status", [(ADDRESS, PORT, True, status.RUNNING),
-                                                     (ADDRESS, -1, True, status.DISCONNECTING),
-                                                     ("wappstoFail.com", PORT, True, status.DISCONNECTING),
-                                                     (ADDRESS, PORT, False, status.RUNNING),
-                                                     (ADDRESS, -1, False, status.DISCONNECTING),
-                                                     ("wappstoFail.com", PORT, False, status.DISCONNECTING)])
-    def test_connection(self, address, port, callback_exists, expected_status):
+    @pytest.mark.parametrize("address,port,callback_exists,expected_status,value_changed_to_none", [(ADDRESS, PORT, True, status.RUNNING, False),
+                                                     (ADDRESS, -1, True, status.DISCONNECTING, False),
+                                                     ("wappstoFail.com", PORT, True, status.DISCONNECTING, False),
+                                                     (ADDRESS, PORT, False, status.RUNNING, False),
+                                                     (ADDRESS, -1, False, status.DISCONNECTING, False),
+                                                     ("wappstoFail.com", PORT, False, status.DISCONNECTING, False),
+                                                     (ADDRESS, PORT, True, status.RUNNING, True),
+                                                     (ADDRESS, -1, True, status.DISCONNECTING, True),
+                                                     ("wappstoFail.com", PORT, True, status.DISCONNECTING, True),
+                                                     (ADDRESS, PORT, False, status.RUNNING, True),
+                                                     (ADDRESS, -1, False, status.DISCONNECTING, True),
+                                                     ("wappstoFail.com", PORT, False, status.DISCONNECTING, True)])
+    def test_connection(self, address, port, callback_exists, expected_status, value_changed_to_none):
         # Arrange
         status_service = self.service.get_status()
         fix_object(self, callback_exists, status_service)
-        expected_json = json.loads(json.loads(open(self.test_json_location).read()).get('data'))
+        expected_json = get_expected_json(self)
+        if value_changed_to_none:
+            self.service.instance.network_cl.name = None
 
         # Act
         try:
@@ -145,8 +167,13 @@ class TestConnClass:
             expected_json = None
             pass
 
+        sent_json = json.dumps(sent_json, sort_keys=True)
+        expected_json = json.dumps(expected_json, sort_keys=True)
+
         # Assert
-        assert sent_json == expected_json
+        assert ((sent_json == 'null' and expected_json == 'null') or #if encountered ServerConnectionException
+                (value_changed_to_none and (sent_json != expected_json)) or #if value changed to none json files differ
+                (not value_changed_to_none and (sent_json == expected_json))) #if value is not changed to none json files are the same
         assert self.service.status.get_status() == expected_status
 
 
