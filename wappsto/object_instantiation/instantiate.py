@@ -284,10 +284,12 @@ class Instantiator:
                         {
                             'id': state_iterator.uuid,
                             'type': 'state',
-                            'version': '2.0',
-                            "contract": []
+                            'version': '2.0'
                         }
                     }
+
+                    state = self.remove_none_from_object(state)
+                    state['meta'] = self.remove_none_from_object(state['meta'])
                     states.append(state)
 
                 if value_iterator.data_type == 'string':
@@ -321,6 +323,9 @@ class Instantiator:
                         'version': '2.0'
                     }
                 }
+
+                value = self.remove_none_from_object(value)
+                value['meta'] = self.remove_none_from_object(value['meta'])
                 values.append(value)
 
             device = {
@@ -332,14 +337,17 @@ class Instantiator:
                 'communication': device_iterator.communication,
                 'description': device_iterator.description,
                 'value': values,
-                'version': '',
+                'version': '2.0',
                 'meta':
                 {
                     'id': device_iterator.uuid,
-                    'version': device_iterator.version,
+                    'version': '2.0',
                     'type': 'device'
                 }
             }
+
+            device = self.remove_none_from_object(device)
+            device['meta'] = self.remove_none_from_object(device['meta'])
             devices.append(device)
 
         network = {
@@ -348,9 +356,14 @@ class Instantiator:
             'meta':
             {
                 'id': self.network_cl.uuid,
-                'version': self.network_cl.version,
+                'version': '2.0',
                 'type': 'network'
             }
         }
 
+        network = self.remove_none_from_object(network)
+        network['meta'] = self.remove_none_from_object(network['meta'])
         return network
+
+    def remove_none_from_object(self, obj):
+        return dict([(k,v) for k,v in obj.items() if v is not None])

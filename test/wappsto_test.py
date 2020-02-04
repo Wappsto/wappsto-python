@@ -88,11 +88,13 @@ def create_response(self, verb, callback_exists, trace_id):
 def get_expected_json(self):
     expected_json = json.loads(json.loads(open(self.test_json_location).read()).get('data'))
     for device in expected_json['device']:
+        device['version'] = '2.0'
         for value in device['value']:
             states = value['state']
             if len(states) > 1:
                 for state in states:
                     state['data'] = states[0]['data']
+                    del state['meta']['contract']
     return expected_json
 
 
