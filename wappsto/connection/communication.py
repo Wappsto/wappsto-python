@@ -194,7 +194,12 @@ class ClientSocket:
 
         Initializes the object instances on the sending/receiving queue.
         """
-        self.initialize_code.initialize_all(self, self.instance)
+        package = send_data.SendData(send_data.SEND_TRACE,
+                                     parent=self.instance.network_cl.uuid)
+        package = self.create_trace(package)
+
+        self.initialize_code.initialize_all(self, self.instance,
+                                            package.trace_id)
         self.confirm_initialize_all()
 
     def add_id_to_confirm_list(self, data):
@@ -625,8 +630,6 @@ class ClientSocket:
         """
         self.wapp_log.info("Sending Error")
 
-        package = self.create_trace(package)
-
         rpc_fail_response = self.rpc.get_rpc_fail_response(
             package.rpc_id,
             package.text
@@ -688,8 +691,6 @@ class ClientSocket:
 
         """
         try:
-            package = self.create_trace(package)
-
             rpc_success_response = self.rpc.get_rpc_success_response(
                 package.rpc_id
             )

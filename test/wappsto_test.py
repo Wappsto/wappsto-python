@@ -22,12 +22,12 @@ def check_for_correct_conn(*args, **kwargs):
         raise wappsto_errors.ServerConnectionException
 
 
-def fake_connect(self, address, port):
+def fake_connect(self, address, port, send_trace = False):
     wappsto.RETRY_LIMIT = 2
     with patch('wappsto.communication.ssl.SSLContext.wrap_socket') as context:
         context.connect = Mock(side_effect=check_for_correct_conn)
         with patch('time.sleep', return_value=None), patch('wappsto.communication.ClientSocket.add_id_to_confirm_list'), patch('wappsto.communication.socket.socket'), patch('wappsto.communication.ssl.SSLContext.wrap_socket', return_value=context):
-            self.service.start(address=address, port=port)
+            self.service.start(address=address, port=port, automatic_trace=send_trace)
 
 
 def get_send_thread_values(self, type, args, id, send_trace):
@@ -45,15 +45,19 @@ def get_send_thread_values(self, type, args, id, send_trace):
         results.append(TestResult(received = args['params']['data']['type'],
                                   expected = "Report"))
         results.append(TestResult(received = args['method'], expected = "PUT"))
+        results.append(TestResult(received = "?trace=" in str(args['params']['url']), 
+                                  expected = send_trace))
     elif type == 4:
         results.append(TestResult(received = args['params']['data']['meta']['type'],
                                   expected = "network"))
         results.append(TestResult(received = args['method'], expected = "POST"))
+        results.append(TestResult(received = "?trace=" in str(args['params']['url']), 
+                                  expected = send_trace))
     elif type == 5:
         results.append(TestResult(received = args['params']['data']['type'], 
                                   expected = "Control"))
         results.append(TestResult(received = args['method'], expected = "PUT"))
-    results.append(TestResult(received = "?trace=" in str(args['params']['url']), 
+        results.append(TestResult(received = "?trace=" in str(args['params']['url']), 
                                   expected = send_trace))
     return results
 
@@ -127,30 +131,40 @@ class TestConnClass:
         self.test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
         self.service = wappsto.Wappsto(json_file_name=self.test_json_location)
 
-    @pytest.mark.parametrize("address,port,callback_exists,expected_status", [(ADDRESS, PORT, True, status.RUNNING),
-                                                     (ADDRESS, -1, True, status.DISCONNECTING),
-                                                     ("wappstoFail.com", PORT, True, status.DISCONNECTING),
-                                                     (ADDRESS, PORT, False, status.RUNNING),
-                                                     (ADDRESS, -1, False, status.DISCONNECTING),
-                                                     ("wappstoFail.com", PORT, False, status.DISCONNECTING)])
-    def test_connection(self, address, port, callback_exists, expected_status):
+    @pytest.mark.parametrize("address,port,callback_exists,expected_status,send_trace", [(ADDRESS, PORT, True, status.RUNNING, False),
+                                                     (ADDRESS, -1, True, status.DISCONNECTING, False),
+                                                     ("wappstoFail.com", PORT, True, status.DISCONNECTING, False),
+                                                     (ADDRESS, PORT, False, status.RUNNING, False),
+                                                     (ADDRESS, -1, False, status.DISCONNECTING, False),
+                                                     ("wappstoFail.com", PORT, False, status.DISCONNECTING, False),
+                                                     (ADDRESS, PORT, True, status.RUNNING, True),
+                                                     (ADDRESS, -1, True, status.DISCONNECTING, True),
+                                                     ("wappstoFail.com", PORT, True, status.DISCONNECTING, True),
+                                                     (ADDRESS, PORT, False, status.RUNNING, True),
+                                                     (ADDRESS, -1, False, status.DISCONNECTING, True),
+                                                     ("wappstoFail.com", PORT, False, status.DISCONNECTING, True)])
+    def test_connection(self, address, port, callback_exists, expected_status, send_trace):
         # Arrange
         status_service = self.service.get_status()
         fix_object(self, callback_exists, status_service)
         expected_json = json.loads(json.loads(open(self.test_json_location).read()).get('data'))
-
+        
         # Act
-        try:
-            fake_connect(self, address, port)
-            args, kwargs = self.service.socket.my_socket.send.call_args
-            arg = json.loads(args[0].decode('utf-8'))
-            sent_json = arg['params']['data']
-        except wappsto_errors.ServerConnectionException:
-            sent_json = None
-            expected_json = None
-            pass
+        with patch('urllib.request.urlopen') as urlopen:
+            try:
+                fake_connect(self, address, port, send_trace)
+                args, kwargs = self.service.socket.my_socket.send.call_args
+                arg = json.loads(args[0].decode('utf-8'))
+                sent_json = arg['params']['data']
+                trace_sent = urlopen.called
+            except wappsto_errors.ServerConnectionException:
+                sent_json = None
+                expected_json = None
+                trace_sent = send_trace
+                pass
 
         # Assert
+        assert send_trace == trace_sent
         assert sent_json == expected_json
         assert self.service.status.get_status() == expected_status
 
@@ -295,12 +309,9 @@ class TestSendThreadClass:
                                          (93043873, send_data.SEND_FAILED, False),
                                          (93043873, send_data.SEND_RECONNECT, False),
                                          (93043873, send_data.SEND_CONTROL, False),
-                                         (93043873, send_data.SEND_SUCCESS, True),
                                          (93043873, send_data.SEND_REPORT, True),
-                                         (93043873, send_data.SEND_FAILED, True),
                                          (93043873, send_data.SEND_RECONNECT, True),
-                                         (93043873, send_data.SEND_CONTROL, True)
-                                         ])
+                                         (93043873, send_data.SEND_CONTROL, True)])
     def test_send_thread(self, id, type, send_trace):
         # Arrange
         reply = send_data.SendData(

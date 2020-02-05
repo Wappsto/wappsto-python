@@ -30,7 +30,7 @@ class Initialize:
         """
         self.rpc = rpc
 
-    def initialize_all(self, conn, instance):
+    def initialize_all(self, conn, instance, trace_id):
         """
         Initialize all of the devices on the sending and receiving queue.
 
@@ -46,7 +46,7 @@ class Initialize:
         self.wapp_log.addHandler(logging.NullHandler())
 
         self.rpc.add_whole_json(conn,
-                                instance.json_container)
+                                instance.json_container,trace_id)
 
         msg = "The whole network {} added to Sending queue {}.".format(
             instance.network_cl.name,

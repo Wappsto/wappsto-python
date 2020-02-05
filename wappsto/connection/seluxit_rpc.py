@@ -301,7 +301,7 @@ class SeluxitRpc:
                                      url=url,
                                      data=data)
 
-    def get_rpc_whole_json(self, json_data):
+    def get_rpc_whole_json(self, json_data, trace_id=None):
         """
         Creates request containing the whole json file.
 
@@ -315,15 +315,21 @@ class SeluxitRpc:
             JSON formatted data of network
 
         """
+        url='/{}'.format("network")
+        
+        if trace_id:
+            url = "{}?trace={}".format(url, trace_id)
+        
         self.data_json_rpc = Request('POST',
-                                     url='/{}'.format("network"),
+                                     url=url,
                                      data=json_data)
         return json.dumps(self.data_json_rpc).encode('utf-8')
 
     def add_whole_json(
             self,
             connection,
-            json_data
+            json_data,
+            trace_id=None
     ):
         """Add an instance of the whole json file.
 
@@ -335,7 +341,7 @@ class SeluxitRpc:
             json_data: Data read from json file.
 
         """
-        message = self.get_rpc_whole_json(json_data)
+        message = self.get_rpc_whole_json(json_data, trace_id)
         self.send_init_json(connection, message)
         connection.add_id_to_confirm_list(message)
 
