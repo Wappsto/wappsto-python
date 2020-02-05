@@ -429,7 +429,6 @@ class Value:
         number_step = abs(decimal.Decimal(str(self.number_step)))
 
         result = (data_value % number_step)
-        print(result)
         if result < 0:
             result += number_step
         data_value = data_value - result
