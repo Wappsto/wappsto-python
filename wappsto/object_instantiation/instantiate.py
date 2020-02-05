@@ -10,6 +10,7 @@ from ..connection.network_classes import network
 from ..connection.network_classes import device
 from ..connection.network_classes import value
 from ..connection.network_classes import state
+from ..connection.seluxit_rpc import SeluxitRpc
 from . import status
 
 
@@ -352,16 +353,20 @@ class Instantiator:
             device['meta'] = self.get_object_without_none_values(
                 device['meta'])
             devices.append(device)
+        
+        meta = {
+            'id': self.network_cl.uuid,
+            'version': '2.0',
+            'type': 'network'
+        }
+
+        if SeluxitRpc.is_upgradable():
+            meta.update({'upgradable': True})
 
         network = {
             'name': self.network_cl.name,
             'device': devices,
-            'meta':
-            {
-                'id': self.network_cl.uuid,
-                'version': '2.0',
-                'type': 'network'
-            }
+            'meta': meta
         }
 
         network = self.get_object_without_none_values(network)
