@@ -353,7 +353,7 @@ class Instantiator:
             device['meta'] = self.get_object_without_none_values(
                 device['meta'])
             devices.append(device)
-        
+
         meta = {
             'id': self.network_cl.uuid,
             'version': '2.0',
