@@ -438,7 +438,7 @@ class Value:
         digits_after_decimal_point = (len(after_decimal_point[1])
                                       if len(after_decimal_point) > 1 else 0)
         data_value = round(data_value, digits_after_decimal_point)
-        
+
         if digits_after_decimal_point > 0:
             data_value = data_value.normalize()
 
