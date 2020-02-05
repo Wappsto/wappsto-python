@@ -99,6 +99,10 @@ def get_expected_json(self):
     return expected_json
 
 
+def exists_in_dictionary(key, dict):
+    return True if key in dict else False
+
+
 class TestResult:
     def __init__(self, received, expected):
         self.received = received
@@ -136,19 +140,31 @@ class TestConnClass:
         self.test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
         self.service = wappsto.Wappsto(json_file_name=self.test_json_location)
 
-    @pytest.mark.parametrize("address,port,callback_exists,expected_status,value_changed_to_none", [(ADDRESS, PORT, True, status.RUNNING, False),
-                                                     (ADDRESS, -1, True, status.DISCONNECTING, False),
-                                                     ("wappstoFail.com", PORT, True, status.DISCONNECTING, False),
-                                                     (ADDRESS, PORT, False, status.RUNNING, False),
-                                                     (ADDRESS, -1, False, status.DISCONNECTING, False),
-                                                     ("wappstoFail.com", PORT, False, status.DISCONNECTING, False),
-                                                     (ADDRESS, PORT, True, status.RUNNING, True),
-                                                     (ADDRESS, -1, True, status.DISCONNECTING, True),
-                                                     ("wappstoFail.com", PORT, True, status.DISCONNECTING, True),
-                                                     (ADDRESS, PORT, False, status.RUNNING, True),
-                                                     (ADDRESS, -1, False, status.DISCONNECTING, True),
-                                                     ("wappstoFail.com", PORT, False, status.DISCONNECTING, True)])
-    def test_connection(self, address, port, callback_exists, expected_status, value_changed_to_none):
+    @pytest.mark.parametrize("address,port,callback_exists,expected_status,value_changed_to_none,upgradable", [(ADDRESS, PORT, True, status.RUNNING, False, False),
+                                                     (ADDRESS, -1, True, status.DISCONNECTING, False, False),
+                                                     ("wappstoFail.com", PORT, True, status.DISCONNECTING, False, False),
+                                                     (ADDRESS, PORT, False, status.RUNNING, False, False),
+                                                     (ADDRESS, -1, False, status.DISCONNECTING, False, False),
+                                                     ("wappstoFail.com", PORT, False, status.DISCONNECTING, False, False),
+                                                     (ADDRESS, PORT, True, status.RUNNING, True, False),
+                                                     (ADDRESS, -1, True, status.DISCONNECTING, True, False),
+                                                     ("wappstoFail.com", PORT, True, status.DISCONNECTING, True, False),
+                                                     (ADDRESS, PORT, False, status.RUNNING, True, False),
+                                                     (ADDRESS, -1, False, status.DISCONNECTING, True, False),
+                                                     ("wappstoFail.com", PORT, False, status.DISCONNECTING, True, False),
+                                                     (ADDRESS, PORT, True, status.RUNNING, False, True),
+                                                     (ADDRESS, -1, True, status.DISCONNECTING, False, True),
+                                                     ("wappstoFail.com", PORT, True, status.DISCONNECTING, False, True),
+                                                     (ADDRESS, PORT, False, status.RUNNING, False, True),
+                                                     (ADDRESS, -1, False, status.DISCONNECTING, False, True),
+                                                     ("wappstoFail.com", PORT, False, status.DISCONNECTING, False, True),
+                                                     (ADDRESS, PORT, True, status.RUNNING, True, True),
+                                                     (ADDRESS, -1, True, status.DISCONNECTING, True, True),
+                                                     ("wappstoFail.com", PORT, True, status.DISCONNECTING, True, True),
+                                                     (ADDRESS, PORT, False, status.RUNNING, True, True),
+                                                     (ADDRESS, -1, False, status.DISCONNECTING, True, True),
+                                                     ("wappstoFail.com", PORT, False, status.DISCONNECTING, True, True)])
+    def test_connection(self, address, port, callback_exists, expected_status, value_changed_to_none, upgradable):
         # Arrange
         status_service = self.service.get_status()
         fix_object(self, callback_exists, status_service)
@@ -157,25 +173,32 @@ class TestConnClass:
             self.service.instance.network_cl.name = None
 
         # Act
-        try:
-            fake_connect(self, address, port)
-            args, kwargs = self.service.socket.my_socket.send.call_args
-            arg = json.loads(args[0].decode('utf-8'))
-            sent_json = arg['params']['data']
-        except wappsto_errors.ServerConnectionException:
-            sent_json = None
-            expected_json = None
-            pass
+        with patch('os.getenv', return_value=str(upgradable)):
+            try:
+                #os.getenv(
+                fake_connect(self, address, port)
+                args, kwargs = self.service.socket.my_socket.send.call_args
+                arg = json.loads(args[0].decode('utf-8'))
+                sent_json = arg['params']['data']
+            except wappsto_errors.ServerConnectionException:
+                sent_json = None
+                expected_json = None
+                pass
 
-        sent_json = json.dumps(sent_json, sort_keys=True)
-        expected_json = json.dumps(expected_json, sort_keys=True)
+        # Assert        
+        assert ((sent_json == None and expected_json == None) or
+                
+                ((value_changed_to_none and (exists_in_dictionary('name',expected_json) 
+                                             != exists_in_dictionary('name',sent_json))) or
+                (not value_changed_to_none and (exists_in_dictionary('name',expected_json) 
+                                             == exists_in_dictionary('name',sent_json)))) and
 
-        # Assert
-        assert ((sent_json == 'null' and expected_json == 'null') or #if encountered ServerConnectionException
-                (value_changed_to_none and (sent_json != expected_json)) or #if value changed to none json files differ
-                (not value_changed_to_none and (sent_json == expected_json))) #if value is not changed to none json files are the same
+                ((upgradable and (exists_in_dictionary('upgradable',expected_json['meta']) 
+                                             != exists_in_dictionary('upgradable',sent_json['meta']))) or
+                (not upgradable and (exists_in_dictionary('upgradable',expected_json['meta']) 
+                                             == exists_in_dictionary('upgradable',sent_json['meta']))))
+                )
         assert self.service.status.get_status() == expected_status
-
 
 class TestValueSendClass:
 
