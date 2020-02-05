@@ -368,10 +368,7 @@ class Value:
     def __validate_value_data(self, data_value):
         if self.__is_number_type():
             try:
-                # Ensures that data_value follows the steps
-                data_value = decimal.Decimal(str(data_value))
-                number_step = decimal.Decimal(str(self.number_step))
-                data_value = data_value - abs(data_value % number_step)
+                data_value = self.ensure_number_value_follows_steps(data_value)
 
                 if self.number_min <= data_value <= self.number_max:
                     return str(data_value)
@@ -411,6 +408,40 @@ class Value:
             msg = ("Value type {} is invalid".format(self.date_type))
             self.wapp_log.error(msg)
             return None
+
+    def ensure_number_value_follows_steps(self, data_value):
+        """
+        Ensure number value follows steps.
+
+        Converts values to decimal and ensures number step is always positive,
+        ensures that data value follows steps, sets same amount of digits
+        after decimal point as for step and normalized it, by removing exes 0's
+        after decimal point.
+
+        Args:
+            data_value: float value indicating current state of value.
+
+        Returns:
+            data_value
+
+        """
+        data_value = decimal.Decimal(str(data_value))
+        number_step = abs(decimal.Decimal(str(self.number_step)))
+
+        result = (data_value % number_step)
+        if result < 0:
+            result += number_step
+        data_value = data_value - result
+
+        after_decimal_point = str(number_step).split('.')
+        digits_after_decimal_point = (len(after_decimal_point[1])
+                                      if len(after_decimal_point) > 1 else 0)
+        data_value = round(data_value, digits_after_decimal_point)
+
+        if digits_after_decimal_point > 0:
+            data_value = data_value.normalize()
+
+        return data_value
 
     def update(self, data_value, timestamp=None):
         """

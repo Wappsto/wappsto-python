@@ -185,22 +185,40 @@ class TestValueSendClass:
         self.service = wappsto.Wappsto(json_file_name=test_json_location)
         fake_connect(self, ADDRESS, PORT)
 
-    @pytest.mark.parametrize("input,step_size,expected", [(8, 1, 8),
-                                                     (100, 1, 100),
-                                                     (0, 1, 0),
-                                                     (-1, 1, None),
-                                                     (120, 1, None),
-                                                     (-0.1, 1, None),
-                                                     (0.1, 1, 0),
-                                                     (3.3, 1, 3),
-                                                     (3.0, 1, 3),
-                                                     (3.9, 1, 3),
-                                                     (3, 2, 2),
-                                                     (3.999, 2, 2),
-                                                     (4, 2, 4),
-                                                     (1.01, 0.02, 1.0),
-                                                     (2.002, 0.02, 2.0),
-                                                     (2.002, 0.0002, 2.002)])
+    @pytest.mark.parametrize("input,step_size,expected", [(8, 1, "8"),# value on the step
+                                                     (8, -1, "8"),
+                                                     (-8, 1, "-8"),
+                                                     (-8, -1, "-8"),
+                                                     (100, 1, "100"),
+                                                     (-100, 1, "-100"),
+                                                     (0, 1, "0"),
+                                                     (-0, 1, "0"),
+                                                     (-99.9, 1, "-100"),# decimal value
+                                                     (-0.1, 1, "-1"),
+                                                     (0.1, 1, "0"),
+                                                     (3.3, 1, "3"),
+                                                     (3.0, 1, "3"),
+                                                     (3.9, 1, "3"),
+                                                     (-0.1, 1, "-1"),
+                                                     (-3.3, 1, "-4"),
+                                                     (-3.0, 1, "-3"),
+                                                     (-3.9, 1, "-4"),
+                                                     (-101, 1, None),# out of range
+                                                     (101, 1, None),
+                                                     (3, 2, "2"),# big steps
+                                                     (3.999, 2, "2"),
+                                                     (4, 2, "4"),
+                                                     (-3, 2, "-4"),
+                                                     (-3.999, 2, "-4"),
+                                                     (-4, 2, "-4"),
+                                                     (1, 0.5, "1"),# decimal steps
+                                                     (1.01, 0.02, "1"),
+                                                     (2.002, 0.02, "2"),
+                                                     (2.002, 0.0002, "2.002"),
+                                                     (-1, 0.5, "-1"),
+                                                     (-1.01, 0.02, "-1.02"),
+                                                     (-2.002, 0.02, "-2.02"),
+                                                     (-2.002, 0.0002, "-2.002")])
     def test_send_value_update(self, input, step_size, expected):
         # Arrange
         self.service.socket.my_socket.send = Mock()
@@ -213,7 +231,7 @@ class TestValueSendClass:
             value.update(input)
             args, kwargs = self.service.socket.my_socket.send.call_args
             arg = json.loads(args[0].decode('utf-8'))
-            result = float(arg['params']['data']['data'])
+            result = arg['params']['data']['data']
         except TypeError:
             result = None
 
