@@ -172,7 +172,7 @@ class Wappsto:
             self.stop(False)
             raise device_not_found
 
-    def start(self, address="wappsto.com", port=11006):
+    def start(self, address="wappsto.com", port=11006, automatic_trace=False):
         """
         Start the server connection.
 
@@ -182,6 +182,7 @@ class Wappsto:
             address: Address to connect the service to.
                 (default: {"wappsto.com"})
             port: Port to connect the address to. (default: {11006})
+            automatic_trace: indicates if all messages automaticaly send trace.
 
         Raises:
             ServerConnectionException: "Unable to connect to the server.
@@ -203,7 +204,8 @@ class Wappsto:
                     address=address,
                     port=port,
                     path_to_calling_file=self.path_to_calling_file,
-                    wappsto_status=self.status
+                    wappsto_status=self.status,
+                    automatic_trace=automatic_trace
                 )
 
                 # Attempts to connect to the server.

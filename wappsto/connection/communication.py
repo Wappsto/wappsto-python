@@ -27,7 +27,6 @@ except ImportError:
     JSONDecodeError = ValueError
 
 t_url = 'https://tracer.iot.seluxit.com/trace?id={}&parent={}&name={}&status={}'  # noqa: E501
-AUTOMATIC_TRACE = False
 
 
 class ClientSocket:
@@ -40,7 +39,7 @@ class ClientSocket:
     """
 
     def __init__(self, rpc, instance, address, port, path_to_calling_file,
-                 wappsto_status):
+                 wappsto_status, automatic_trace):
         """
         Create a client socket.
 
@@ -56,6 +55,7 @@ class ClientSocket:
             port: Server port.
             path_to_calling_file: path to OS directory of calling file.
             wappsto_status: status object.
+            automatic_trace: indicates if all messages automaticaly send trace.
 
         """
         self.wapp_log = logging.getLogger(__name__)
@@ -76,6 +76,7 @@ class ClientSocket:
         self.ssl_context.load_cert_chain(self.ssl_client_cert, self.ssl_key)
         self.ssl_context.load_verify_locations(self.ssl_server_cert)
         self.wappsto_status = wappsto_status
+        self.automatic_trace = automatic_trace
         self.receiving_thread = threading.Thread(target=self.receive_thread)
         self.receiving_thread.setDaemon(True)
         self.connected = False
@@ -473,55 +474,20 @@ class ClientSocket:
             package = self.sending_queue.get()
             if self.connected:
 
-                if AUTOMATIC_TRACE:
-                    network_n = self.network.name
-                    random_int = random.randint(1, 25000)
-                    random_id = "{}{}".format(network_n, random_int)
-
                 if package.msg_id == send_data.SEND_SUCCESS:
                     self.send_success(package)
-
-                    if AUTOMATIC_TRACE:
-                        self.handlers.send_trace(self.sending_queue,
-                                                 package.network_id,
-                                                 random_id,
-                                                 "success")
 
                 elif package.msg_id == send_data.SEND_REPORT:
                     self.send_report(package)
 
-                    if AUTOMATIC_TRACE:
-                        self.handlers.send_trace(self.sending_queue,
-                                                 package.network_id,
-                                                 random_id,
-                                                 "report")
-
                 elif package.msg_id == send_data.SEND_FAILED:
                     self.send_failed(package)
-
-                    if AUTOMATIC_TRACE:
-                        self.handlers.send_trace(self.sending_queue,
-                                                 package.network_id,
-                                                 random_id,
-                                                 "failed")
 
                 elif package.msg_id == send_data.SEND_RECONNECT:
                     self.send_reconnect()
 
-                    if AUTOMATIC_TRACE:
-                        self.handlers.send_trace(self.sending_queue,
-                                                 package.network_id,
-                                                 random_id,
-                                                 "reconnect")
-
                 elif package.msg_id == send_data.SEND_CONTROL:
                     self.send_control(package)
-
-                    if AUTOMATIC_TRACE:
-                        self.handlers.send_trace(self.sending_queue,
-                                                 package.network_id,
-                                                 random_id,
-                                                 "control")
 
                 elif package.msg_id == send_data.SEND_TRACE:
                     self.send_trace(package)
@@ -560,6 +526,23 @@ class ClientSocket:
         )
         self.wapp_log.info(msg)
 
+    def create_trace(self, package):
+        if self.automatic_trace and package.trace_id is None:
+            random_int = random.randint(1, 25000)
+            control_value_id = "{}{}".format(self.instance.network_cl.name, random_int)
+
+            package.trace_id = random_int
+
+            trace = send_data.SendData(
+                send_data.SEND_TRACE,
+                parent=package.network_id,
+                trace_id=package.trace_id,
+                data=None,
+                text="ok",
+                control_value_id=control_value_id)
+            self.send_trace(trace)
+        return package
+
     def send_control(self, package):
         """
         Send data handler.
@@ -573,6 +556,8 @@ class ClientSocket:
         """
         self.wapp_log.info("Sending control message")
         try:
+            package = self.create_trace(package)
+
             local_data = self.rpc.get_rpc_state(
                 package.data,
                 package.network_id,
@@ -588,38 +573,6 @@ class ClientSocket:
             self.connected = False
             msg = "Error sending control: {}".format(e)
             self.wapp_log.error(msg, exc_info=True)
-
-    def receive_data(self):
-        """Socket receive method.
-
-        Method that handles receiving data from a socket. Capable of handling
-        data chunks.
-
-        Returns:
-            The decoded message from the socket.
-
-        """
-        total_decoded = []
-        decoded = None
-        while True:
-            if self.connected:
-                data = self.my_socket.recv(2000)
-                decoded_data = data.decode('utf-8')
-                total_decoded.append(decoded_data)
-            else:
-                break
-
-            try:
-                decoded = json.loads(''.join(total_decoded))
-            except JSONDecodeError:
-                if data == b'':
-                    self.reconnect()
-                else:
-                    self.wapp_log.error("Value error: {}".format(data))
-            else:
-                break
-
-        return decoded
 
     def send_reconnect(self):
         """
@@ -746,6 +699,38 @@ class ClientSocket:
         """
         while len(self.packet_awaiting_confirm) > 0:
             self.receive_message()
+
+    def receive_data(self):
+        """Socket receive method.
+
+        Method that handles receiving data from a socket. Capable of handling
+        data chunks.
+
+        Returns:
+            The decoded message from the socket.
+
+        """
+        total_decoded = []
+        decoded = None
+        while True:
+            if self.connected:
+                data = self.my_socket.recv(2000)
+                decoded_data = data.decode('utf-8')
+                total_decoded.append(decoded_data)
+            else:
+                break
+
+            try:
+                decoded = json.loads(''.join(total_decoded))
+            except JSONDecodeError:
+                if data == b'':
+                    self.reconnect()
+                else:
+                    self.wapp_log.error("Value error: {}".format(data))
+            else:
+                break
+
+        return decoded
 
     def receive_message(self):
         """
