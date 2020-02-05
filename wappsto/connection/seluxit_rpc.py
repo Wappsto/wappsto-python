@@ -119,7 +119,8 @@ class SeluxitRpc:
         except OSError:
             pass
 
-    def get_rpc_network(self, network_id, network_name, put=True):
+    def get_rpc_network(self, network_id, network_name, put=True, 
+                        trace_id=None):
         """
         Retrieve network from server.
 
@@ -146,14 +147,18 @@ class SeluxitRpc:
         }
 
         if put:
-            self.data_json_rpc = Request('PUT',
-                                         url='/{}/{}'.format(network,
-                                                             network_id),
-                                         data=data_inside)
+            verb = 'PUT'
+            url = '/{}/{}'.format(network, network_id)
         else:
-            self.data_json_rpc = Request('POST',
-                                         url='/{}'.format(network),
-                                         data=data_inside)
+            verb = 'POST'
+            url = '/{}'.format(network)
+
+        if trace_id:
+            url = "{}?trace={}".format(url, trace_id)
+
+        self.data_json_rpc = Request(verb,
+                                     url=url,
+                                     data=data_inside)
         return json.dumps(self.data_json_rpc).encode('utf-8')
 
     def get_rpc_state(
@@ -282,15 +287,15 @@ class SeluxitRpc:
                 url = "{}{}/{}/{}".format(base_url, value_id, state, state_id)
             else:
                 url = "{}{}".format(base_url, value_id)
-
-            if trace_id:
-                url = "{}?trace={}".format(url, trace_id)
         else:
             verb = 'POST'
             if state == 'state':
                 url = "{}{}/{}".format(base_url, value_id, state)
             else:
                 url = base_url
+
+        if trace_id:
+            url = "{}?trace={}".format(url, trace_id)
 
         self.data_json_rpc = Request(verb,
                                      url=url,

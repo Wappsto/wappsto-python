@@ -484,7 +484,7 @@ class ClientSocket:
                     self.send_failed(package)
 
                 elif package.msg_id == send_data.SEND_RECONNECT:
-                    self.send_reconnect()
+                    self.send_reconnect(package)
 
                 elif package.msg_id == send_data.SEND_CONTROL:
                     self.send_control(package)
@@ -527,9 +527,23 @@ class ClientSocket:
         self.wapp_log.info(msg)
 
     def create_trace(self, package):
+        """
+        Creates trace.
+
+        Creates trace if necessary, by using generated data and existing
+        information from package.
+
+        Args:
+            package: Sending queue item.
+
+        Returns:
+            Sending queue item with new trace id.
+
+        """
         if self.automatic_trace and package.trace_id is None:
             random_int = random.randint(1, 25000)
-            control_value_id = "{}{}".format(self.instance.network_cl.name, random_int)
+            control_value_id = "{}{}".format(self.instance.network_cl.name,
+                                             random_int)
 
             package.trace_id = random_int
 
@@ -574,7 +588,7 @@ class ClientSocket:
             msg = "Error sending control: {}".format(e)
             self.wapp_log.error(msg, exc_info=True)
 
-    def send_reconnect(self):
+    def send_reconnect(self, package):
         """
         Send a reconnect attempt.
 
@@ -582,10 +596,13 @@ class ClientSocket:
         """
         self.wapp_log.info("Sending reconnect data")
         try:
+            package = self.create_trace(package)
+
             rpc_network = self.rpc.get_rpc_network(
                 self.network.uuid,
                 self.network.name,
-                put=False
+                put=False,
+                trace_id=package.trace_id
             )
             self.send_data(rpc_network)
             for element in self.packet_awaiting_confirm:
@@ -607,6 +624,9 @@ class ClientSocket:
 
         """
         self.wapp_log.info("Sending Error")
+
+        package = self.create_trace(package)
+
         rpc_fail_response = self.rpc.get_rpc_fail_response(
             package.rpc_id,
             package.text
@@ -635,6 +655,9 @@ class ClientSocket:
                     package.trace_id = (
                         self.add_trace_to_report_list.pop(package.value_id)
                     )
+
+            package = self.create_trace(package)
+
             local_data = self.rpc.get_rpc_state(
                 package.data,
                 package.network_id,
@@ -665,6 +688,8 @@ class ClientSocket:
 
         """
         try:
+            package = self.create_trace(package)
+
             rpc_success_response = self.rpc.get_rpc_success_response(
                 package.rpc_id
             )

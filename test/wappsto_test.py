@@ -30,26 +30,31 @@ def fake_connect(self, address, port):
             self.service.start(address=address, port=port)
 
 
-def get_send_thread_values(self, type, args, id):
+def get_send_thread_values(self, type, args, id, send_trace):
     results = []
     if type == 1:
-        results.append(TestResult(args['id'], id))
-        results.append(TestResult(bool(args['result']), True))
+        results.append(TestResult(received = args['id'], expected = id))
+        results.append(TestResult(received = bool(args['result']), 
+                                  expected = True))
     elif type == 2:
-        results.append(TestResult(args['id'], id))
-        results.append(TestResult(args['error'],
-                                  json.loads(
+        results.append(TestResult(received = args['id'], expected = id))
+        results.append(TestResult(received = args['error'],
+                                  expected = json.loads(
                                       '{"code": -32020, "message": null}')))
     elif type == 3:
-        results.append(TestResult(args['params']['data']['type'], "Report"))
-        results.append(TestResult(args['method'], "PUT"))
+        results.append(TestResult(received = args['params']['data']['type'],
+                                  expected = "Report"))
+        results.append(TestResult(received = args['method'], expected = "PUT"))
     elif type == 4:
-        results.append(TestResult(args['params']['data']['meta']['type'],
-                                  "network"))
-        results.append(TestResult(args['method'], "POST"))
+        results.append(TestResult(received = args['params']['data']['meta']['type'],
+                                  expected = "network"))
+        results.append(TestResult(received = args['method'], expected = "POST"))
     elif type == 5:
-        results.append(TestResult(args['params']['data']['type'], "Control"))
-        results.append(TestResult(args['method'], "PUT"))
+        results.append(TestResult(received = args['params']['data']['type'], 
+                                  expected = "Control"))
+        results.append(TestResult(received = args['method'], expected = "PUT"))
+    results.append(TestResult(received = "?trace=" in str(args['params']['url']), 
+                                  expected = send_trace))
     return results
 
 
@@ -285,32 +290,44 @@ class TestSendThreadClass:
     def setup_method(self, test_receive_thread_other):
         self.send_reset = self.service.socket.my_socket.send
 
-    @pytest.mark.parametrize("id,type", [(93043873, send_data.SEND_SUCCESS),
-                                         (93043873, send_data.SEND_REPORT),
-                                         (93043873, send_data.SEND_FAILED),
-                                         (93043873, send_data.SEND_RECONNECT),
-                                         (93043873, send_data.SEND_CONTROL)])
-    def test_send_thread(self, id, type):
+    @pytest.mark.parametrize("id,type,send_trace", [(93043873, send_data.SEND_SUCCESS, False),
+                                         (93043873, send_data.SEND_REPORT, False),
+                                         (93043873, send_data.SEND_FAILED, False),
+                                         (93043873, send_data.SEND_RECONNECT, False),
+                                         (93043873, send_data.SEND_CONTROL, False),
+                                         (93043873, send_data.SEND_SUCCESS, True),
+                                         (93043873, send_data.SEND_REPORT, True),
+                                         (93043873, send_data.SEND_FAILED, True),
+                                         (93043873, send_data.SEND_RECONNECT, True),
+                                         (93043873, send_data.SEND_CONTROL, True)
+                                         ])
+    def test_send_thread(self, id, type, send_trace):
         # Arrange
         reply = send_data.SendData(
             type,
             rpc_id=id
         )
+        self.service.socket.automatic_trace = send_trace
         self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=Exception)
 
         # Act
-        try:
-            # runs until mock object is run and its side_effect raises
-            # exception
-            self.service.socket.send_thread()
-        except Exception:
-            args, kwargs = self.service.socket.my_socket.send.call_args
+        with patch('urllib.request.urlopen') as urlopen:
+            try:
+                # runs until mock object is run and its side_effect raises
+                # exception
+                self.service.socket.send_thread()
+            except Exception:
+                args, kwargs = self.service.socket.my_socket.send.call_args
+            trace_sent = urlopen.called
 
         args = json.loads(args[0].decode('utf-8'))
 
         # Assert
-        for result in get_send_thread_values(self, type, args, id):
+        
+        #also ensure trace is sent into message not only called
+        assert send_trace == trace_sent
+        for result in get_send_thread_values(self, type, args, id, send_trace):
             assert result.received == result.expected
 
     @pytest.mark.parametrize("rpc_id,expected_trace_id,type", [(93043873, 332, send_data.SEND_TRACE)])
