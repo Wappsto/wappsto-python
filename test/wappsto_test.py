@@ -43,7 +43,7 @@ def fake_connect(self, address, port, send_trace = False):
             self.service.start(address=address, port=port, automatic_trace=send_trace)
 
 
-def get_send_thread_values(self, type, args, id, send_trace):
+def get_send_thread_values(type, args, id, send_trace):
     results = []
     if type == 1:
         results.append(TestResult(received = args['id'], expected = id))
@@ -75,7 +75,7 @@ def get_send_thread_values(self, type, args, id, send_trace):
     return results
 
 
-def fix_object(self, callback_exists, testing_object):
+def fix_object_callback(callback_exists, testing_object):
     if callback_exists:
         test_callback = Mock(return_value=True)
         testing_object.set_callback(test_callback)
@@ -86,20 +86,20 @@ def fix_object(self, callback_exists, testing_object):
 
 def create_response(self, verb, callback_exists, trace_id):
     value = self.service.instance.device_list[0].value_list[0]
-    value = fix_object(self, callback_exists, value)
+    value = fix_object_callback(callback_exists, value)
     id = str(value.control_state.uuid)
     url = str(value.report_state.uuid)
     trace = ''
 
     if verb == "DELETE":
         network = self.service.get_network()
-        network = fix_object(self, callback_exists, network)
+        network = fix_object_callback(callback_exists, network)
         url = str(network.uuid)
     elif verb == "PUT" or verb == "GET":
         pass
         # may be used later
     else:
-        return '{"jsonrpc": "2.0", "id": "1", "params": {"url": "/network/b03f246d-63ef-446d-be58-ef1d1e83b338/device/a0e087c1-9678-491c-ac47-5b065dea3ac0/value/7ce2afdd-3be3-4945-862e-c73a800eb209/state/a7b4f66b-2558-4559-9fcc-c60768083164", "data": {"meta": {"id": "a7b4f66b-2558-4559-9fcc-c60768083164", "type": "state", "version": "2.0"}, "type": "Report", "status": "Send", "data": "93", "timestamp": "2020-01-22T08:22:57.216500Z"}}, "method": "??????"}'
+        return '{"jsonrpc": "2.0", "id": "1", "params": {}, "method": "??????"}'
 
     if trace_id is not None:
         trace = '"meta": {"trace": "'+trace_id+'"},'
@@ -173,7 +173,7 @@ class TestConnClass:
     def test_connection(self, address, port, expected_status, send_trace, callback_exists, value_changed_to_none, upgradable):
         # Arrange
         status_service = self.service.get_status()
-        fix_object(self, callback_exists, status_service)
+        fix_object_callback(callback_exists, status_service)
         expected_json_data = get_expected_json(self)
         urlopen_trace_id = sent_json_trace_id = ''
         if value_changed_to_none:
@@ -404,7 +404,7 @@ class TestSendThreadClass:
             not send_trace and urlopen_trace_id == '' or
             send_trace and urlopen_trace_id != ''
             )
-        for result in get_send_thread_values(self, type, arg, id, send_trace):
+        for result in get_send_thread_values(type, arg, id, send_trace):
             assert result.received == result.expected
 
     @pytest.mark.parametrize("rpc_id", [93043873])
