@@ -299,8 +299,8 @@ class SeluxitRpc:
             url = "{}?trace={}".format(url, trace_id)
 
         self.data_json_rpc = requests.Request(verb,
-                                     url=url,
-                                     data=data)
+                                              url=url,
+                                              data=data)
 
     def get_rpc_whole_json(self, json_data, trace_id=None):
         """
@@ -323,8 +323,8 @@ class SeluxitRpc:
             url = "{}?trace={}".format(url, trace_id)
 
         self.data_json_rpc = requests.Request('POST',
-                                     url=url,
-                                     data=json_data)
+                                              url=url,
+                                              data=json_data)
 
         return json.dumps(self.data_json_rpc).encode('utf-8')
 
