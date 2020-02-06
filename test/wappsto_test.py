@@ -24,6 +24,17 @@ def check_for_correct_conn(*args, **kwargs):
         raise wappsto_errors.ServerConnectionException
 
 
+def stop_if_success_or_failed(*args, **kwargs):
+    if args[0].msg_id == send_data.SEND_SUCCESS or args[0].msg_id == send_data.SEND_FAILED:
+        raise Exception
+
+
+def check_if_element_exists(change_indicator, key_name, dict1, dict2):
+    result1 = exists_in_dictionary(key_name,dict1)
+    result2 = exists_in_dictionary(key_name,dict2)
+    return (change_indicator and result1 != result2) or (not change_indicator and result1 == result2)
+
+
 def fake_connect(self, address, port, send_trace = False):
     wappsto.RETRY_LIMIT = 2
     with patch('wappsto.communication.ssl.SSLContext.wrap_socket') as context:
@@ -164,7 +175,7 @@ class TestConnClass:
         status_service = self.service.get_status()
         fix_object(self, callback_exists, status_service)
         expected_json_data = get_expected_json(self)
-        parsed_urlopen = parsed_sent_json = ''
+        urlopen_trace_id = sent_json_trace_id = ''
         if value_changed_to_none:
             self.service.instance.network_cl.name = None
 
@@ -176,38 +187,31 @@ class TestConnClass:
                 arg = json.loads(args[0].decode('utf-8'))
                 sent_json_data = arg['params']['data']
                 
-                expected_trace_sent = send_trace
                 if urlopen.called:
                     urlopen_args, urlopen_kwargs = urlopen.call_args
 
                     parsed_urlopen = urlparse.urlparse(urlopen_args[0])
-                    parsed_urlopen = parse_qs(parsed_urlopen.query)['id']
+                    urlopen_trace_id = parse_qs(parsed_urlopen.query)['id']
     
                     parsed_sent_json = urlparse.urlparse(arg['params']['url'])
-                    parsed_sent_json = parse_qs(parsed_sent_json.query)['trace']
+                    sent_json_trace_id = parse_qs(parsed_sent_json.query)['trace']
 
             except wappsto_errors.ServerConnectionException:
                 sent_json_data = None
                 expected_json_data = None
-                expected_trace_sent = False
+                send_trace = False
 
         # Assert
-        assert parsed_urlopen == parsed_sent_json and (
-            expected_trace_sent and parsed_urlopen != '' or
-            not expected_trace_sent and parsed_urlopen == ''
-            )
-        assert ((sent_json_data == None and expected_json_data == None) or
-                
-                ((value_changed_to_none and (exists_in_dictionary('name',expected_json_data) 
-                                             != exists_in_dictionary('name',sent_json_data))) or
-                (not value_changed_to_none and (exists_in_dictionary('name',expected_json_data) 
-                                             == exists_in_dictionary('name',sent_json_data)))) and
-
-                ((upgradable and (exists_in_dictionary('upgradable',expected_json_data['meta']) 
-                                             != exists_in_dictionary('upgradable',sent_json_data['meta']))) or
-                (not upgradable and (exists_in_dictionary('upgradable',expected_json_data['meta']) 
-                                             == exists_in_dictionary('upgradable',sent_json_data['meta']))))
-                )
+        assert (#trace ids sent in urlopen and request
+                urlopen_trace_id == sent_json_trace_id and
+                send_trace and urlopen_trace_id != '' or
+                not send_trace and urlopen_trace_id == ''
+               )
+        assert (#compares dictionaries
+                (sent_json_data == None and expected_json_data == None) or
+                check_if_element_exists(value_changed_to_none, 'name', expected_json_data, sent_json_data) and
+                check_if_element_exists(upgradable, 'upgradable', expected_json_data['meta'], sent_json_data['meta'])
+               )
         assert self.service.status.get_status() == expected_status
 
 class TestValueSendClass:
@@ -284,22 +288,28 @@ class TestReceiveThreadClass:
         self.service = wappsto.Wappsto(json_file_name=test_json_location)
         fake_connect(self, ADDRESS, PORT)
 
-    @pytest.mark.parametrize("verb,callback_exists,expected_msg_id", [('PUT', True, send_data.SEND_SUCCESS),
-                                       ('DELETE', True, send_data.SEND_SUCCESS),
-                                       ('GET', True, send_data.SEND_SUCCESS),
-                                       ('wrong_verb', True, send_data.SEND_FAILED),
-                                       ('PUT', False, send_data.SEND_FAILED),
-                                       ('DELETE', False, send_data.SEND_SUCCESS),
-                                       ('GET', False, send_data.SEND_SUCCESS),
-                                       ('wrong_verb', False, send_data.SEND_FAILED)])
-    @pytest.mark.parametrize("trace_id", [None, '123'])
-    def test_receive_thread_method(self, verb, callback_exists, trace_id, 
-                                   expected_msg_id):
+    @pytest.mark.parametrize("verb,callback_exists,expected_msg_id,trace_id", [('PUT', True, send_data.SEND_SUCCESS, None),
+                                       ('DELETE', True, send_data.SEND_SUCCESS, None),
+                                       ('GET', True, send_data.SEND_SUCCESS, None),
+                                       ('wrong_verb', True, send_data.SEND_FAILED, None),
+                                       ('PUT', False, send_data.SEND_FAILED, None),
+                                       ('DELETE', False, send_data.SEND_SUCCESS, None),
+                                       ('GET', False, send_data.SEND_SUCCESS, None),
+                                       ('wrong_verb', False, send_data.SEND_FAILED, None),
+                                       ('PUT', True, send_data.SEND_TRACE, '123'),
+                                       ('DELETE', True, send_data.SEND_TRACE, '123'),
+                                       ('GET', True, send_data.SEND_TRACE, '123'),
+                                       ('wrong_verb', True, send_data.SEND_FAILED, '123'),
+                                       ('PUT', False, send_data.SEND_FAILED, '123'),
+                                       ('DELETE', False, send_data.SEND_TRACE, '123'),
+                                       ('GET', False, send_data.SEND_TRACE, '123'),
+                                       ('wrong_verb', False, send_data.SEND_FAILED, '123')])
+    def test_receive_thread_method(self, verb, callback_exists, expected_msg_id, trace_id):
         # Arrange
         response = create_response(self, verb, callback_exists, trace_id)
         self.service.socket.my_socket.recv = Mock(
             return_value=response.encode('utf-8'))
-        self.service.socket.sending_queue.put = Mock(side_effect=Exception)
+        self.service.socket.sending_queue.put = Mock(side_effect=stop_if_success_or_failed)
 
         # Act
         try:
@@ -307,20 +317,14 @@ class TestReceiveThreadClass:
             # exception
             self.service.socket.receive_thread()
         except Exception:
-            args, kwargs = self.service.socket.sending_queue.put.call_args
+            args = self.service.socket.sending_queue.put.call_args_list
 
         # Assert
-        assert (trace_id is not None and (
-                    (expected_msg_id == send_data.SEND_SUCCESS and
-                    args[0].msg_id == send_data.SEND_TRACE and 
-                    args[0].trace_id == trace_id) or 
-                    (expected_msg_id == send_data.SEND_FAILED)
-                ) or
-                trace_id is None and (
-                    (expected_msg_id == send_data.SEND_SUCCESS and
-                    args[0].msg_id == send_data.SEND_SUCCESS) or 
-                    (expected_msg_id == send_data.SEND_FAILED and
-                    args[0].msg_id == send_data.SEND_FAILED)))
+        assert args[0][0][0].msg_id == expected_msg_id
+
+        if expected_msg_id == send_data.SEND_TRACE:
+            assert args[0][0][0].trace_id == trace_id
+            assert args[1][0][0].msg_id == send_data.SEND_SUCCESS
 
     @pytest.mark.parametrize("id", [93043873])
     @pytest.mark.parametrize("type", ["error", "result"])
@@ -374,7 +378,7 @@ class TestSendThreadClass:
         self.service.socket.automatic_trace = send_trace
         self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=Exception)
-        parsed_urlopen = parsed_sent_json = ''
+        urlopen_trace_id = sent_json_trace_id = ''
 
         # Act
         with patch('urllib.request.urlopen') as urlopen:
@@ -390,15 +394,15 @@ class TestSendThreadClass:
                     urlopen_args, urlopen_kwargs = urlopen.call_args
 
                     parsed_urlopen = urlparse.urlparse(urlopen_args[0])
-                    parsed_urlopen = parse_qs(parsed_urlopen.query)['id']
+                    urlopen_trace_id = parse_qs(parsed_urlopen.query)['id']
     
                     parsed_sent_json = urlparse.urlparse(arg['params']['url'])
-                    parsed_sent_json = parse_qs(parsed_sent_json.query)['trace']
+                    sent_json_trace_id = parse_qs(parsed_sent_json.query)['trace']
 
         # Assert
-        assert parsed_urlopen == parsed_sent_json and (
-            not send_trace and parsed_urlopen == '' or
-            send_trace and parsed_urlopen != ''
+        assert urlopen_trace_id == sent_json_trace_id and (
+            not send_trace and urlopen_trace_id == '' or
+            send_trace and urlopen_trace_id != ''
             )
         for result in get_send_thread_values(self, type, arg, id, send_trace):
             assert result.received == result.expected
