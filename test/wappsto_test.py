@@ -91,7 +91,7 @@ def create_response(self, verb, callback_exists, trace_id):
         return '{"jsonrpc": "2.0", "id": "1", "params": {"url": "/network/b03f246d-63ef-446d-be58-ef1d1e83b338/device/a0e087c1-9678-491c-ac47-5b065dea3ac0/value/7ce2afdd-3be3-4945-862e-c73a800eb209/state/a7b4f66b-2558-4559-9fcc-c60768083164", "data": {"meta": {"id": "a7b4f66b-2558-4559-9fcc-c60768083164", "type": "state", "version": "2.0"}, "type": "Report", "status": "Send", "data": "93", "timestamp": "2020-01-22T08:22:57.216500Z"}}, "method": "??????"}'
 
     if trace_id is not None:
-        trace = '"meta": {"trace": "'+str(trace_id)+'"},'
+        trace = '"meta": {"trace": "'+trace_id+'"},'
 
     return '{"jsonrpc": "2.0", "id": "1", "params": {"url": "'+url+'",'+trace+' "data": {"meta": {"id": "'+id+'"}, "data": "93"}}, "method": "'+verb+'"}'
 
@@ -151,56 +151,15 @@ class TestConnClass:
         self.test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
         self.service = wappsto.Wappsto(json_file_name=self.test_json_location)
 
-    @pytest.mark.parametrize("address,port,callback_exists,expected_status,value_changed_to_none,upgradable,send_trace,expected_trace_sent", [
-            (ADDRESS, PORT, True, status.RUNNING, False, False, False, False),
-            (ADDRESS, -1, True, status.DISCONNECTING, False, False, False, False),
-            ("wappstoFail.com", PORT, True, status.DISCONNECTING, False, False, False, False),
-            (ADDRESS, PORT, False, status.RUNNING, False, False, False, False),
-            (ADDRESS, -1, False, status.DISCONNECTING, False, False, False, False),
-            ("wappstoFail.com", PORT, False, status.DISCONNECTING, False, False, False, False),
-            (ADDRESS, PORT, True, status.RUNNING, True, False, False, False),
-            (ADDRESS, -1, True, status.DISCONNECTING, True, False, False, False),
-            ("wappstoFail.com", PORT, True, status.DISCONNECTING, True, False, False, False),
-            (ADDRESS, PORT, False, status.RUNNING, True, False, False, False),
-            (ADDRESS, -1, False, status.DISCONNECTING, True, False, False, False),
-            ("wappstoFail.com", PORT, False, status.DISCONNECTING, True, False, False, False),
-            (ADDRESS, PORT, True, status.RUNNING, False, True, False, False),
-            (ADDRESS, -1, True, status.DISCONNECTING, False, True, False, False),
-            ("wappstoFail.com", PORT, True, status.DISCONNECTING, False, True, False, False),
-            (ADDRESS, PORT, False, status.RUNNING, False, True, False, False),
-            (ADDRESS, -1, False, status.DISCONNECTING, False, True, False, False),
-            ("wappstoFail.com", PORT, False, status.DISCONNECTING, False, True, False, False),
-            (ADDRESS, PORT, True, status.RUNNING, True, True, False, False),
-            (ADDRESS, -1, True, status.DISCONNECTING, True, True, False, False),
-            ("wappstoFail.com", PORT, True, status.DISCONNECTING, True, True, False, False),
-            (ADDRESS, PORT, False, status.RUNNING, True, True, False, False),
-            (ADDRESS, -1, False, status.DISCONNECTING, True, True, False, False),
-            ("wappstoFail.com", PORT, False, status.DISCONNECTING, True, True, False, False),
-            (ADDRESS, PORT, True, status.RUNNING, False, False, True, True),
-            (ADDRESS, -1, True, status.DISCONNECTING, False, False, True, False),
-            ("wappstoFail.com", PORT, True, status.DISCONNECTING, False, False, True, False),
-            (ADDRESS, PORT, False, status.RUNNING, False, False, True, True),
-            (ADDRESS, -1, False, status.DISCONNECTING, False, False, True, False),
-            ("wappstoFail.com", PORT, False, status.DISCONNECTING, False, False, True, False),
-            (ADDRESS, PORT, True, status.RUNNING, True, False, True, True),
-            (ADDRESS, -1, True, status.DISCONNECTING, True, False, True, False),
-            ("wappstoFail.com", PORT, True, status.DISCONNECTING, True, False, True, False),
-            (ADDRESS, PORT, False, status.RUNNING, True, False, True, True),
-            (ADDRESS, -1, False, status.DISCONNECTING, True, False, True, False),
-            ("wappstoFail.com", PORT, False, status.DISCONNECTING, True, False, True, False),
-            (ADDRESS, PORT, True, status.RUNNING, False, True, True, True),
-            (ADDRESS, -1, True, status.DISCONNECTING, False, True, True, False),
-            ("wappstoFail.com", PORT, True, status.DISCONNECTING, False, True, True, False),
-            (ADDRESS, PORT, False, status.RUNNING, False, True, True, True),
-            (ADDRESS, -1, False, status.DISCONNECTING, False, True, True, False),
-            ("wappstoFail.com", PORT, False, status.DISCONNECTING, False, True, True, False),
-            (ADDRESS, PORT, True, status.RUNNING, True, True, True, True),
-            (ADDRESS, -1, True, status.DISCONNECTING, True, True, True, False),
-            ("wappstoFail.com", PORT, True, status.DISCONNECTING, True, True, True, False),
-            (ADDRESS, PORT, False, status.RUNNING, True, True, True, True),
-            (ADDRESS, -1, False, status.DISCONNECTING, True, True, True, False),
-            ("wappstoFail.com", PORT, False, status.DISCONNECTING, True, True, True, False)])
-    def test_connection(self, address, port, callback_exists, expected_status, value_changed_to_none, upgradable, send_trace, expected_trace_sent):
+    @pytest.mark.parametrize("address,port,expected_status", [(ADDRESS, PORT, status.RUNNING),
+                                              (ADDRESS, -1, status.DISCONNECTING),
+                                              ("wappstoFail.com", PORT, status.DISCONNECTING),
+                                              ("wappstoFail.com", -1, status.DISCONNECTING)])
+    @pytest.mark.parametrize("send_trace", [True, False])
+    @pytest.mark.parametrize("callback_exists", [True, False])
+    @pytest.mark.parametrize("value_changed_to_none", [True, False])
+    @pytest.mark.parametrize("upgradable", [True, False])
+    def test_connection(self, address, port, expected_status, send_trace, callback_exists, value_changed_to_none, upgradable):
         # Arrange
         status_service = self.service.get_status()
         fix_object(self, callback_exists, status_service)
@@ -216,7 +175,8 @@ class TestConnClass:
                 args, kwargs = self.service.socket.my_socket.send.call_args
                 arg = json.loads(args[0].decode('utf-8'))
                 sent_json_data = arg['params']['data']
-
+                
+                expected_trace_sent = send_trace
                 if urlopen.called:
                     urlopen_args, urlopen_kwargs = urlopen.call_args
 
@@ -229,6 +189,7 @@ class TestConnClass:
             except wappsto_errors.ServerConnectionException:
                 sent_json_data = None
                 expected_json_data = None
+                expected_trace_sent = False
 
         # Assert
         assert parsed_urlopen == parsed_sent_json and (
@@ -323,30 +284,17 @@ class TestReceiveThreadClass:
         self.service = wappsto.Wappsto(json_file_name=test_json_location)
         fake_connect(self, ADDRESS, PORT)
 
-    '''
-    Testing test_receive_thread_method specificaly
-    '''
-
-    @pytest.mark.parametrize("id,verb,callback_exists,trace_id,expected_rpc_id,expected_msg_id,expected_trace_id",
-                             [(1, 'PUT', True, None, '1', send_data.SEND_SUCCESS, None),
-                              (1, 'PUT', False, None, '1', send_data.SEND_FAILED, None),
-                              (1, 'DELETE', True, None, '1', send_data.SEND_SUCCESS, None),
-                              (1, 'DELETE', False, None, '1', send_data.SEND_SUCCESS, None),
-                              (1, 'GET', True, None, '1', send_data.SEND_SUCCESS, None),
-                              (1, 'GET', False, None, '1', send_data.SEND_SUCCESS, None),
-                              (1, 'wrong_verb', False, None, '1', send_data.SEND_FAILED, None),
-                              (1, 'wrong_verb', True, None, '1', send_data.SEND_FAILED, None),
-                              (1, 'PUT', True, 321, None, send_data.SEND_TRACE, '321'),
-                              (1, 'PUT', False, 321, '1', send_data.SEND_FAILED, None),
-                              (1, 'DELETE', True, 321, None, send_data.SEND_TRACE, '321'),
-                              (1, 'DELETE', False, 321, None, send_data.SEND_TRACE, '321'),
-                              (1, 'GET', True, 321, None, send_data.SEND_TRACE, '321'),
-                              (1, 'GET', False, 321, None, send_data.SEND_TRACE, '321'),
-                              (1, 'wrong_verb', False, 321, '1', send_data.SEND_FAILED, None),
-                              (1, 'wrong_verb', True, 321, '1', send_data.SEND_FAILED, None)
-                             ])
-    def test_receive_thread_method(self, id, verb, callback_exists, trace_id, 
-                                   expected_rpc_id, expected_msg_id, expected_trace_id):
+    @pytest.mark.parametrize("verb,callback_exists,expected_msg_id", [('PUT', True, send_data.SEND_SUCCESS),
+                                       ('DELETE', True, send_data.SEND_SUCCESS),
+                                       ('GET', True, send_data.SEND_SUCCESS),
+                                       ('wrong_verb', True, send_data.SEND_FAILED),
+                                       ('PUT', False, send_data.SEND_FAILED),
+                                       ('DELETE', False, send_data.SEND_SUCCESS),
+                                       ('GET', False, send_data.SEND_SUCCESS),
+                                       ('wrong_verb', False, send_data.SEND_FAILED)])
+    @pytest.mark.parametrize("trace_id", [None, '123'])
+    def test_receive_thread_method(self, verb, callback_exists, trace_id, 
+                                   expected_msg_id):
         # Arrange
         response = create_response(self, verb, callback_exists, trace_id)
         self.service.socket.my_socket.recv = Mock(
@@ -362,16 +310,20 @@ class TestReceiveThreadClass:
             args, kwargs = self.service.socket.sending_queue.put.call_args
 
         # Assert
-        assert args[0].rpc_id == expected_rpc_id
-        assert args[0].msg_id == expected_msg_id
-        assert args[0].trace_id == expected_trace_id
+        assert (trace_id is not None and (
+                    (expected_msg_id == send_data.SEND_SUCCESS and
+                    args[0].msg_id == send_data.SEND_TRACE and 
+                    args[0].trace_id == trace_id) or 
+                    (expected_msg_id == send_data.SEND_FAILED)
+                ) or
+                trace_id is None and (
+                    (expected_msg_id == send_data.SEND_SUCCESS and
+                    args[0].msg_id == send_data.SEND_SUCCESS) or 
+                    (expected_msg_id == send_data.SEND_FAILED and
+                    args[0].msg_id == send_data.SEND_FAILED)))
 
-    '''
-    Testing test_receive_thread_other specificaly
-    '''
-
-    @pytest.mark.parametrize("id,type", [(93043873, "error"),
-                                         (93043873, "result")])
+    @pytest.mark.parametrize("id", [93043873])
+    @pytest.mark.parametrize("type", ["error", "result"])
     def test_receive_thread_other(self, id, type):
         # Arrange
         response = '{"jsonrpc": "2.0", "id": "'+ str(id) +'", "'+type+'": {"value": "True", "meta": {"server_send_time": "2020-01-22T08:22:55.315Z"}}}'
@@ -404,14 +356,15 @@ class TestSendThreadClass:
         self.service = wappsto.Wappsto(json_file_name=test_json_location)
         fake_connect(self, ADDRESS, PORT)
 
-    @pytest.mark.parametrize("id,type,send_trace", [(93043873, send_data.SEND_SUCCESS, False),
-                                         (93043873, send_data.SEND_REPORT, False),
-                                         (93043873, send_data.SEND_FAILED, False),
-                                         (93043873, send_data.SEND_RECONNECT, False),
-                                         (93043873, send_data.SEND_CONTROL, False),
-                                         (93043873, send_data.SEND_REPORT, True),
-                                         (93043873, send_data.SEND_RECONNECT, True),
-                                         (93043873, send_data.SEND_CONTROL, True)])
+    @pytest.mark.parametrize("type,send_trace", [(send_data.SEND_SUCCESS, False),
+                                         (send_data.SEND_REPORT, False),
+                                         (send_data.SEND_FAILED, False),
+                                         (send_data.SEND_RECONNECT, False),
+                                         (send_data.SEND_CONTROL, False),
+                                         (send_data.SEND_REPORT, True),
+                                         (send_data.SEND_RECONNECT, True),
+                                         (send_data.SEND_CONTROL, True)])
+    @pytest.mark.parametrize("id", [93043873])
     def test_send_thread(self, id, type, send_trace):
         # Arrange
         reply = send_data.SendData(
@@ -450,12 +403,14 @@ class TestSendThreadClass:
         for result in get_send_thread_values(self, type, arg, id, send_trace):
             assert result.received == result.expected
 
-    @pytest.mark.parametrize("rpc_id,expected_trace_id,type", [(93043873, 332, send_data.SEND_TRACE)])
-    def test_send_thread_send_trace(self, rpc_id, expected_trace_id, type):
+    @pytest.mark.parametrize("rpc_id", [93043873])
+    @pytest.mark.parametrize("type", [send_data.SEND_TRACE])
+    @pytest.mark.parametrize("trace_id", [332])
+    def test_send_thread_send_trace(self, rpc_id, trace_id, type):
         # Arrange
         reply = send_data.SendData(
             type,
-            trace_id = expected_trace_id,
+            trace_id = trace_id,
             rpc_id=rpc_id
         )
         self.service.socket.sending_queue.put(reply)
@@ -474,7 +429,7 @@ class TestSendThreadClass:
                     parsed_id = int(parse_qs(parsed_id.query)['id'][0])
 
         # Assert
-        assert parsed_id == expected_trace_id
+        assert parsed_id == trace_id
 
     @classmethod
     def teardown_class(self):
