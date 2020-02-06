@@ -119,7 +119,7 @@ class SeluxitRpc:
         except OSError:
             pass
 
-    def get_rpc_network(self, network_id, network_name, put=True, 
+    def get_rpc_network(self, network_id, network_name, put=True,
                         trace_id=None):
         """
         Retrieve network from server.
@@ -132,6 +132,7 @@ class SeluxitRpc:
             network_id: Unique identifying number of a network
             network_name: Name of a network
             put: defines if the request method is put {default: True}
+            trace_id:  ID of the debug trace {default: None}
 
         Returns:
             JSON formatted data of network
@@ -310,16 +311,17 @@ class SeluxitRpc:
 
         Args:
             json_data: Data read from json file.
+            trace_id:  ID of the debug trace {default: None}
 
         Returns:
             JSON formatted data of network
 
         """
-        url='/{}'.format("network")
-        
+        url = '/{}'.format("network")
+
         if trace_id:
             url = "{}?trace={}".format(url, trace_id)
-        
+
         self.data_json_rpc = Request('POST',
                                      url=url,
                                      data=json_data)
@@ -339,6 +341,7 @@ class SeluxitRpc:
         Args:
             connection: A reference to the socket instance.
             json_data: Data read from json file.
+            trace_id:  ID of the debug trace {default: None}.
 
         """
         message = self.get_rpc_whole_json(json_data, trace_id)

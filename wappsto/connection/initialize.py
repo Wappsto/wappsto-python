@@ -40,13 +40,14 @@ class Initialize:
         Args:
             conn: A reference to the socket instance.
             instance: A reference to the network and device instances.
+            trace_id:  ID of the debug trace.
 
         """
         self.wapp_log = logging.getLogger(__name__)
         self.wapp_log.addHandler(logging.NullHandler())
 
         self.rpc.add_whole_json(conn,
-                                instance.json_container,trace_id)
+                                instance.json_container, trace_id)
 
         msg = "The whole network {} added to Sending queue {}.".format(
             instance.network_cl.name,

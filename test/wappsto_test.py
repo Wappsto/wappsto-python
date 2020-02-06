@@ -6,6 +6,8 @@ import wappsto
 import urllib.parse
 from mock import Mock
 from unittest.mock import patch
+import urllib.parse as urlparse
+from urllib.parse import parse_qs
 
 from wappsto.connection import send_data
 from wappsto.object_instantiation import status
@@ -131,41 +133,52 @@ class TestConnClass:
         self.test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
         self.service = wappsto.Wappsto(json_file_name=self.test_json_location)
 
-    @pytest.mark.parametrize("address,port,callback_exists,expected_status,send_trace", [(ADDRESS, PORT, True, status.RUNNING, False),
-                                                     (ADDRESS, -1, True, status.DISCONNECTING, False),
-                                                     ("wappstoFail.com", PORT, True, status.DISCONNECTING, False),
-                                                     (ADDRESS, PORT, False, status.RUNNING, False),
-                                                     (ADDRESS, -1, False, status.DISCONNECTING, False),
-                                                     ("wappstoFail.com", PORT, False, status.DISCONNECTING, False),
-                                                     (ADDRESS, PORT, True, status.RUNNING, True),
-                                                     (ADDRESS, -1, True, status.DISCONNECTING, True),
-                                                     ("wappstoFail.com", PORT, True, status.DISCONNECTING, True),
-                                                     (ADDRESS, PORT, False, status.RUNNING, True),
-                                                     (ADDRESS, -1, False, status.DISCONNECTING, True),
-                                                     ("wappstoFail.com", PORT, False, status.DISCONNECTING, True)])
-    def test_connection(self, address, port, callback_exists, expected_status, send_trace):
+    @pytest.mark.parametrize("address,port,callback_exists,expected_status,send_trace,expected_trace_sent", [(ADDRESS, PORT, True, status.RUNNING, False, False),
+                                                     (ADDRESS, -1, True, status.DISCONNECTING, False, False),
+                                                     ("wappstoFail.com", PORT, True, status.DISCONNECTING, False, False),
+                                                     (ADDRESS, PORT, False, status.RUNNING, False, False),
+                                                     (ADDRESS, -1, False, status.DISCONNECTING, False, False),
+                                                     ("wappstoFail.com", PORT, False, status.DISCONNECTING, False, False),
+                                                     (ADDRESS, PORT, True, status.RUNNING, True, True),
+                                                     (ADDRESS, -1, True, status.DISCONNECTING, True, False),
+                                                     ("wappstoFail.com", PORT, True, status.DISCONNECTING, True, False),
+                                                     (ADDRESS, PORT, False, status.RUNNING, True, True),
+                                                     (ADDRESS, -1, False, status.DISCONNECTING, True, False),
+                                                     ("wappstoFail.com", PORT, False, status.DISCONNECTING, True, False)])
+    def test_connection(self, address, port, callback_exists, expected_status, send_trace, expected_trace_sent):
         # Arrange
         status_service = self.service.get_status()
         fix_object(self, callback_exists, status_service)
-        expected_json = json.loads(json.loads(open(self.test_json_location).read()).get('data'))
-        
+        expected_json_data = json.loads(json.loads(open(self.test_json_location).read()).get('data'))
+        parsed_urlopen = parsed_sent_json = ''
+
         # Act
         with patch('urllib.request.urlopen') as urlopen:
             try:
                 fake_connect(self, address, port, send_trace)
                 args, kwargs = self.service.socket.my_socket.send.call_args
                 arg = json.loads(args[0].decode('utf-8'))
-                sent_json = arg['params']['data']
-                trace_sent = urlopen.called
+                sent_json_data = arg['params']['data']
+
+                if urlopen.called:
+                    urlopen_args, urlopen_kwargs = urlopen.call_args
+
+                    parsed_urlopen = urlparse.urlparse(urlopen_args[0])
+                    parsed_urlopen = parse_qs(parsed_urlopen.query)['id']
+    
+                    parsed_sent_json = urlparse.urlparse(arg['params']['url'])
+                    parsed_sent_json = parse_qs(parsed_sent_json.query)['trace']
+
             except wappsto_errors.ServerConnectionException:
-                sent_json = None
-                expected_json = None
-                trace_sent = send_trace
-                pass
+                sent_json_data = None
+                expected_json_data = None
 
         # Assert
-        assert send_trace == trace_sent
-        assert sent_json == expected_json
+        assert parsed_urlopen == parsed_sent_json and (
+            expected_trace_sent and parsed_urlopen != '' or
+            not expected_trace_sent and parsed_urlopen == ''
+            )
+        assert sent_json_data == expected_json_data
         assert self.service.status.get_status() == expected_status
 
 
@@ -219,10 +232,6 @@ class TestReceiveThreadClass:
     '''
     Testing test_receive_thread_method specificaly
     '''
-
-    def setup_method(self, test_receive_thread_method):
-        self.recv_reset = self.service.socket.my_socket.recv
-        self.put_reset = self.service.socket.sending_queue.put
 
     @pytest.mark.parametrize("id,verb,callback_exists,trace_id,expected_rpc_id,expected_msg_id,expected_trace_id",
                              [(1, 'PUT', True, None, '1', send_data.SEND_SUCCESS, None),
@@ -301,9 +310,6 @@ class TestSendThreadClass:
         self.service = wappsto.Wappsto(json_file_name=test_json_location)
         fake_connect(self, ADDRESS, PORT)
 
-    def setup_method(self, test_receive_thread_other):
-        self.send_reset = self.service.socket.my_socket.send
-
     @pytest.mark.parametrize("id,type,send_trace", [(93043873, send_data.SEND_SUCCESS, False),
                                          (93043873, send_data.SEND_REPORT, False),
                                          (93043873, send_data.SEND_FAILED, False),
@@ -321,6 +327,7 @@ class TestSendThreadClass:
         self.service.socket.automatic_trace = send_trace
         self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=Exception)
+        parsed_urlopen = parsed_sent_json = ''
 
         # Act
         with patch('urllib.request.urlopen') as urlopen:
@@ -330,15 +337,23 @@ class TestSendThreadClass:
                 self.service.socket.send_thread()
             except Exception:
                 args, kwargs = self.service.socket.my_socket.send.call_args
-            trace_sent = urlopen.called
+                arg = json.loads(args[0].decode('utf-8'))
 
-        args = json.loads(args[0].decode('utf-8'))
+                if urlopen.called:
+                    urlopen_args, urlopen_kwargs = urlopen.call_args
+
+                    parsed_urlopen = urlparse.urlparse(urlopen_args[0])
+                    parsed_urlopen = parse_qs(parsed_urlopen.query)['id']
+    
+                    parsed_sent_json = urlparse.urlparse(arg['params']['url'])
+                    parsed_sent_json = parse_qs(parsed_sent_json.query)['trace']
 
         # Assert
-        
-        #also ensure trace is sent into message not only called
-        assert send_trace == trace_sent
-        for result in get_send_thread_values(self, type, args, id, send_trace):
+        assert parsed_urlopen == parsed_sent_json and (
+            not send_trace and parsed_urlopen == '' or
+            send_trace and parsed_urlopen != ''
+            )
+        for result in get_send_thread_values(self, type, arg, id, send_trace):
             assert result.received == result.expected
 
     @pytest.mark.parametrize("rpc_id,expected_trace_id,type", [(93043873, 332, send_data.SEND_TRACE)])
@@ -358,15 +373,14 @@ class TestSendThreadClass:
                 # exception
                 self.service.socket.send_thread()
             except Exception:
-                args, kwargs = urlopen.call_args
-                arg = urllib.parse.parse_qs(args[0])
-        result_trace_id = int(arg['https://tracer.iot.seluxit.com/trace?id'][0])
-        
-        # Assert
-        assert result_trace_id == expected_trace_id
+                if urlopen.called:
+                    urlopen_args, urlopen_kwargs = urlopen.call_args
 
-    def teardown_method(self):
-        self.service.socket.my_socket.send = self.send_reset
+                    parsed_id = urlparse.urlparse(urlopen_args[0])
+                    parsed_id = int(parse_qs(parsed_id.query)['id'][0])
+
+        # Assert
+        assert parsed_id == expected_trace_id
 
     @classmethod
     def teardown_class(self):
