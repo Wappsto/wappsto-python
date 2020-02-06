@@ -96,6 +96,24 @@ def create_response(self, verb, callback_exists, trace_id):
     return '{"jsonrpc": "2.0", "id": "1", "params": {"url": "'+url+'",'+trace+' "data": {"meta": {"id": "'+id+'"}, "data": "93"}}, "method": "'+verb+'"}'
 
 
+def get_expected_json(self):
+    # gets the loaded json and modifies it according to the expected changes when compared to the sent json
+    expected_json = json.loads(self.service.instance.decoded.get('data'))
+    for device in expected_json['device']:
+        device['version'] = '2.0'
+        for value in device['value']:
+            states = value['state']
+            if len(states) > 1:
+                for state in states:
+                    state['data'] = states[0]['data']
+                    del state['meta']['contract']
+    return expected_json
+
+
+def exists_in_dictionary(key, dict):
+    return True if key in dict else False
+
+
 class TestResult:
     def __init__(self, received, expected):
         self.received = received
@@ -133,27 +151,65 @@ class TestConnClass:
         self.test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
         self.service = wappsto.Wappsto(json_file_name=self.test_json_location)
 
-    @pytest.mark.parametrize("address,port,callback_exists,expected_status,send_trace,expected_trace_sent", [(ADDRESS, PORT, True, status.RUNNING, False, False),
-                                                     (ADDRESS, -1, True, status.DISCONNECTING, False, False),
-                                                     ("wappstoFail.com", PORT, True, status.DISCONNECTING, False, False),
-                                                     (ADDRESS, PORT, False, status.RUNNING, False, False),
-                                                     (ADDRESS, -1, False, status.DISCONNECTING, False, False),
-                                                     ("wappstoFail.com", PORT, False, status.DISCONNECTING, False, False),
-                                                     (ADDRESS, PORT, True, status.RUNNING, True, True),
-                                                     (ADDRESS, -1, True, status.DISCONNECTING, True, False),
-                                                     ("wappstoFail.com", PORT, True, status.DISCONNECTING, True, False),
-                                                     (ADDRESS, PORT, False, status.RUNNING, True, True),
-                                                     (ADDRESS, -1, False, status.DISCONNECTING, True, False),
-                                                     ("wappstoFail.com", PORT, False, status.DISCONNECTING, True, False)])
-    def test_connection(self, address, port, callback_exists, expected_status, send_trace, expected_trace_sent):
+        @pytest.mark.parametrize("address,port,callback_exists,expected_status,value_changed_to_none,upgradable,send_trace,expected_trace_sent", [(ADDRESS, PORT, True, status.RUNNING, False, False, False, False),
+                                                     (ADDRESS, -1, True, status.DISCONNECTING, False, False, False, False),
+                                                     ("wappstoFail.com", PORT, True, status.DISCONNECTING, False, False, False, False),
+                                                     (ADDRESS, PORT, False, status.RUNNING, False, False, False, False),
+                                                     (ADDRESS, -1, False, status.DISCONNECTING, False, False, False, False),
+                                                     ("wappstoFail.com", PORT, False, status.DISCONNECTING, False, False, False, False),
+                                                     (ADDRESS, PORT, True, status.RUNNING, True, False, False, False),
+                                                     (ADDRESS, -1, True, status.DISCONNECTING, True, False, False, False),
+                                                     ("wappstoFail.com", PORT, True, status.DISCONNECTING, True, False, False, False),
+                                                     (ADDRESS, PORT, False, status.RUNNING, True, False, False, False),
+                                                     (ADDRESS, -1, False, status.DISCONNECTING, True, False, False, False),
+                                                     ("wappstoFail.com", PORT, False, status.DISCONNECTING, True, False, False, False),
+                                                     (ADDRESS, PORT, True, status.RUNNING, False, True, False, False),
+                                                     (ADDRESS, -1, True, status.DISCONNECTING, False, True, False, False),
+                                                     ("wappstoFail.com", PORT, True, status.DISCONNECTING, False, True, False, False),
+                                                     (ADDRESS, PORT, False, status.RUNNING, False, True, False, False),
+                                                     (ADDRESS, -1, False, status.DISCONNECTING, False, True, False, False),
+                                                     ("wappstoFail.com", PORT, False, status.DISCONNECTING, False, True, False, False),
+                                                     (ADDRESS, PORT, True, status.RUNNING, True, True, False, False),
+                                                     (ADDRESS, -1, True, status.DISCONNECTING, True, True, False, False),
+                                                     ("wappstoFail.com", PORT, True, status.DISCONNECTING, True, True, False, False),
+                                                     (ADDRESS, PORT, False, status.RUNNING, True, True, False, False),
+                                                     (ADDRESS, -1, False, status.DISCONNECTING, True, True, False, False),
+                                                     ("wappstoFail.com", PORT, False, status.DISCONNECTING, True, True, False, False),
+													                           (ADDRESS, PORT, True, status.RUNNING, False, False, True, True),
+                                                     (ADDRESS, -1, True, status.DISCONNECTING, False, False, True, False),
+                                                     ("wappstoFail.com", PORT, True, status.DISCONNECTING, False, False, True, False),
+                                                     (ADDRESS, PORT, False, status.RUNNING, False, False, True, True),
+                                                     (ADDRESS, -1, False, status.DISCONNECTING, False, False, True, False),
+                                                     ("wappstoFail.com", PORT, False, status.DISCONNECTING, False, False, True, False),
+                                                     (ADDRESS, PORT, True, status.RUNNING, True, False, True, True),
+                                                     (ADDRESS, -1, True, status.DISCONNECTING, True, False, True, False),
+                                                     ("wappstoFail.com", PORT, True, status.DISCONNECTING, True, False, True, False),
+                                                     (ADDRESS, PORT, False, status.RUNNING, True, False, True, True),
+                                                     (ADDRESS, -1, False, status.DISCONNECTING, True, False, True, False),
+                                                     ("wappstoFail.com", PORT, False, status.DISCONNECTING, True, False, True, False),
+                                                     (ADDRESS, PORT, True, status.RUNNING, False, True, True, True),
+                                                     (ADDRESS, -1, True, status.DISCONNECTING, False, True, True, False),
+                                                     ("wappstoFail.com", PORT, True, status.DISCONNECTING, False, True, True, False),
+                                                     (ADDRESS, PORT, False, status.RUNNING, False, True, True, True),
+                                                     (ADDRESS, -1, False, status.DISCONNECTING, False, True, True, False),
+                                                     ("wappstoFail.com", PORT, False, status.DISCONNECTING, False, True, True, False),
+                                                     (ADDRESS, PORT, True, status.RUNNING, True, True, True, True),
+                                                     (ADDRESS, -1, True, status.DISCONNECTING, True, True, True, False),
+                                                     ("wappstoFail.com", PORT, True, status.DISCONNECTING, True, True, True, False),
+                                                     (ADDRESS, PORT, False, status.RUNNING, True, True, True, True),
+                                                     (ADDRESS, -1, False, status.DISCONNECTING, True, True, True, False),
+                                                     ("wappstoFail.com", PORT, False, status.DISCONNECTING, True, True, True, False)])
+    def test_connection(self, address, port, callback_exists, expected_status, value_changed_to_none, upgradable, send_trace, expected_trace_sent):
         # Arrange
         status_service = self.service.get_status()
         fix_object(self, callback_exists, status_service)
-        expected_json_data = json.loads(json.loads(open(self.test_json_location).read()).get('data'))
+        expected_json = get_expected_json(self)
         parsed_urlopen = parsed_sent_json = ''
+		if value_changed_to_none:
+            self.service.instance.network_cl.name = None
 
         # Act
-        with patch('urllib.request.urlopen') as urlopen:
+        with patch('urllib.request.urlopen') as urlopen, patch('os.getenv', return_value=str(upgradable)):
             try:
                 fake_connect(self, address, port, send_trace)
                 args, kwargs = self.service.socket.my_socket.send.call_args
@@ -178,9 +234,19 @@ class TestConnClass:
             expected_trace_sent and parsed_urlopen != '' or
             not expected_trace_sent and parsed_urlopen == ''
             )
-        assert sent_json_data == expected_json_data
-        assert self.service.status.get_status() == expected_status
+        assert ((sent_json_data == None and expected_json_data == None) or
+                
+                ((value_changed_to_none and (exists_in_dictionary('name',expected_json_data) 
+                                             != exists_in_dictionary('name',sent_json_data))) or
+                (not value_changed_to_none and (exists_in_dictionary('name',expected_json_data) 
+                                             == exists_in_dictionary('name',sent_json_data)))) and
 
+                ((upgradable and (exists_in_dictionary('upgradable',expected_json_data['meta']) 
+                                             != exists_in_dictionary('upgradable',sent_json_data['meta']))) or
+                (not upgradable and (exists_in_dictionary('upgradable',expected_json_data['meta']) 
+                                             == exists_in_dictionary('upgradable',sent_json_data['meta']))))
+                )
+        assert self.service.status.get_status() == expected_status
 
 class TestValueSendClass:
 
@@ -190,31 +256,58 @@ class TestValueSendClass:
         self.service = wappsto.Wappsto(json_file_name=test_json_location)
         fake_connect(self, ADDRESS, PORT)
 
-    @pytest.mark.parametrize("test_input,expected", [(8, 8),
-                                                     (100, 100),
-                                                     (0, 0),
-                                                     (-1, None),
-                                                     (120, None)])
-    def test_send_value_update(self, test_input, expected):
+    @pytest.mark.parametrize("input,step_size,expected", [(8, 1, "8"),# value on the step
+                                                     (8, -1, "8"),
+                                                     (-8, 1, "-8"),
+                                                     (-8, -1, "-8"),
+                                                     (100, 1, "100"),
+                                                     (-100, 1, "-100"),
+                                                     (0, 1, "0"),
+                                                     (-0, 1, "0"),
+                                                     (-99.9, 1, "-100"),# decimal value
+                                                     (-0.1, 1, "-1"),
+                                                     (0.1, 1, "0"),
+                                                     (3.3, 1, "3"),
+                                                     (3.0, 1, "3"),
+                                                     (3.9, 1, "3"),
+                                                     (-0.1, 1, "-1"),
+                                                     (-3.3, 1, "-4"),
+                                                     (-3.0, 1, "-3"),
+                                                     (-3.9, 1, "-4"),
+                                                     (-101, 1, None),# out of range
+                                                     (101, 1, None),
+                                                     (3, 2, "2"),# big steps
+                                                     (3.999, 2, "2"),
+                                                     (4, 2, "4"),
+                                                     (-3, 2, "-4"),
+                                                     (-3.999, 2, "-4"),
+                                                     (-4, 2, "-4"),
+                                                     (1, 0.5, "1"),# decimal steps
+                                                     (1.01, 0.02, "1"),
+                                                     (2.002, 0.02, "2"),
+                                                     (2.002, 0.0002, "2.002"),
+                                                     (-1, 0.5, "-1"),
+                                                     (-1.01, 0.02, "-1.02"),
+                                                     (-2.002, 0.02, "-2.02"),
+                                                     (-2.002, 0.0002, "-2.002")])
+    def test_send_value_update(self, input, step_size, expected):
         # Arrange
         self.service.socket.my_socket.send = Mock()
         device = self.service.get_devices()[0]
         value = device.value_list[0]
+        value.number_step = step_size
 
         # Act
         try:
-            value.update(test_input)
+            value.update(input)
             args, kwargs = self.service.socket.my_socket.send.call_args
             arg = json.loads(args[0].decode('utf-8'))
-            result = int(arg['params']['data']['data'])
-
+            result = arg['params']['data']['data']
         except TypeError:
-            # service.socket.my_socket.send was not called (call_args throws
-            # TypeError)
             result = None
 
         # Assert
-        assert result is expected
+        assert result == expected
 
     @classmethod
     def teardown_class(self):

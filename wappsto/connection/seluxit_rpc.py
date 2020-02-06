@@ -9,10 +9,7 @@ import json
 import datetime
 import os
 import logging
-
-from jsonrpcclient.requests import Request
-from jsonrpcclient.response import SuccessResponse
-from jsonrpcclient.response import ErrorResponse
+from jsonrpcclient import requests, response
 
 JSONRPC = "2.0"
 
@@ -63,8 +60,9 @@ class SeluxitRpc:
             JSON formatted data.
 
         """
-        success_response = str(SuccessResponse(jsonrpc=JSONRPC, id=message_id,
-                                               result=True))
+        success_response = str(response.SuccessResponse(jsonrpc=JSONRPC,
+                                                        id=message_id,
+                                                        result=True))
         return success_response.encode('utf-8')
 
     @staticmethod
@@ -84,8 +82,9 @@ class SeluxitRpc:
 
         """
         error_description = {'message': text, 'code': -32020, 'data': ''}
-        error_response = str(ErrorResponse(jsonrpc=JSONRPC, id=message_id,
-                                           error=error_description))
+        error_response = str(response.ErrorResponse(jsonrpc=JSONRPC,
+                                                    id=message_id,
+                                                    error=error_description))
         return error_response.encode('utf-8')
 
     @staticmethod
@@ -157,9 +156,10 @@ class SeluxitRpc:
         if trace_id:
             url = "{}?trace={}".format(url, trace_id)
 
-        self.data_json_rpc = Request(verb,
-                                     url=url,
-                                     data=data_inside)
+        self.data_json_rpc = requests.Request(verb,
+                                              url=url,
+                                              data=data_inside)
+
         return json.dumps(self.data_json_rpc).encode('utf-8')
 
     def get_rpc_state(
@@ -298,7 +298,7 @@ class SeluxitRpc:
         if trace_id:
             url = "{}?trace={}".format(url, trace_id)
 
-        self.data_json_rpc = Request(verb,
+        self.data_json_rpc = requests.Request(verb,
                                      url=url,
                                      data=data)
 
@@ -322,9 +322,10 @@ class SeluxitRpc:
         if trace_id:
             url = "{}?trace={}".format(url, trace_id)
 
-        self.data_json_rpc = Request('POST',
+        self.data_json_rpc = requests.Request('POST',
                                      url=url,
                                      data=json_data)
+
         return json.dumps(self.data_json_rpc).encode('utf-8')
 
     def add_whole_json(

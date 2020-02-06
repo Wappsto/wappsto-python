@@ -7,6 +7,7 @@ methods.
 import logging
 import time
 import datetime
+import decimal
 import re
 from math import fabs
 from .errors import wappsto_errors
@@ -367,46 +368,80 @@ class Value:
     def __validate_value_data(self, data_value):
         if self.__is_number_type():
             try:
-                if self.number_min <= float(data_value) <= self.number_max:
-                    return True
+                data_value = self.ensure_number_value_follows_steps(data_value)
+
+                if self.number_min <= data_value <= self.number_max:
+                    return str(data_value)
                 else:
                     msg = "Invalid number. Range: {}-{}. Your: {}".format(
                         self.number_min,
                         self.number_max,
-                        data_value
+                        str(data_value)
                     )
                     self.wapp_log.error(msg)
-                    return False
+                    return None
             except ValueError:
                 msg = "Invalid type of value. Must be a number: {}".format(
-                    data_value
+                    str(data_value)
                 )
                 self.wapp_log.error(msg)
-                return False
+                return None
         elif self.__is_string_type():
-            if self.string_max is None:
-                return True
-            elif len(str(data_value)) <= int(self.string_max):
-                return True
+            if (self.string_max is None
+                    and len(str(data_value)) <= int(self.string_max)):
+                return data_value
             else:
                 msg = ("Value {} not in correct range for {}"
                        .format(data_value, self.name))
                 self.wapp_log.error(msg)
-                return False
+                return None
         elif self.__is_blob_type():
-            if self.blob_max is None:
-                return True
-            elif len(str(data_value)) <= int(self.blob_max):
-                return True
+            if (self.blob_max is None
+                    and len(str(data_value)) <= int(self.blob_max)):
+                return data_value
             else:
                 msg = ("Value {} not in correct range for {}"
                        .format(data_value, self.name))
                 self.wapp_log.error(msg)
-                return False
+                return None
         else:
             msg = ("Value type {} is invalid".format(self.date_type))
             self.wapp_log.error(msg)
-            return False
+            return None
+
+    def ensure_number_value_follows_steps(self, data_value):
+        """
+        Ensure number value follows steps.
+
+        Converts values to decimal and ensures number step is always positive,
+        ensures that data value follows steps, sets same amount of digits
+        after decimal point as for step and normalized it, by removing exes 0's
+        after decimal point.
+
+        Args:
+            data_value: float value indicating current state of value.
+
+        Returns:
+            data_value
+
+        """
+        data_value = decimal.Decimal(str(data_value))
+        number_step = abs(decimal.Decimal(str(self.number_step)))
+
+        result = (data_value % number_step)
+        if result < 0:
+            result += number_step
+        data_value = data_value - result
+
+        after_decimal_point = str(number_step).split('.')
+        digits_after_decimal_point = (len(after_decimal_point[1])
+                                      if len(after_decimal_point) > 1 else 0)
+        data_value = round(data_value, digits_after_decimal_point)
+
+        if digits_after_decimal_point > 0:
+            data_value = data_value.normalize()
+
+        return data_value
 
     def update(self, data_value, timestamp=None):
         """
@@ -428,7 +463,8 @@ class Value:
             self.wapp_log.error("Value is write only.")
             return False
 
-        if not self.__validate_value_data(data_value):
+        data_value = self.__validate_value_data(data_value)
+        if not data_value:
             return False
 
         return self.__send_logic(
@@ -475,87 +511,6 @@ class Value:
         self.last_controlled = data_value
 
         return self.__call_callback('set')
-
-    def send_control(self, data_value):
-        """
-        Validate before sending a control message.
-
-        Validates the type and permission of a value object and an incoming
-        value before sending a control message.
-
-        Args:
-            data_value: A new value of the class
-
-        Returns:
-            True if successfully, False if error occurs.
-            boolean
-
-        Raises:
-            ValueError: If a data_value is in incorrect format.
-
-        """
-        state = self.get_control_state()
-        if state is not None:
-            if self.__is_number_type():
-                try:
-                    if self.number_min <= int(data_value) <= self.number_max:
-                        return self.__send_logic(
-                            state,
-                            'control',
-                            data_value=data_value
-                        )
-                    else:
-                        msg = "Invalid number. Range: {}-{}. Your: {}".format(
-                            self.number_min,
-                            self.number_max,
-                            data_value
-                        )
-                        self.wapp_log.error(msg)
-                        return False
-                except ValueError:
-                    msg = "Invalid type of value. Must be a number."
-                    self.wapp_log.error(msg)
-                    return False
-            elif not self.__is_number_type():
-                if self.string_max is None and self.blob_max is None:
-                    return self.__send_logic(
-                        state,
-                        'control',
-                        data_value=data_value
-                    )
-                else:
-                    if self.data_type == "blob":
-                        if len(str(data_value)) <= int(self.blob_max):
-                            return self.__send_logic(
-                                state,
-                                'control',
-                                data_value=data_value
-                            )
-
-                        else:
-                            msg = ("Value {} not in correct range for {}"
-                                   .format(data_value, self.name))
-                            self.wapp_log.error(msg)
-                        return False
-                    elif self.data_type == "string":
-                        if len(str(data_value)) <= int(self.string_max):
-                            return self.__send_logic(
-                                state,
-                                'control',
-                                data_value=data_value
-                            )
-
-                        else:
-                            msg = ("Value {} not in correct range for {}"
-                                   .format(data_value, self.name))
-                            self.wapp_log.error(msg)
-                        return False
-            else:
-                self.wapp_log.error("Device error.")
-                return False
-        else:
-            self.wapp_log.error("Value is read only.")
-            return False
 
     def __send_logic(self, state, type, data_value=None, timestamp=None):
         """
