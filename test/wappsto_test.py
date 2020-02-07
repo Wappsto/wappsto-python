@@ -25,9 +25,9 @@ def check_for_correct_conn(*args, **kwargs):
 
 def fake_connect(self, address, port):
     wappsto.RETRY_LIMIT = 2
-    with patch('wappsto.communication.ssl.SSLContext.wrap_socket') as context:
+    with patch('ssl.SSLContext.wrap_socket') as context:
         context.connect = Mock(side_effect=check_for_correct_conn)
-        with patch('time.sleep', return_value=None), patch('wappsto.communication.ClientSocket.add_id_to_confirm_list'), patch('wappsto.communication.socket.socket'), patch('wappsto.communication.ssl.SSLContext.wrap_socket', return_value=context):
+        with patch('time.sleep', return_value=None), patch('threading.Thread'), patch('wappsto.communication.ClientSocket.add_id_to_confirm_list'), patch('socket.socket'), patch('ssl.SSLContext.wrap_socket', return_value=context):
             self.service.start(address=address, port=port)
 
 
