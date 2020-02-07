@@ -77,22 +77,14 @@ def create_response(self, verb, callback_exists, trace_id, bulk):
         network = self.service.get_network()
         network = fix_object(self, callback_exists, network)
         url = str(network.uuid)
-    elif verb == "PUT" or verb == "GET":
-        pass
-        # may be used later
+    
+    if verb == "DELETE" or verb == "PUT" or verb == "GET":
+        if trace_id is not None:
+            trace = '"meta": {"trace": "'+str(trace_id)+'"},'
+
+        message = '{"jsonrpc": "2.0", "id": "1", "params": {"url": "'+url+'",'+trace+' "data": {"meta": {"id": "'+id+'"}, "data": "93"}}, "method": "'+verb+'"}'
     else:
         message = '{"jsonrpc": "2.0", "id": "1", "params": {"url": "/network/b03f246d-63ef-446d-be58-ef1d1e83b338/device/a0e087c1-9678-491c-ac47-5b065dea3ac0/value/7ce2afdd-3be3-4945-862e-c73a800eb209/state/a7b4f66b-2558-4559-9fcc-c60768083164", "data": {"meta": {"id": "a7b4f66b-2558-4559-9fcc-c60768083164", "type": "state", "version": "2.0"}, "type": "Report", "status": "Send", "data": "93", "timestamp": "2020-01-22T08:22:57.216500Z"}}, "method": "??????"}'
-
-        if bulk:
-            message = [message, message]
-            message = str(message)
-    
-        return message
-
-    if trace_id is not None:
-        trace = '"meta": {"trace": "'+str(trace_id)+'"},'
-
-    message = '{"jsonrpc": "2.0", "id": "1", "params": {"url": "'+url+'",'+trace+' "data": {"meta": {"id": "'+id+'"}, "data": "93"}}, "method": "'+verb+'"}'
 
     if bulk:
         message = [message, message]
@@ -191,7 +183,6 @@ class TestConnClass:
         # Act
         with patch('os.getenv', return_value=str(upgradable)):
             try:
-                #os.getenv(
                 fake_connect(self, address, port)
                 args, kwargs = self.service.socket.my_socket.send.call_args
                 arg = json.loads(args[0].decode('utf-8'))
@@ -292,10 +283,6 @@ class TestReceiveThreadClass:
         self.service = wappsto.Wappsto(json_file_name=test_json_location)
         fake_connect(self, ADDRESS, PORT)
 
-    def setup_method(self, test_receive_thread_method):
-        self.recv_reset = self.service.socket.my_socket.recv
-        self.put_reset = self.service.socket.sending_queue.put
-
     @pytest.mark.parametrize("id,verb,callback_exists,trace_id,expected_rpc_id,expected_msg_id,expected_trace_id",
                              [(1, 'PUT', True, None, '1', send_data.SEND_SUCCESS, None),
                               (1, 'PUT', False, None, '1', send_data.SEND_FAILED, None),
@@ -323,6 +310,8 @@ class TestReceiveThreadClass:
 
         # Act
         try:
+            # runs until mock object is run and its side_effect raises
+            # exception
             self.service.socket.receive_thread()
         except KeyboardInterrupt:
             pass
@@ -342,6 +331,8 @@ class TestReceiveThreadClass:
 
         # Act
         try:
+            # runs until mock object is run and its side_effect raises
+            # exception
             self.service.socket.receive_thread()
         except KeyboardInterrupt:
             pass
