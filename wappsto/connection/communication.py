@@ -710,12 +710,14 @@ class ClientSocket:
         """
         try:
             decoded = self.receive_data()
-            if decoded[0] == '[':
-                for request in ast.literal_eval(decoded):
+            decoded = ast.literal_eval(decoded)
+
+            # if the received string is list
+            if isinstance(decoded, list):
+                for request in decoded:
                     request = json.loads(request)
                     self.receive(request)
             else:
-                decoded = json.loads(decoded)
                 self.receive(decoded)
 
         except JSONDecodeError:
