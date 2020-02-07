@@ -728,9 +728,9 @@ class ClientSocket:
 
             # if the received string is list
             if isinstance(decoded, list):
-                for request in decoded:
-                    request = json.loads(request)
-                    self.receive(request)
+                for decoded_data in decoded:
+                    decoded_data = json.loads(decoded_data)
+                    self.receive(decoded_data)
             else:
                 self.receive(decoded)
 
