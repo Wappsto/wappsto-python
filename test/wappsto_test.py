@@ -31,32 +31,6 @@ def fake_connect(self, address, port):
             self.service.start(address=address, port=port)
 
 
-def get_send_thread_values(self, type, arg, id):
-    results = []
-    requests = arg.decode('utf-8')
-    for request in ast.literal_eval(requests):
-        request = json.loads(request)
-        if type == 1:
-            results.append(TestResult(request['id'], id))
-            results.append(TestResult(bool(request['result']), True))
-        elif type == 2:
-            results.append(TestResult(request['id'], id))
-            results.append(TestResult(request['error'],
-                                      json.loads(
-                                          '{"code": -32020, "message": null}')))
-        elif type == 3:
-            results.append(TestResult(request['params']['data']['type'], "Report"))
-            results.append(TestResult(request['method'], "PUT"))
-        elif type == 4:
-            results.append(TestResult(request['params']['data']['meta']['type'],
-                                      "network"))
-            results.append(TestResult(request['method'], "POST"))
-        elif type == 5:
-            results.append(TestResult(request['params']['data']['type'], "Control"))
-            results.append(TestResult(request['method'], "PUT"))
-    return results
-
-
 def fix_object(self, callback_exists, testing_object):
     if callback_exists:
         test_callback = Mock(return_value=True)
@@ -109,12 +83,6 @@ def get_expected_json(self):
 
 def exists_in_dictionary(key, dict):
     return True if key in dict else False
-
-
-class TestResult:
-    def __init__(self, received, expected):
-        self.received = received
-        self.expected = expected
 
 # ################################## TESTS ################################## #
 
@@ -379,11 +347,30 @@ class TestSendThreadClass:
             self.service.socket.send_thread()
         except KeyboardInterrupt:
             args, kwargs = self.service.socket.my_socket.send.call_args
-            arg = args[0]
+            arg = args[0].decode('utf-8')
 
         # Assert
-        for result in get_send_thread_values(self, type, arg, id):
-            assert result.received == result.expected
+        assert self.service.socket.sending_queue.qsize() == 0
+        
+        requests = ast.literal_eval(arg)
+        assert messages_in_queue == len(requests)
+        for request in requests:
+            request = json.loads(request)
+            if type == 1:
+                assert request['id'] == id
+                assert bool(request['result']) == True
+            elif type == 2:
+                assert request['id'] == id
+                assert request['error'] == json.loads('{"code": -32020, "message": null}')
+            elif type == 3:
+                assert request['params']['data']['type'] == "Report"
+                assert request['method'] == "PUT"
+            elif type == 4:
+                assert request['params']['data']['meta']['type'] == "network"
+                assert request['method'] == "POST"
+            elif type == 5:
+                assert request['params']['data']['type'] == "Control"
+                assert request['method'] == "PUT"
 
     @pytest.mark.parametrize("rpc_id,expected_trace_id,type", [(93043873, 332, send_data.SEND_TRACE)])
     def test_send_thread_send_trace(self, rpc_id, expected_trace_id, type):
