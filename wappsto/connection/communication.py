@@ -445,6 +445,16 @@ class ClientSocket:
                 self.wapp_log.error(msg, exc_info=True)
 
     def create_bulk(self, data):
+        """
+        Creates bulk message.
+
+        Accomulates all messages in one and once sending_queue is empty it is
+        sent.
+
+        Args:
+            data: JSON communication message data.
+
+        """
         self.bulk_send_list.append(data)
         if self.sending_queue.qsize() < 1:
             bulk_send = str(self.bulk_send_list)
@@ -562,11 +572,15 @@ class ClientSocket:
             self.wapp_log.error(msg, exc_info=True)
 
     def receive_data(self):
-        """Socket receive method.
+        """
+        Socket receive method.
+
         Method that handles receiving data from a socket. Capable of handling
         data chunks.
+
         Returns:
             The decoded message from the socket.
+
         """
         total_decoded = []
         decoded = None
@@ -580,7 +594,7 @@ class ClientSocket:
 
             try:
                 decoded = ast.literal_eval(''.join(total_decoded))
-            except JSONDecodeError:
+            except ValueError:
                 if data == b'':
                     self.reconnect()
                 else:
