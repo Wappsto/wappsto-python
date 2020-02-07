@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import ast
 import json
 import pytest
 import wappsto
@@ -30,26 +31,29 @@ def fake_connect(self, address, port):
             self.service.start(address=address, port=port)
 
 
-def get_send_thread_values(self, type, args, id):
+def get_send_thread_values(self, type, arg, id):
     results = []
-    if type == 1:
-        results.append(TestResult(args['id'], id))
-        results.append(TestResult(bool(args['result']), True))
-    elif type == 2:
-        results.append(TestResult(args['id'], id))
-        results.append(TestResult(args['error'],
-                                  json.loads(
-                                      '{"code": -32020, "message": null}')))
-    elif type == 3:
-        results.append(TestResult(args['params']['data']['type'], "Report"))
-        results.append(TestResult(args['method'], "PUT"))
-    elif type == 4:
-        results.append(TestResult(args['params']['data']['meta']['type'],
-                                  "network"))
-        results.append(TestResult(args['method'], "POST"))
-    elif type == 5:
-        results.append(TestResult(args['params']['data']['type'], "Control"))
-        results.append(TestResult(args['method'], "PUT"))
+    requests = arg.decode('utf-8')
+    for request in ast.literal_eval(requests):
+        request = json.loads(request)
+        if type == 1:
+            results.append(TestResult(request['id'], id))
+            results.append(TestResult(bool(request['result']), True))
+        elif type == 2:
+            results.append(TestResult(request['id'], id))
+            results.append(TestResult(request['error'],
+                                      json.loads(
+                                          '{"code": -32020, "message": null}')))
+        elif type == 3:
+            results.append(TestResult(request['params']['data']['type'], "Report"))
+            results.append(TestResult(request['method'], "PUT"))
+        elif type == 4:
+            results.append(TestResult(request['params']['data']['meta']['type'],
+                                      "network"))
+            results.append(TestResult(request['method'], "POST"))
+        elif type == 5:
+            results.append(TestResult(request['params']['data']['type'], "Control"))
+            results.append(TestResult(request['method'], "PUT"))
     return results
 
 
@@ -62,7 +66,7 @@ def fix_object(self, callback_exists, testing_object):
     return testing_object
 
 
-def create_response(self, verb, callback_exists, trace_id):
+def create_response(self, verb, callback_exists, trace_id, bulk):
     value = self.service.instance.device_list[0].value_list[0]
     value = fix_object(self, callback_exists, value)
     id = str(value.control_state.uuid)
@@ -77,12 +81,24 @@ def create_response(self, verb, callback_exists, trace_id):
         pass
         # may be used later
     else:
-        return '{"jsonrpc": "2.0", "id": "1", "params": {"url": "/network/b03f246d-63ef-446d-be58-ef1d1e83b338/device/a0e087c1-9678-491c-ac47-5b065dea3ac0/value/7ce2afdd-3be3-4945-862e-c73a800eb209/state/a7b4f66b-2558-4559-9fcc-c60768083164", "data": {"meta": {"id": "a7b4f66b-2558-4559-9fcc-c60768083164", "type": "state", "version": "2.0"}, "type": "Report", "status": "Send", "data": "93", "timestamp": "2020-01-22T08:22:57.216500Z"}}, "method": "??????"}'
+        message = '{"jsonrpc": "2.0", "id": "1", "params": {"url": "/network/b03f246d-63ef-446d-be58-ef1d1e83b338/device/a0e087c1-9678-491c-ac47-5b065dea3ac0/value/7ce2afdd-3be3-4945-862e-c73a800eb209/state/a7b4f66b-2558-4559-9fcc-c60768083164", "data": {"meta": {"id": "a7b4f66b-2558-4559-9fcc-c60768083164", "type": "state", "version": "2.0"}, "type": "Report", "status": "Send", "data": "93", "timestamp": "2020-01-22T08:22:57.216500Z"}}, "method": "??????"}'
+
+        if bulk:
+            message = [message, message]
+            message = str(message)
+    
+        return message
 
     if trace_id is not None:
         trace = '"meta": {"trace": "'+str(trace_id)+'"},'
 
-    return '{"jsonrpc": "2.0", "id": "1", "params": {"url": "'+url+'",'+trace+' "data": {"meta": {"id": "'+id+'"}, "data": "93"}}, "method": "'+verb+'"}'
+    message = '{"jsonrpc": "2.0", "id": "1", "params": {"url": "'+url+'",'+trace+' "data": {"meta": {"id": "'+id+'"}, "data": "93"}}, "method": "'+verb+'"}'
+
+    if bulk:
+        message = [message, message]
+        message = str(message)
+
+    return message
 
 
 def get_expected_json(self):
@@ -300,30 +316,24 @@ class TestReceiveThreadClass:
                               (1, 'wrong_verb', False, 321, '1', send_data.SEND_FAILED, None),
                               (1, 'wrong_verb', True, 321, '1', send_data.SEND_FAILED, None)
                              ])
+    @pytest.mark.parametrize("bulk", [False, True])
     def test_receive_thread_method(self, id, verb, callback_exists, trace_id, 
-                                   expected_rpc_id, expected_msg_id, expected_trace_id):
+                                   expected_rpc_id, expected_msg_id, expected_trace_id, bulk):
         # Arrange
-        response = create_response(self, verb, callback_exists, trace_id)
-        self.service.socket.my_socket.recv = Mock(
-            return_value=response.encode('utf-8'))
-        self.service.socket.sending_queue.put = Mock(side_effect=Exception)
+        response = create_response(self, verb, callback_exists, trace_id, bulk)
+        self.service.socket.my_socket.recv = Mock(side_effect=[response.encode('utf-8'),KeyboardInterrupt])
+        self.service.socket.sending_queue.put = Mock()
 
         # Act
         try:
-            # runs until mock object is run and its side_effect raises
-            # exception
             self.service.socket.receive_thread()
-        except Exception:
-            args, kwargs = self.service.socket.sending_queue.put.call_args
+        except KeyboardInterrupt:
+            calls = self.service.socket.sending_queue.put.call_args_list
 
         # Assert
-        assert args[0].rpc_id == expected_rpc_id
-        assert args[0].msg_id == expected_msg_id
-        assert args[0].trace_id == expected_trace_id
+        assert calls[0][0][0].trace_id == expected_trace_id
+        assert calls[0][0][0].msg_id == expected_msg_id
 
-    '''
-    Testing test_receive_thread_other specificaly
-    '''
 
     @pytest.mark.parametrize("id,type", [(93043873, "error"),
                                          (93043873, "result")])
@@ -331,16 +341,13 @@ class TestReceiveThreadClass:
         # Arrange
         response = '{"jsonrpc": "2.0", "id": "'+ str(id) +'", "'+type+'": {"value": "True", "meta": {"server_send_time": "2020-01-22T08:22:55.315Z"}}}'
         self.service.socket.my_socket.recv = Mock(
-            return_value=response.encode('utf-8'))
-        self.service.socket.remove_id_from_confirm_list = Mock(
-            side_effect=Exception)
+            side_effect=[response.encode('utf-8'),KeyboardInterrupt])
+        self.service.socket.remove_id_from_confirm_list = Mock()
 
         # Act
         try:
-            # runs until mock object is run and its side_effect raises
-            # exception
             self.service.socket.receive_thread()
-        except Exception:
+        except KeyboardInterrupt:
             args, kwargs = self.service.socket.remove_id_from_confirm_list.call_args
 
         # Assert
@@ -367,14 +374,19 @@ class TestSendThreadClass:
                                          (93043873, send_data.SEND_FAILED),
                                          (93043873, send_data.SEND_RECONNECT),
                                          (93043873, send_data.SEND_CONTROL)])
-    def test_send_thread(self, id, type):
+    @pytest.mark.parametrize("messages_in_queue", [1, 2])
+    def test_send_thread(self, id, type, messages_in_queue):
         # Arrange
-        reply = send_data.SendData(
-            type,
-            rpc_id=id
-        )
-        self.service.socket.sending_queue.put(reply)
+        i = 0
+        while i < messages_in_queue:
+            i += 1
+            reply = send_data.SendData(
+                type,
+                rpc_id=id
+            )
+            self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=Exception)
+        self.service.socket.add_id_to_confirm_list = Mock()
 
         # Act
         try:
@@ -383,11 +395,10 @@ class TestSendThreadClass:
             self.service.socket.send_thread()
         except Exception:
             args, kwargs = self.service.socket.my_socket.send.call_args
-
-        args = json.loads(args[0].decode('utf-8'))
+            arg = args[0]
 
         # Assert
-        for result in get_send_thread_values(self, type, args, id):
+        for result in get_send_thread_values(self, type, arg, id):
             assert result.received == result.expected
 
     @pytest.mark.parametrize("rpc_id,expected_trace_id,type", [(93043873, 332, send_data.SEND_TRACE)])

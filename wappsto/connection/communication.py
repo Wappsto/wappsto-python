@@ -6,6 +6,7 @@ sending and receiving threads.
 """
 
 import os
+import ast
 import socket
 import threading
 import time
@@ -85,6 +86,7 @@ class ClientSocket:
         self.initialize_code = initialize.Initialize(self.rpc)
         self.packet_awaiting_confirm = {}
         self.add_trace_to_report_list = {}
+        self.bulk_send_list = []
         self.lock_await = threading.Lock()
         self.set_sockets()
         self.set_report_states()
@@ -206,7 +208,7 @@ class ClientSocket:
 
         """
         self.lock_await.acquire()
-        decoded = json.loads(data.decode('utf-8'))
+        decoded = json.loads(data)
         self.packet_awaiting_confirm[decoded.get('id')] = data
         self.lock_await.release()
 
@@ -442,6 +444,13 @@ class ClientSocket:
                 msg = "Failed to reconnect {}".format(e)
                 self.wapp_log.error(msg, exc_info=True)
 
+    def create_bulk(self, data):
+        self.bulk_send_list.append(data)
+        if self.sending_queue.qsize() < 1:
+            bulk_send = str(self.bulk_send_list)
+            self.bulk_send_list.clear()
+            self.send_data(bulk_send)
+
     def send_data(self, data):
         """
         Send JSON data.
@@ -453,6 +462,7 @@ class ClientSocket:
 
         """
         if self.connected:
+            data = data.encode('utf-8')
             self.wapp_log.debug('Raw Send Json: {}'.format(data))
             self.my_socket.send(data)
         else:
@@ -545,7 +555,7 @@ class ClientSocket:
                 trace_id=package.trace_id
             )
             self.add_id_to_confirm_list(local_data)
-            self.send_data(local_data)
+            self.create_bulk(local_data)
         except OSError as e:
             self.connected = False
             msg = "Error sending control: {}".format(e)
@@ -561,27 +571,9 @@ class ClientSocket:
             The decoded message from the socket.
 
         """
-        total_decoded = []
-        decoded = None
-        while True:
-            if self.connected:
-                data = self.my_socket.recv(2000)
-                decoded_data = data.decode('utf-8')
-                total_decoded.append(decoded_data)
-            else:
-                break
-
-            try:
-                decoded = json.loads(''.join(total_decoded))
-            except JSONDecodeError:
-                if data == b'':
-                    self.reconnect()
-                else:
-                    self.wapp_log.error("Value error: {}".format(data))
-            else:
-                break
-
-        return decoded
+        data = self.my_socket.recv()
+        decoded_data = data.decode('utf-8')
+        return decoded_data
 
     def send_reconnect(self):
         """
@@ -596,7 +588,7 @@ class ClientSocket:
                 self.network.name,
                 put=False
             )
-            self.send_data(rpc_network)
+            self.create_bulk(rpc_network)
             for element in self.packet_awaiting_confirm:
                 self.send_data(self.packet_awaiting_confirm[element])
             self.wappsto_status.set_status(status.RUNNING)
@@ -622,7 +614,7 @@ class ClientSocket:
         )
         self.wapp_log.info(rpc_fail_response)
         try:
-            self.send_data(rpc_fail_response)
+            self.create_bulk(rpc_fail_response)
         except OSError as e:
             self.connected = False
             msg = "Error sending failed response: {}".format(e)
@@ -654,8 +646,8 @@ class ClientSocket:
                 trace_id=package.trace_id
             )
             self.add_id_to_confirm_list(local_data)
-            self.send_data(local_data)
-            decoded = json.loads(local_data.decode('utf-8'))
+            self.create_bulk(local_data)
+            decoded = json.loads(local_data)
             data_decoded = decoded.get('params').get('data').get('data')
             self.wapp_log.info('Sending report value: {}'.format(data_decoded))
         except OSError as e:
@@ -677,7 +669,7 @@ class ClientSocket:
             rpc_success_response = self.rpc.get_rpc_success_response(
                 package.rpc_id
             )
-            self.send_data(rpc_success_response)
+            self.create_bulk(rpc_success_response)
 
         except OSError as e:
             self.connected = False
@@ -718,7 +710,13 @@ class ClientSocket:
         """
         try:
             decoded = self.receive_data()
-            self.receive(decoded)
+            if decoded[0] == '[':
+                for request in ast.literal_eval(decoded):
+                    request = json.loads(request)
+                    self.receive(request)
+            else:
+                decoded = json.loads(decoded)
+                self.receive(decoded)
 
         except JSONDecodeError:
             self.wapp_log.error("Json error: {}".format(decoded))
