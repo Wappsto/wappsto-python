@@ -378,7 +378,7 @@ class TestSendThreadClass:
                 rpc_id=id
             )
             self.service.socket.sending_queue.put(reply)
-        self.service.socket.my_socket.send = Mock(side_effect=Exception)
+        self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.add_id_to_confirm_list = Mock()
 
         # Act
@@ -386,7 +386,7 @@ class TestSendThreadClass:
             # runs until mock object is run and its side_effect raises
             # exception
             self.service.socket.send_thread()
-        except Exception:
+        except KeyboardInterrupt:
             args, kwargs = self.service.socket.my_socket.send.call_args
             arg = args[0]
 
@@ -405,12 +405,12 @@ class TestSendThreadClass:
         self.service.socket.sending_queue.put(reply)
 
         # Act
-        with patch('urllib.request.urlopen', side_effect=Exception) as urlopen:
+        with patch('urllib.request.urlopen', side_effect=KeyboardInterrupt) as urlopen:
             try:
                 # runs until mock object is run and its side_effect raises
                 # exception
                 self.service.socket.send_thread()
-            except Exception:
+            except KeyboardInterrupt:
                 args, kwargs = urlopen.call_args
                 arg = urllib.parse.parse_qs(args[0])
         result_trace_id = int(arg['https://tracer.iot.seluxit.com/trace?id'][0])
