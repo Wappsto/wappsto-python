@@ -414,9 +414,8 @@ class Value:
         Ensure number value follows steps.
 
         Converts values to decimal and ensures number step is always positive,
-        ensures that data value follows steps, sets same amount of digits
-        after decimal point as for step and normalized it, by removing exes 0's
-        after decimal point.
+        ensures that data value follows steps and normalizes it, by removing
+        exes 0's after decimal point.
 
         Args:
             data_value: float value indicating current state of value.
@@ -433,13 +432,7 @@ class Value:
             result += number_step
         data_value = data_value - result
 
-        after_decimal_point = str(number_step).split('.')
-        digits_after_decimal_point = (len(after_decimal_point[1])
-                                      if len(after_decimal_point) > 1 else 0)
-        data_value = round(data_value, digits_after_decimal_point)
-
-        if digits_after_decimal_point > 0:
-            data_value = data_value.normalize()
+        data_value = data_value.normalize()
 
         return data_value
 
