@@ -563,17 +563,32 @@ class ClientSocket:
 
     def receive_data(self):
         """Socket receive method.
-
         Method that handles receiving data from a socket. Capable of handling
         data chunks.
-
         Returns:
             The decoded message from the socket.
-
         """
-        data = self.my_socket.recv()
-        decoded_data = data.decode('utf-8')
-        return decoded_data
+        total_decoded = []
+        decoded = None
+        while True:
+            if self.connected:
+                data = self.my_socket.recv(2000)
+                decoded_data = data.decode('utf-8')
+                total_decoded.append(decoded_data)
+            else:
+                break
+
+            try:
+                decoded = ast.literal_eval(''.join(total_decoded))
+            except JSONDecodeError:
+                if data == b'':
+                    self.reconnect()
+                else:
+                    self.wapp_log.error("Value error: {}".format(data))
+            else:
+                break
+
+        return decoded
 
     def send_reconnect(self):
         """
@@ -710,7 +725,6 @@ class ClientSocket:
         """
         try:
             decoded = self.receive_data()
-            decoded = ast.literal_eval(decoded)
 
             # if the received string is list
             if isinstance(decoded, list):
