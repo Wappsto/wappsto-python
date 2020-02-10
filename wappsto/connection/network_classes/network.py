@@ -55,7 +55,7 @@ class Network:
                 msg = "Callback method should be a method"
                 raise wappsto_errors.CallbackNotCallableException(msg)
             self.callback = callback
-            self.wapp_log.info("Callback {} has been set.".format(callback))
+            self.wapp_log.debug("Callback {} has been set.".format(callback))
             return True
         except wappsto_errors.CallbackNotCallableException as e:
             self.wapp_log.error("Error setting callback: {}".format(e))
@@ -85,7 +85,7 @@ class Network:
 
         """
         msg = "Callback for network '{}' is not set".format(self.name)
-        return self.wapp_log.info(msg)
+        return self.wapp_log.debug(msg)
 
     def __call_callback(self, event):
         if self.callback is not None:
