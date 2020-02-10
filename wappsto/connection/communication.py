@@ -436,7 +436,8 @@ class ClientSocket:
                 self.wapp_log.info("Reconnected")
                 self.connected = True
                 self.wappsto_status.set_status(status.CONNECTED)
-                reconnect_reply = message_data.MessageData(message_data.SEND_RECONNECT)
+                reconnect_reply = message_data.MessageData(
+                    message_data.SEND_RECONNECT)
                 self.sending_queue.put(reconnect_reply)
             except Exception as e:
                 msg = "Failed to reconnect {}".format(e)

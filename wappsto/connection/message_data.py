@@ -1,7 +1,7 @@
 """
 Message data module.
 
-Saves message data packages to be sent the server and stores 
+Saves message data packages to be sent the server and stores
 global state flags.
 
 Attributes:

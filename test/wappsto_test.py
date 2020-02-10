@@ -7,7 +7,7 @@ import urllib.parse
 from mock import Mock
 from unittest.mock import patch
 
-from wappsto.connection import send_data
+from wappsto.connection import message_data
 from wappsto.object_instantiation import status
 from wappsto.connection.network_classes.errors import wappsto_errors
 
@@ -285,22 +285,22 @@ class TestReceiveThreadClass:
         self.put_reset = self.service.socket.sending_queue.put
 
     @pytest.mark.parametrize("id,verb,callback_exists,trace_id,expected_rpc_id,expected_msg_id,expected_trace_id",
-                             [(1, 'PUT', True, None, '1', send_data.SEND_SUCCESS, None),
-                              (1, 'PUT', False, None, '1', send_data.SEND_FAILED, None),
-                              (1, 'DELETE', True, None, '1', send_data.SEND_SUCCESS, None),
-                              (1, 'DELETE', False, None, '1', send_data.SEND_SUCCESS, None),
-                              (1, 'GET', True, None, '1', send_data.SEND_SUCCESS, None),
-                              (1, 'GET', False, None, '1', send_data.SEND_SUCCESS, None),
-                              (1, 'wrong_verb', False, None, '1', send_data.SEND_FAILED, None),
-                              (1, 'wrong_verb', True, None, '1', send_data.SEND_FAILED, None),
-                              (1, 'PUT', True, 321, None, send_data.SEND_TRACE, '321'),
-                              (1, 'PUT', False, 321, '1', send_data.SEND_FAILED, None),
-                              (1, 'DELETE', True, 321, None, send_data.SEND_TRACE, '321'),
-                              (1, 'DELETE', False, 321, None, send_data.SEND_TRACE, '321'),
-                              (1, 'GET', True, 321, None, send_data.SEND_TRACE, '321'),
-                              (1, 'GET', False, 321, None, send_data.SEND_TRACE, '321'),
-                              (1, 'wrong_verb', False, 321, '1', send_data.SEND_FAILED, None),
-                              (1, 'wrong_verb', True, 321, '1', send_data.SEND_FAILED, None)
+                             [(1, 'PUT', True, None, '1', message_data.SEND_SUCCESS, None),
+                              (1, 'PUT', False, None, '1', message_data.SEND_FAILED, None),
+                              (1, 'DELETE', True, None, '1', message_data.SEND_SUCCESS, None),
+                              (1, 'DELETE', False, None, '1', message_data.SEND_SUCCESS, None),
+                              (1, 'GET', True, None, '1', message_data.SEND_SUCCESS, None),
+                              (1, 'GET', False, None, '1', message_data.SEND_SUCCESS, None),
+                              (1, 'wrong_verb', False, None, '1', message_data.SEND_FAILED, None),
+                              (1, 'wrong_verb', True, None, '1', message_data.SEND_FAILED, None),
+                              (1, 'PUT', True, 321, None, message_data.SEND_TRACE, '321'),
+                              (1, 'PUT', False, 321, '1', message_data.SEND_FAILED, None),
+                              (1, 'DELETE', True, 321, None, message_data.SEND_TRACE, '321'),
+                              (1, 'DELETE', False, 321, None, message_data.SEND_TRACE, '321'),
+                              (1, 'GET', True, 321, None, message_data.SEND_TRACE, '321'),
+                              (1, 'GET', False, 321, None, message_data.SEND_TRACE, '321'),
+                              (1, 'wrong_verb', False, 321, '1', message_data.SEND_FAILED, None),
+                              (1, 'wrong_verb', True, 321, '1', message_data.SEND_FAILED, None)
                              ])
     def test_receive_thread_method(self, id, verb, callback_exists, trace_id, 
                                    expected_rpc_id, expected_msg_id, expected_trace_id):
@@ -364,14 +364,14 @@ class TestSendThreadClass:
     def setup_method(self, test_receive_thread_other):
         self.send_reset = self.service.socket.my_socket.send
 
-    @pytest.mark.parametrize("id,type", [(93043873, send_data.SEND_SUCCESS),
-                                         (93043873, send_data.SEND_REPORT),
-                                         (93043873, send_data.SEND_FAILED),
-                                         (93043873, send_data.SEND_RECONNECT),
-                                         (93043873, send_data.SEND_CONTROL)])
+    @pytest.mark.parametrize("id,type", [(93043873, message_data.SEND_SUCCESS),
+                                         (93043873, message_data.SEND_REPORT),
+                                         (93043873, message_data.SEND_FAILED),
+                                         (93043873, message_data.SEND_RECONNECT),
+                                         (93043873, message_data.SEND_CONTROL)])
     def test_send_thread(self, id, type):
         # Arrange
-        reply = send_data.SendData(
+        reply = message_data.MessageData(
             type,
             rpc_id=id
         )
@@ -392,10 +392,10 @@ class TestSendThreadClass:
         for result in get_send_thread_values(self, type, args, id):
             assert result.received == result.expected
 
-    @pytest.mark.parametrize("rpc_id,expected_trace_id,type", [(93043873, 332, send_data.SEND_TRACE)])
+    @pytest.mark.parametrize("rpc_id,expected_trace_id,type", [(93043873, 332, message_data.SEND_TRACE)])
     def test_send_thread_send_trace(self, rpc_id, expected_trace_id, type):
         # Arrange
-        reply = send_data.SendData(
+        reply = message_data.MessageData(
             type,
             trace_id = expected_trace_id,
             rpc_id=rpc_id
