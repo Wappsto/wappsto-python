@@ -489,7 +489,7 @@ class ClientSocket:
                     self.send_trace(package)
 
                 else:
-                    self.wapp_log.info("Unhandled send")
+                    self.wapp_log.warning("Unhandled send")
 
             self.sending_queue.task_done()
 
@@ -520,7 +520,7 @@ class ClientSocket:
             attempt,
             trace_req.getcode()
         )
-        self.wapp_log.info(msg)
+        self.wapp_log.debug(msg)
 
     def send_control(self, package):
         """
@@ -615,12 +615,12 @@ class ClientSocket:
             package: Sending queue item.
 
         """
-        self.wapp_log.info("Sending Error")
+        self.wapp_log.info("Sending failed")
         rpc_fail_response = self.rpc.get_rpc_fail_response(
             package.rpc_id,
             package.text
         )
-        self.wapp_log.info(rpc_fail_response)
+        self.wapp_log.debug(rpc_fail_response)
         try:
             self.send_data(rpc_fail_response)
         except OSError as e:
@@ -690,7 +690,7 @@ class ClientSocket:
 
         Closes the socket object connection.
         """
-        self.wapp_log.debug("Closing connection...")
+        self.wapp_log.info("Closing connection...")
         self.connected = False
         if self.my_socket:
             self.my_socket.close()
@@ -768,7 +768,7 @@ class ClientSocket:
                     self.remove_id_from_confirm_list(decoded_id)
 
                 else:
-                    self.wapp_log.info("Unhandled method")
+                    self.wapp_log.warning("Unhandled method")
                     error_str = 'Unknown method'
                     self.send_error(error_str, decoded_id)
 

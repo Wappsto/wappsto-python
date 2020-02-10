@@ -62,7 +62,7 @@ class Status:
 
         """
         self.callback = callback
-        self.wapp_log.info("Callback {} has been set.".format(callback))
+        self.wapp_log.debug("Callback {} has been set.".format(callback))
 
     def get_status(self):
         """
