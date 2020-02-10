@@ -6,7 +6,7 @@ sending queue.
 """
 import random
 import logging
-from . import send_data
+from . import message_data
 
 
 def send_trace(sending_queue, parent, trace_id, data, control_value_id=None):
@@ -25,8 +25,8 @@ def send_trace(sending_queue, parent, trace_id, data, control_value_id=None):
 
     """
     if trace_id:
-        trace = send_data.SendData(
-            send_data.SEND_TRACE,
+        trace = message_data.MessageData(
+            message_data.SEND_TRACE,
             parent=parent,
             trace_id=trace_id,
             data=data,
@@ -60,8 +60,8 @@ def send_report(
         trace_id: Trace ID used to create a URL for debugging (default: {None})
 
     """
-    report = send_data.SendData(
-        send_data.SEND_REPORT,
+    report = message_data.SendData(
+        message_data.SEND_REPORT,
         data=str(incoming_value),
         network_id=network.uuid,
         device_id=device.uuid,
@@ -92,8 +92,8 @@ def get_control(incoming_value, network, device, value, state, trace_id=None):
         The result of the control request.
 
     """
-    control = send_data.SendData(
-        send_data.SEND_CONTROL,
+    control = message_data.SendData(
+        message_data.SEND_CONTROL,
         data=str(incoming_value),
         network_id=network.uuid,
         device_id=device.uuid,
