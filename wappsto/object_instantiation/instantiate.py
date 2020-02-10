@@ -10,7 +10,7 @@ from ..connection.network_classes import network
 from ..connection.network_classes import device
 from ..connection.network_classes import value
 from ..connection.network_classes import state
-from ..connection.seluxit_rpc import SeluxitRpc
+from . import encoder
 from . import status
 
 
@@ -271,110 +271,12 @@ class Instantiator:
             JSON object.
 
         """
-        devices = []
-        for device_iterator in self.device_list:
-            values = []
-            for value_iterator in device_iterator.value_list:
-                states = []
-                for state_iterator in value_iterator.state_list:
-                    state = {
-                        'data': value_iterator.last_controlled,
-                        'type': state_iterator.state_type,
-                        'timestamp': state_iterator.timestamp,
-                        'meta':
-                        {
-                            'id': state_iterator.uuid,
-                            'type': 'state',
-                            'version': '2.0'
-                        }
-                    }
+        wappsto_encoder = encoder.WappstoEncoder()
+        encoded_object = wappsto_encoder.encode(self)
+        encoded_object = self.get_object_without_none_values(encoded_object)
+        return encoded_object
 
-                    state = self.get_object_without_none_values(state)
-                    state['meta'] = self.get_object_without_none_values(
-                        state['meta'])
-                    states.append(state)
-
-                if value_iterator.data_type == 'string':
-                    details = {
-                        'encoding': value_iterator.string_encoding,
-                        'max': value_iterator.string_max
-                    }
-                elif value_iterator.data_type == 'blob':
-                    details = {
-                        'encoding': value_iterator.blob_encoding,
-                        'max': value_iterator.string_max
-                    }
-                elif value_iterator.data_type == 'number':
-                    details = {
-                        'min': value_iterator.number_min,
-                        'max': value_iterator.number_max,
-                        'step': value_iterator.number_step,
-                        'unit': value_iterator.number_unit
-                    }
-                details = self.get_object_without_none_values(details)
-
-                value = {
-                    'name': value_iterator.name,
-                    'type': value_iterator.type_of_value,
-                    'permission': value_iterator.permission,
-                    'state': states,
-                    value_iterator.data_type: details,
-                    'meta':
-                    {
-                        'id': value_iterator.uuid,
-                        'type': 'value',
-                        'version': '2.0'
-                    }
-                }
-
-                value = self.get_object_without_none_values(value)
-                value['meta'] = self.get_object_without_none_values(
-                    value['meta'])
-                values.append(value)
-
-            device = {
-                'name': device_iterator.name,
-                'product': device_iterator.product,
-                'protocol': device_iterator.protocol,
-                'serial': device_iterator.serial_number,
-                'manufacturer': device_iterator.manufacturer,
-                'communication': device_iterator.communication,
-                'description': device_iterator.description,
-                'version': device_iterator.version,
-                'value': values,
-                'meta':
-                {
-                    'id': device_iterator.uuid,
-                    'version': '2.0',
-                    'type': 'device'
-                }
-            }
-
-            device = self.get_object_without_none_values(device)
-            device['meta'] = self.get_object_without_none_values(
-                device['meta'])
-            devices.append(device)
-
-        meta = {
-            'id': self.network_cl.uuid,
-            'version': '2.0',
-            'type': 'network'
-        }
-
-        if SeluxitRpc.is_upgradable():
-            meta.update({'upgradable': True})
-
-        network = {
-            'name': self.network_cl.name,
-            'device': devices,
-            'meta': meta
-        }
-
-        network = self.get_object_without_none_values(network)
-        network['meta'] = self.get_object_without_none_values(network['meta'])
-        return network
-
-    def get_object_without_none_values(self, obj):
+    def get_object_without_none_values(self, encoded_object):
         """
         Get object without None values.
 
@@ -382,11 +284,15 @@ class Instantiator:
         where value is None.
 
         Args:
-            obj: dictionary object.
+            encoded_object: dictionary object.
 
         Returns:
             Dictionary object without None values.
 
         """
-        return dict([(key, value) for key, value in obj.items()
-                     if value is not None])
+        for key, val in list(encoded_object.items()):
+            if val is None or val == []:
+                del encoded_object[key]
+            elif isinstance(val, dict):
+                self.get_object_without_none_values(val)
+        return encoded_object
