@@ -13,7 +13,7 @@ class State:
     Stores attributes for the state instance and handles device-related
     """
 
-    def __init__(self, parent_value, uuid, state_type, timestamp):
+    def __init__(self, parent_value, uuid, state_type, timestamp, init_value):
         """
         Initialize the State class.
 
@@ -33,5 +33,9 @@ class State:
         self.uuid = uuid
         self.state_type = state_type
         self.timestamp = timestamp
+
+        self.init_value = init_value
+        self.last_controlled = init_value
+
         msg = "State {} Debug: \n{}".format(uuid, str(self.__dict__))
         self.wapp_log.debug(msg)

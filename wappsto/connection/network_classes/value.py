@@ -29,7 +29,6 @@ class Value:
         type_of_value,
         data_type,
         permission,
-        init_value,
         number_max,
         number_min,
         number_step,
@@ -53,7 +52,6 @@ class Value:
             type_of_value: Determines a type of value [e.g temperature, CO2]
             data_type: Defines whether a value is string, blob or number
             permission: Defines permission [read, write, read and write]
-            init_value: Initial value after creation of an object
             (if data_type is number then these parameters are relevant):
             number_max: Maximum number a value can have
             number_min: Minimum number a value can have
@@ -80,7 +78,6 @@ class Value:
         self.data_type = data_type
         self.permission = permission
         # The value shared between state instances.
-        self.init_value = init_value
         self.number_max = number_max
         self.number_min = number_min
         self.number_step = number_step
@@ -99,57 +96,14 @@ class Value:
         self.conn = None
         self.reporting_thread = None
         self.last_update_of_control = None
-        self.data_value = init_value
         self.difference = 0
         self.delta_report = 0
-        self.last_controlled = self.data_value
         self.parent_network_id = parent_device.get_parent_network().uuid
         self.parent_device_id = parent_device.uuid
         self.state_list = []
 
         msg = "Value {} debug: {}".format(name, str(self.__dict__))
         self.wapp_log.debug(msg)
-
-    def set_period(self, period):
-        """
-        Set the value reporting period.
-
-        Sets the period to report a value to the server and starts a thread to
-        do so.
-
-        Args:
-            period: Reporting period.
-
-        """
-        try:
-            if self.get_report_state() is not None and int(period) > 0:
-                self.period = period
-
-            else:
-                self.wapp_log.warning("Cannot set the period for this value.")
-        except ValueError:
-            self.wapp_log.error("Period value must be a number.")
-
-    def set_delta(self, delta):
-        """
-        Set the delta to report between.
-
-        Sets the delta (range) of change to report in. When a change happens
-        in the range of this delta it will be reported.
-
-        Args:
-            delta: Range to report between.
-
-        """
-        try:
-            if (self.__is_number_type()
-                    and self.get_report_state()
-                    and float(delta) > 0):
-                self.delta = delta
-            else:
-                self.wapp_log.warning("Cannot set the delta for this value.")
-        except ValueError:
-            self.wapp_log.error("Delta value must be a number")
 
     def __callback_not_set(self, value, type):
         """
@@ -190,10 +144,6 @@ class Value:
         self.report_state = state
         self.state_list.append(state)
         msg = "Report state {} has been added.".format(state)
-        # self.reporting_thread = threading.Thread(target=
-        #                                           self.__send_report_thread)
-        # self.reporting_thread.setDaemon(True)
-        # self.reporting_thread.start()
         self.wapp_log.debug(msg)
 
     def add_control_state(self, state):
@@ -227,43 +177,6 @@ class Value:
             msg = "Value {} has no report state.".format(self.name)
             self.wapp_log.warning(msg)
 
-    def get_control_state(self):
-        """
-        Retrieve child control state reference.
-
-        Gets a reference to the child State class.
-
-        Returns:
-            Reference to instance of State class.
-
-        """
-        if self.control_state is not None:
-            return self.control_state
-        else:
-            msg = "Value {}  has no control state.".format(self.name)
-            self.wapp_log.warning(msg)
-
-    def __send_report_delta(self, state):
-        """
-        Send report message when delta range reached.
-
-        Sends a report message with the current value when the delta range is
-        reached.
-
-        Args:
-            state: Reference to the report state
-
-        """
-        try:
-            result = int(self.difference) >= int(self.delta)
-            if result and self.rpc is not None and self.delta_report == 1:
-                self.__send_logic(state, "report")
-                self.wapp_log.info("Sent report [DELTA].")
-                self.delta_report = 0
-                return True
-        except AttributeError:
-            pass
-
     def get_now(self):
         """
         Retrieve current time.
@@ -275,48 +188,6 @@ class Value:
 
         """
         return datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-
-    def __send_report_thread(self):
-        """
-        Send report message.
-
-        Sends a report message with the current value to the server.
-        Unless state exists, runs a while loop. It is determined whether or
-        not set flag allowing send report because of delta attribute. If delta
-        exists: __send_report_delta method is called. If period exists it is
-        checked if the sum of period value and last time the value was
-        updated is greater than current time. If it does then a report is sent.
-        Method is running on separate thread which after each loop sleeps for
-        one second.
-        """
-        state = self.get_report_state()
-        value = self.last_controlled
-        if state is not None:
-            while True:
-                if (self.last_controlled is not None
-                        and self.__is_number_type()):
-                    value_check = self.last_controlled
-                    if value != value_check:
-                        self.difference = fabs(int(value) - int(value_check))
-                        value = value_check
-                        self.delta_report = 1
-                if self.delta is not None:
-                    self.__send_report_delta(state)
-                if self.period is not None:
-                    try:
-                        last_update_timestamp = self.__date_converter(
-                            self.last_update_of_report
-                        )
-                        now = self.get_now()
-                        now_timestamp = self.__date_converter(now)
-                        the_time = last_update_timestamp + self.period
-                        if the_time <= now_timestamp and self.rpc is not None:
-                            self.wapp_log.info("Sending report [PERIOD].")
-                            self.__send_logic(state, 'report')
-                    except Exception as e:
-                        self.reporting_thread.join()
-                        self.wapp_log.error(e)
-                time.sleep(1)
 
     def set_callback(self, callback):
         """
@@ -343,27 +214,6 @@ class Value:
         except wappsto_errors.CallbackNotCallableException as e:
             self.wapp_log.error("Error setting callback: {}".format(e))
             raise
-
-    def __date_converter(self, date):
-        """
-        Convert date to timestamp.
-
-        Converts passed date to a timestamp, first removed Z and T charts
-        from the date, then using functionality of time and datetime
-        libraries, changes the date into timestamp and returns it.
-
-        Args:
-            date: string format date
-
-        Returns:
-            timestamp
-            integer
-
-        """
-        date_first = re.sub("Z", "", re.sub("T", " ", date))
-        date_format = '%Y-%m-%d %H:%M:%S.%f'
-        date_datetime = datetime.datetime.strptime(date_first, date_format)
-        return time.mktime(date_datetime.timetuple())
 
     def __validate_value_data(self, data_value):
         if self.__is_number_type():
@@ -499,9 +349,10 @@ class Value:
             results of __call_callback
 
         """
-        self.data_value = data_value
-        # self.last_update_of_control = state.timestamp
-        self.last_controlled = data_value
+        if self.report_state:
+            self.report_state.last_controlled = data_value
+        elif self.control_state:
+            self.control_state.last_controlled = data_value
 
         return self.__call_callback('set')
 

@@ -146,11 +146,6 @@ class Instantiator:
                 name = value_iterator.get('name')
                 type_of_value = value_iterator.get('type')
                 permission = value_iterator.get('permission')
-                states = value_iterator.get('state', [])
-                try:
-                    init_value = states[0].get('data', None)
-                except IndexError:
-                    init_value = None
                 data_type = None
                 number_min = None
                 number_max = None
@@ -187,7 +182,6 @@ class Instantiator:
                     type_of_value=type_of_value,
                     data_type=data_type,
                     permission=permission,
-                    init_value=init_value,
                     number_max=number_max,
                     number_min=number_min,
                     number_step=number_step,
@@ -203,16 +197,17 @@ class Instantiator:
                                     .format(value_cl, device_cl.value_list)
                                     )
 
-                for state_iterator in states:
+                for state_iterator in value_iterator.get('state', []):
                     uuid = state_iterator.get('meta').get('id')
                     state_type = state_iterator.get('type')
-                    # data = state_iterator.get('data')
+                    init_value = state_iterator.get('data')
                     timestamp = state_iterator.get('timestamp')
                     state_cl = state.State(
                         parent_value=value_cl,
                         uuid=uuid,
                         state_type=state_type,
-                        timestamp=timestamp
+                        timestamp=timestamp,
+                        init_value=init_value
                     )
                     if state_type == 'Report':
                         value_cl.add_report_state(state_cl)
