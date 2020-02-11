@@ -295,4 +295,7 @@ class Instantiator:
                 del encoded_object[key]
             elif isinstance(val, dict):
                 self.get_object_without_none_values(val)
+            elif isinstance(val, list):
+                for val_element in val:
+                    self.get_object_without_none_values(val_element)
         return encoded_object

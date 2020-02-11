@@ -85,20 +85,6 @@ def create_response(self, verb, callback_exists, trace_id):
     return '{"jsonrpc": "2.0", "id": "1", "params": {"url": "'+url+'",'+trace+' "data": {"meta": {"id": "'+id+'"}, "data": "93"}}, "method": "'+verb+'"}'
 
 
-def get_expected_json(self):
-    # gets the loaded json and modifies it according to the expected changes when compared to the sent json
-    expected_json = json.loads(self.service.instance.decoded.get('data'))
-    for device in expected_json['device']:
-        device['version'] = '2.0'
-        for value in device['value']:
-            states = value['state']
-            if len(states) > 1:
-                for state in states:
-                    state['data'] = states[0]['data']
-                    del state['meta']['contract']
-    return expected_json
-
-
 def exists_in_dictionary(key, dict):
     return True if key in dict else False
 
@@ -168,36 +154,25 @@ class TestConnClass:
         # Arrange
         status_service = self.service.get_status()
         fix_object(self, callback_exists, status_service)
-        expected_json = get_expected_json(self)
         if value_changed_to_none:
             self.service.instance.network_cl.name = None
 
         # Act
         with patch('os.getenv', return_value=str(upgradable)):
             try:
-                #os.getenv(
                 fake_connect(self, address, port)
                 args, kwargs = self.service.socket.my_socket.send.call_args
                 arg = json.loads(args[0].decode('utf-8'))
                 sent_json = arg['params']['data']
             except wappsto_errors.ServerConnectionException:
                 sent_json = None
-                expected_json = None
                 pass
 
-        # Assert        
-        assert ((sent_json == None and expected_json == None) or
-                
-                ((value_changed_to_none and (exists_in_dictionary('name',expected_json) 
-                                             != exists_in_dictionary('name',sent_json))) or
-                (not value_changed_to_none and (exists_in_dictionary('name',expected_json) 
-                                             == exists_in_dictionary('name',sent_json)))) and
-
-                ((upgradable and (exists_in_dictionary('upgradable',expected_json['meta']) 
-                                             != exists_in_dictionary('upgradable',sent_json['meta']))) or
-                (not upgradable and (exists_in_dictionary('upgradable',expected_json['meta']) 
-                                             == exists_in_dictionary('upgradable',sent_json['meta']))))
-                )
+        # Assert
+        if sent_json != None:
+            assert not 'None' in str(sent_json)
+            assert (upgradable and 'upgradable' in str(sent_json['meta']) or
+                    not upgradable and not 'upgradable' in str(sent_json['meta']))
         assert self.service.status.get_status() == expected_status
 
 class TestValueSendClass:
