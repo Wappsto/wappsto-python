@@ -34,6 +34,7 @@ def send_trace(sending_queue, parent, trace_id, data, control_value_id=None):
             control_value_id=control_value_id)
         sending_queue.put(trace)
 
+
 class Handlers:
     """
     Message data handlers.

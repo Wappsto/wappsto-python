@@ -138,8 +138,8 @@ class TestConnClass:
             try:
                 fake_connect(self, address, port)
                 args, kwargs = self.service.socket.my_socket.send.call_args
-                arg = json.loads(args[0].decode('utf-8'))
-                sent_json = arg['params']['data']
+                arg = ast.literal_eval(args[0].decode('utf-8'))
+                sent_json = json.loads(arg[0])['params']['data']
             except wappsto_errors.ServerConnectionException:
                 sent_json = None
                 pass
@@ -206,8 +206,8 @@ class TestValueSendClass:
         try:
             value.update(input)
             args, kwargs = self.service.socket.my_socket.send.call_args
-            arg = json.loads(args[0].decode('utf-8'))
-            result = arg['params']['data']['data']
+            arg = ast.literal_eval(args[0].decode('utf-8'))
+            result = json.loads(arg[0])['params']['data']['data']
         except TypeError:
             result = None
 
@@ -263,7 +263,7 @@ class TestReceiveThreadClass:
         # Assert
         while self.service.socket.sending_queue.qsize() > 0:
             send = self.service.socket.sending_queue.get()
-            assert (send.msg_id == send_data.SEND_SUCCESS or 
+            assert (send.msg_id == message_data.SEND_SUCCESS or 
                     send.msg_id == expected_msg_id)
 
     @pytest.mark.parametrize("id,type", [(93043873, "error"),(93043873, "result")])
@@ -282,7 +282,7 @@ class TestReceiveThreadClass:
             pass
 
         # Assert
-        assert len(self.service.socket.packet_awaiting_confirm) < 1
+        assert len(self.service.socket.packet_awaiting_confirm) == 0
 
     @classmethod
     def teardown_class(self):
@@ -308,7 +308,7 @@ class TestSendThreadClass:
         i = 0
         while i < messages_in_queue:
             i += 1
-            reply = send_data.SendData(
+            reply = message_data.MessageData(
                 type,
                 rpc_id=id
             )

@@ -620,7 +620,7 @@ class ClientSocket:
             )
             self.create_bulk(rpc_network)
             for element in self.packet_awaiting_confirm:
-                self.send_data(self.packet_awaiting_confirm[element])
+                self.create_bulk(self.packet_awaiting_confirm[element])
             self.wappsto_status.set_status(status.RUNNING)
         except OSError as e:
             self.connected = False

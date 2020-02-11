@@ -338,7 +338,7 @@ class SeluxitRpc:
             json_data: Initial JSON data.
 
         """
-        connection.send_data(json_data)
+        connection.create_bulk(json_data)
         if self.save_init:
             with open(self.filename, 'a+') as file:
                 file.write(str(json_data) + "\n")
