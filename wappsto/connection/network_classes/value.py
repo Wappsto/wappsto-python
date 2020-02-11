@@ -102,6 +102,41 @@ class Value:
         msg = "Value {} debug: {}".format(name, str(self.__dict__))
         self.wapp_log.debug(msg)
 
+    def set_period(self, period):	
+        """	
+        Set the value reporting period.	
+        Sets the period to report a value to the server and starts a thread to	
+        do so.	
+        Args:	
+            period: Reporting period.	
+        """	
+        try:	
+            if self.get_report_state() is not None and int(period) > 0:	
+                self.period = period	
+
+            else:	
+                self.wapp_log.warning("Cannot set the period for this value.")	
+        except ValueError:	
+            self.wapp_log.error("Period value must be a number.")	
+
+    def set_delta(self, delta):	
+        """	
+        Set the delta to report between.	
+        Sets the delta (range) of change to report in. When a change happens	
+        in the range of this delta it will be reported.	
+        Args:	
+            delta: Range to report between.	
+        """	
+        try:	
+            if (self.__is_number_type()	
+                    and self.get_report_state()	
+                    and float(delta) > 0):	
+                self.delta = delta	
+            else:	
+                self.wapp_log.warning("Cannot set the delta for this value.")	
+        except ValueError:	
+            self.wapp_log.error("Delta value must be a number")
+
     def __callback_not_set(self, value, type):
         """
         Message about no callback being set.
@@ -174,6 +209,37 @@ class Value:
             msg = "Value {} has no report state.".format(self.name)
             self.wapp_log.warning(msg)
 
+    def get_control_state(self):	
+        """
+        Retrieve child control state reference.
+        Gets a reference to the child State class.
+        Returns:
+            Reference to instance of State class.
+        """
+        if self.control_state is not None:
+            return self.control_state
+        else:
+            msg = "Value {}  has no control state.".format(self.name)
+            self.wapp_log.warning(msg
+
+    def __send_report_delta(self, state):	
+        """	
+        Send report message when delta range reached.	
+        Sends a report message with the current value when the delta range is	
+        reached.	
+        Args:	
+            state: Reference to the report state	
+        """	
+        try:	
+            result = int(self.difference) >= int(self.delta)	
+            if result and self.rpc is not None and self.delta_report == 1:	
+                self.__send_logic(state, "report")	
+                self.wapp_log.info("Sent report [DELTA].")	
+                self.delta_report = 0	
+                return True	
+        except AttributeError:	
+            pass
+
     def get_now(self):
         """
         Retrieve current time.
@@ -185,6 +251,47 @@ class Value:
 
         """
         return datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+
+    def __send_report_thread(self):	
+        """	
+        Send report message.	
+        Sends a report message with the current value to the server.	
+        Unless state exists, runs a while loop. It is determined whether or	
+        not set flag allowing send report because of delta attribute. If delta	
+        exists: __send_report_delta method is called. If period exists it is	
+        checked if the sum of period value and last time the value was	
+        updated is greater than current time. If it does then a report is sent.	
+        Method is running on separate thread which after each loop sleeps for	
+        one second.	
+        """	
+        state = self.get_report_state()	
+        if state is not None:	
+            value = state.data
+            while True:	
+                if (state.data is not None	
+                        and self.__is_number_type()):	
+                    value_check = state.data	
+                    if value != value_check:	
+                        self.difference = fabs(int(value) - int(value_check))	
+                        value = value_check	
+                        self.delta_report = 1	
+                if self.delta is not None:	
+                    self.__send_report_delta(state)	
+                if self.period is not None:	
+                    try:	
+                        last_update_timestamp = self.__date_converter(	
+                            self.last_update_of_report	
+                        )	
+                        now = self.get_now()	
+                        now_timestamp = self.__date_converter(now)	
+                        the_time = last_update_timestamp + self.period	
+                        if the_time <= now_timestamp and self.rpc is not None:	
+                            self.wapp_log.info("Sending report [PERIOD].")	
+                            self.__send_logic(state, 'report')	
+                    except Exception as e:	
+                        self.reporting_thread.join()	
+                        self.wapp_log.error(e)	
+                time.sleep(1)
 
     def set_callback(self, callback):
         """
@@ -211,6 +318,23 @@ class Value:
         except wappsto_errors.CallbackNotCallableException as e:
             self.wapp_log.error("Error setting callback: {}".format(e))
             raise
+
+    def __date_converter(self, date):	
+        """	
+        Convert date to timestamp.	
+        Converts passed date to a timestamp, first removed Z and T charts	
+        from the date, then using functionality of time and datetime	
+        libraries, changes the date into timestamp and returns it.	
+        Args:	
+            date: string format date	
+        Returns:	
+            timestamp	
+            integer	
+        """	
+        date_first = re.sub("Z", "", re.sub("T", " ", date))	
+        date_format = '%Y-%m-%d %H:%M:%S.%f'	
+        date_datetime = datetime.datetime.strptime(date_first, date_format)	
+        return time.mktime(date_datetime.timetuple())
 
     def __validate_value_data(self, data_value):
         if self.__is_number_type():
@@ -314,6 +438,23 @@ class Value:
             timestamp=timestamp
         )
 
+    def get_data(self):
+        """
+        Get value from report state.
+
+        Check if value has a report state if it has return its data else return
+        None.
+
+        Returns:
+            Value of report state.
+
+        """
+        state = self.get_report_state()
+        if state is None:
+            return None
+        else:
+            return state.data
+
     def __call_callback(self, type):
         if self.callback is not None:
             self.callback(self, type)
@@ -330,14 +471,14 @@ class Value:
             results of __call_callback
 
         """
-        return self.__call_callback('refresh')
+        return self.__send_logic('refresh')
 
     def handle_control(self, data_value):
         """
         Handles the control request.
 
-        Sets data_value and last_controlled values of this Value object, with
-        value provided and calls __call_callback method with input of 'set'.
+        Sets data value of control_state object, with value provided and calls
+        __call_callback method with input of 'set'.
 
         Args:
             data_value: the new value.
@@ -346,7 +487,7 @@ class Value:
             results of __call_callback
 
         """
-        self.control_state.last_controlled = data_value
+        self.control_state.data = data_value
 
         return self.__call_callback('set')
 

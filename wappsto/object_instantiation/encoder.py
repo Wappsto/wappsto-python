@@ -183,7 +183,7 @@ class WappstoEncoder:
 
         """
         encoded_state = {
-            'data': state.last_controlled,
+            'data': state.data,
             'type': state.state_type,
             'timestamp': state.timestamp,
             'meta':

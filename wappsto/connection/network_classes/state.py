@@ -36,7 +36,7 @@ class State:
         self.timestamp = timestamp
 
         self.init_value = init_value
-        self.last_controlled = init_value
+        self.data = init_value
 
         msg = "State {} Debug: \n{}".format(uuid, str(self.__dict__))
         self.wapp_log.debug(msg)
