@@ -8,7 +8,7 @@ import logging
 import time
 import datetime
 import decimal
-import re	
+import re
 from math import fabs
 from .errors import wappsto_errors
 
@@ -220,7 +220,6 @@ class Value:
 
     def get_control_state(self):
         """
-
         Retrieve child control state reference.
 
         Gets a reference to the child State class.
@@ -492,7 +491,7 @@ class Value:
             results of __call_callback
 
         """
-        return self.__send_logic('refresh')
+        return self.__call_callback('refresh')
 
     def handle_control(self, data_value):
         """
