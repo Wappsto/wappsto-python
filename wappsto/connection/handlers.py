@@ -205,7 +205,7 @@ class Handlers:
             for value in device.value_list:
                 if value.report_state is not None:
                     if report_id.endswith(value.report_state.uuid):
-                        current_value = value.get_state().last_controlled
+                        current_value = value.report_state.last_controlled
                         send_trace(
                             sending_queue,
                             value.uuid,

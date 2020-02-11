@@ -25,6 +25,7 @@ class State:
             uuid: unique identifier of a state
             state_type: determines if the state is report or control
             timestamp: time of last update
+            init_value: Initial value after creation of an object
 
         """
         self.wapp_log = logging.getLogger(__name__)

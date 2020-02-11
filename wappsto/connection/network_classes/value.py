@@ -5,11 +5,8 @@ Stores attributes for the value instance and handles value-related
 methods.
 """
 import logging
-import time
 import datetime
 import decimal
-import re
-from math import fabs
 from .errors import wappsto_errors
 
 
@@ -104,14 +101,6 @@ class Value:
 
         msg = "Value {} debug: {}".format(name, str(self.__dict__))
         self.wapp_log.debug(msg)
-
-    def get_state(self):
-        state = None
-        if self.report_state:
-            state = self.report_state
-        elif self.control_state:
-            state = self.control_state
-        return state
 
     def __callback_not_set(self, value, type):
         """
@@ -357,7 +346,7 @@ class Value:
             results of __call_callback
 
         """
-        self.get_state().last_controlled = data_value
+        self.control_state.last_controlled = data_value
 
         return self.__call_callback('set')
 
