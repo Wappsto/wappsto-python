@@ -105,6 +105,14 @@ class Value:
         msg = "Value {} debug: {}".format(name, str(self.__dict__))
         self.wapp_log.debug(msg)
 
+    def get_state(self):
+        state = None
+        if self.report_state:
+            state = self.report_state
+        elif self.control_state:
+            state = self.control_state
+        return state
+
     def __callback_not_set(self, value, type):
         """
         Message about no callback being set.
@@ -349,10 +357,7 @@ class Value:
             results of __call_callback
 
         """
-        if self.report_state:
-            self.report_state.last_controlled = data_value
-        elif self.control_state:
-            self.control_state.last_controlled = data_value
+        self.get_state().last_controlled = data_value
 
         return self.__call_callback('set')
 
