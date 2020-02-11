@@ -13,8 +13,8 @@ from wappsto.connection.network_classes.errors import wappsto_errors
 
 ADDRESS = "wappsto.com"
 PORT = 11006
-TEST_JSON = "test_JSON/b03f246d-63ef-446d-be58-ef1d1e83b338.json"
-TEST_JSON_prettyprint = "test_JSON/b03f246d-63ef-446d-be58-ef1d1e83b338_prettyprint.json"
+TEST_JSON = "test_JSON/test_json.json"
+TEST_JSON_prettyprint = "test_JSON/test_json_prettyprint.json"
 
 
 def check_for_correct_conn(*args, **kwargs):
