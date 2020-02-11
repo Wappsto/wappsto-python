@@ -6,7 +6,7 @@ sending queue.
 """
 import random
 import logging
-from . import send_data
+from . import message_data
 
 
 def send_trace(sending_queue, parent, trace_id, data, control_value_id=None):
@@ -25,15 +25,14 @@ def send_trace(sending_queue, parent, trace_id, data, control_value_id=None):
 
     """
     if trace_id:
-        trace = send_data.SendData(
-            send_data.SEND_TRACE,
+        trace = message_data.MessageData(
+            message_data.SEND_TRACE,
             parent=parent,
             trace_id=trace_id,
             data=data,
             text="ok",
             control_value_id=control_value_id)
         sending_queue.put(trace)
-
 
 class Handlers:
     """

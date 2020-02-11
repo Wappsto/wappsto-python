@@ -8,14 +8,14 @@ import urllib.parse
 from mock import Mock
 from unittest.mock import patch
 
-from wappsto.connection import send_data
+from wappsto.connection import message_data
 from wappsto.object_instantiation import status
 from wappsto.connection.network_classes.errors import wappsto_errors
 
 ADDRESS = "wappsto.com"
 PORT = 11006
-TEST_JSON = "test_JSON/b03f246d-63ef-446d-be58-ef1d1e83b338.json"
-TEST_JSON_prettyprint = "test_JSON/b03f246d-63ef-446d-be58-ef1d1e83b338_prettyprint.json"
+TEST_JSON = "test_JSON/test_json.json"
+TEST_JSON_prettyprint = "test_JSON/test_json_prettyprint.json"
 
 
 def check_for_correct_conn(*args, **kwargs):
@@ -65,20 +65,6 @@ def create_response(self, verb, callback_exists, trace_id, bulk):
         message = str(message)
 
     return message
-
-
-def get_expected_json(self):
-    # gets the loaded json and modifies it according to the expected changes when compared to the sent json
-    expected_json = json.loads(self.service.instance.decoded.get('data'))
-    for device in expected_json['device']:
-        device['version'] = '2.0'
-        for value in device['value']:
-            states = value['state']
-            if len(states) > 1:
-                for state in states:
-                    state['data'] = states[0]['data']
-                    del state['meta']['contract']
-    return expected_json
 
 
 def exists_in_dictionary(key, dict):
@@ -144,7 +130,6 @@ class TestConnClass:
         # Arrange
         status_service = self.service.get_status()
         fix_object(self, callback_exists, status_service)
-        expected_json = get_expected_json(self)
         if value_changed_to_none:
             self.service.instance.network_cl.name = None
 
@@ -157,22 +142,13 @@ class TestConnClass:
                 sent_json = arg['params']['data']
             except wappsto_errors.ServerConnectionException:
                 sent_json = None
-                expected_json = None
                 pass
 
-        # Assert        
-        assert ((sent_json == None and expected_json == None) or
-                
-                ((value_changed_to_none and (exists_in_dictionary('name',expected_json) 
-                                             != exists_in_dictionary('name',sent_json))) or
-                (not value_changed_to_none and (exists_in_dictionary('name',expected_json) 
-                                             == exists_in_dictionary('name',sent_json)))) and
-
-                ((upgradable and (exists_in_dictionary('upgradable',expected_json['meta']) 
-                                             != exists_in_dictionary('upgradable',sent_json['meta']))) or
-                (not upgradable and (exists_in_dictionary('upgradable',expected_json['meta']) 
-                                             == exists_in_dictionary('upgradable',sent_json['meta']))))
-                )
+        # Assert
+        if sent_json != None:
+            assert not 'None' in str(sent_json)
+            assert (upgradable and 'upgradable' in str(sent_json['meta']) or
+                    not upgradable and not 'upgradable' in str(sent_json['meta']))
         assert self.service.status.get_status() == expected_status
 
 class TestValueSendClass:
@@ -252,22 +228,22 @@ class TestReceiveThreadClass:
         fake_connect(self, ADDRESS, PORT)
 
     @pytest.mark.parametrize("id,verb,callback_exists,trace_id,expected_rpc_id,expected_msg_id,expected_trace_id",
-                             [(1, 'PUT', True, None, '1', send_data.SEND_SUCCESS, None),
-                              (1, 'PUT', False, None, '1', send_data.SEND_FAILED, None),
-                              (1, 'DELETE', True, None, '1', send_data.SEND_SUCCESS, None),
-                              (1, 'DELETE', False, None, '1', send_data.SEND_SUCCESS, None),
-                              (1, 'GET', True, None, '1', send_data.SEND_SUCCESS, None),
-                              (1, 'GET', False, None, '1', send_data.SEND_SUCCESS, None),
-                              (1, 'wrong_verb', False, None, '1', send_data.SEND_FAILED, None),
-                              (1, 'wrong_verb', True, None, '1', send_data.SEND_FAILED, None),
-                              (1, 'PUT', True, 321, None, send_data.SEND_TRACE, '321'),
-                              (1, 'PUT', False, 321, '1', send_data.SEND_FAILED, None),
-                              (1, 'DELETE', True, 321, None, send_data.SEND_TRACE, '321'),
-                              (1, 'DELETE', False, 321, None, send_data.SEND_TRACE, '321'),
-                              (1, 'GET', True, 321, None, send_data.SEND_TRACE, '321'),
-                              (1, 'GET', False, 321, None, send_data.SEND_TRACE, '321'),
-                              (1, 'wrong_verb', False, 321, '1', send_data.SEND_FAILED, None),
-                              (1, 'wrong_verb', True, 321, '1', send_data.SEND_FAILED, None)
+                             [(1, 'PUT', True, None, '1', message_data.SEND_SUCCESS, None),
+                              (1, 'PUT', False, None, '1', message_data.SEND_FAILED, None),
+                              (1, 'DELETE', True, None, '1', message_data.SEND_SUCCESS, None),
+                              (1, 'DELETE', False, None, '1', message_data.SEND_SUCCESS, None),
+                              (1, 'GET', True, None, '1', message_data.SEND_SUCCESS, None),
+                              (1, 'GET', False, None, '1', message_data.SEND_SUCCESS, None),
+                              (1, 'wrong_verb', False, None, '1', message_data.SEND_FAILED, None),
+                              (1, 'wrong_verb', True, None, '1', message_data.SEND_FAILED, None),
+                              (1, 'PUT', True, 321, None, message_data.SEND_TRACE, '321'),
+                              (1, 'PUT', False, 321, '1', message_data.SEND_FAILED, None),
+                              (1, 'DELETE', True, 321, None, message_data.SEND_TRACE, '321'),
+                              (1, 'DELETE', False, 321, None, message_data.SEND_TRACE, '321'),
+                              (1, 'GET', True, 321, None, message_data.SEND_TRACE, '321'),
+                              (1, 'GET', False, 321, None, message_data.SEND_TRACE, '321'),
+                              (1, 'wrong_verb', False, 321, '1', message_data.SEND_FAILED, None),
+                              (1, 'wrong_verb', True, 321, '1', message_data.SEND_FAILED, None)
                              ])
     @pytest.mark.parametrize("bulk", [False, True])
     def test_receive_thread_method(self, id, verb, callback_exists, trace_id, 
@@ -321,11 +297,11 @@ class TestSendThreadClass:
         self.service = wappsto.Wappsto(json_file_name=test_json_location)
         fake_connect(self, ADDRESS, PORT)
 
-    @pytest.mark.parametrize("id,type", [(93043873, send_data.SEND_SUCCESS),
-                                         (93043873, send_data.SEND_REPORT),
-                                         (93043873, send_data.SEND_FAILED),
-                                         (93043873, send_data.SEND_RECONNECT),
-                                         (93043873, send_data.SEND_CONTROL)])
+    @pytest.mark.parametrize("id,type", [(93043873, message_data.SEND_SUCCESS),
+                                         (93043873, message_data.SEND_REPORT),
+                                         (93043873, message_data.SEND_FAILED),
+                                         (93043873, message_data.SEND_RECONNECT),
+                                         (93043873, message_data.SEND_CONTROL)])
     @pytest.mark.parametrize("messages_in_queue", [1, 2])
     def test_send_thread(self, id, type, messages_in_queue):
         # Arrange
@@ -356,26 +332,26 @@ class TestSendThreadClass:
         assert messages_in_queue == len(requests)
         for request in requests:
             request = json.loads(request)
-            if type == 1:
+            if type == message_data.SEND_SUCCESS:
                 assert request['id'] == id
                 assert bool(request['result']) == True
-            elif type == 2:
+            elif type == message_data.SEND_FAILED:
                 assert request['id'] == id
                 assert request['error'] == json.loads('{"code": -32020, "message": null}')
-            elif type == 3:
+            elif type == message_data.SEND_REPORT:
                 assert request['params']['data']['type'] == "Report"
                 assert request['method'] == "PUT"
-            elif type == 4:
+            elif type == message_data.SEND_RECONNECT:
                 assert request['params']['data']['meta']['type'] == "network"
                 assert request['method'] == "POST"
-            elif type == 5:
+            elif type == message_data.SEND_CONTROL:
                 assert request['params']['data']['type'] == "Control"
                 assert request['method'] == "PUT"
 
-    @pytest.mark.parametrize("rpc_id,expected_trace_id,type", [(93043873, 332, send_data.SEND_TRACE)])
+    @pytest.mark.parametrize("rpc_id,expected_trace_id,type", [(93043873, 332, message_data.SEND_TRACE)])
     def test_send_thread_send_trace(self, rpc_id, expected_trace_id, type):
         # Arrange
-        reply = send_data.SendData(
+        reply = message_data.MessageData(
             type,
             trace_id = expected_trace_id,
             rpc_id=rpc_id

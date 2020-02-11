@@ -16,7 +16,7 @@ import ssl
 # REPLACED request WITH NATIVE MODULE
 import urllib.request as request
 import logging
-from . import send_data
+from . import message_data
 from . import initialize
 from . import handlers
 from ..object_instantiation import status
@@ -301,8 +301,8 @@ class ClientSocket:
             return_id: ID of the success message.
 
         """
-        success_reply = send_data.SendData(
-            send_data.SEND_SUCCESS,
+        success_reply = message_data.MessageData(
+            message_data.SEND_SUCCESS,
             rpc_id=return_id
         )
         self.sending_queue.put(success_reply)
@@ -318,8 +318,8 @@ class ClientSocket:
             return_id: ID of the error message.
 
         """
-        error_reply = send_data.SendData(
-            send_data.SEND_FAILED,
+        error_reply = message_data.MessageData(
+            message_data.SEND_FAILED,
             rpc_id=return_id,
             text=error_str
         )
@@ -438,7 +438,8 @@ class ClientSocket:
                 self.wapp_log.info("Reconnected")
                 self.connected = True
                 self.wappsto_status.set_status(status.CONNECTED)
-                reconnect_reply = send_data.SendData(send_data.SEND_RECONNECT)
+                reconnect_reply = message_data.MessageData(
+                    message_data.SEND_RECONNECT)
                 self.sending_queue.put(reconnect_reply)
             except Exception as e:
                 msg = "Failed to reconnect {}".format(e)
@@ -490,26 +491,26 @@ class ClientSocket:
         while True:
             package = self.sending_queue.get()
             if self.connected:
-                if package.msg_id == send_data.SEND_SUCCESS:
+                if package.msg_id == message_data.SEND_SUCCESS:
                     self.send_success(package)
 
-                elif package.msg_id == send_data.SEND_REPORT:
+                elif package.msg_id == message_data.SEND_REPORT:
                     self.send_report(package)
 
-                elif package.msg_id == send_data.SEND_FAILED:
+                elif package.msg_id == message_data.SEND_FAILED:
                     self.send_failed(package)
 
-                elif package.msg_id == send_data.SEND_RECONNECT:
+                elif package.msg_id == message_data.SEND_RECONNECT:
                     self.send_reconnect()
 
-                elif package.msg_id == send_data.SEND_CONTROL:
+                elif package.msg_id == message_data.SEND_CONTROL:
                     self.send_control(package)
 
-                elif package.msg_id == send_data.SEND_TRACE:
+                elif package.msg_id == message_data.SEND_TRACE:
                     self.send_trace(package)
 
                 else:
-                    self.wapp_log.info("Unhandled send")
+                    self.wapp_log.warning("Unhandled send")
 
             self.sending_queue.task_done()
 
@@ -540,7 +541,7 @@ class ClientSocket:
             attempt,
             trace_req.getcode()
         )
-        self.wapp_log.info(msg)
+        self.wapp_log.debug(msg)
 
     def send_control(self, package):
         """
@@ -636,12 +637,12 @@ class ClientSocket:
             package: Sending queue item.
 
         """
-        self.wapp_log.info("Sending Error")
+        self.wapp_log.info("Sending failed")
         rpc_fail_response = self.rpc.get_rpc_fail_response(
             package.rpc_id,
             package.text
         )
-        self.wapp_log.info(rpc_fail_response)
+        self.wapp_log.debug(rpc_fail_response)
         try:
             self.create_bulk(rpc_fail_response)
         except OSError as e:
@@ -711,7 +712,7 @@ class ClientSocket:
 
         Closes the socket object connection.
         """
-        self.wapp_log.debug("Closing connection...")
+        self.wapp_log.info("Closing connection...")
         self.connected = False
         if self.my_socket:
             self.my_socket.close()
@@ -796,7 +797,7 @@ class ClientSocket:
                     self.remove_id_from_confirm_list(decoded_id)
 
                 else:
-                    self.wapp_log.info("Unhandled method")
+                    self.wapp_log.warning("Unhandled method")
                     error_str = 'Unknown method'
                     self.send_error(error_str, decoded_id)
 

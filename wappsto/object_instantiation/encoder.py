@@ -5,6 +5,7 @@ Handles encoding object instances to a JSON file for the purpose of saving
 them and any modifications made to them.
 """
 import logging
+from ..connection.seluxit_rpc import SeluxitRpc
 
 
 class WappstoEncoder:
@@ -41,40 +42,24 @@ class WappstoEncoder:
             An encoded JSON result.
 
         """
-        encoded_result = {}
-        encoded_result.update(self.encode_network(instance.network_cl))
-
+        encoded_devices = []
         for device in instance.device_list:
             encoded_device = self.encode_device(device)
-            encoded_result['device'].append(encoded_device)
+            encoded_devices.append(encoded_device)
 
-        return encoded_result
-
-    def encode_network(self, network):
-        """
-        Encode instance of Network class.
-
-        Handles the condoing of the network instance, contains a template to
-        encode the network with.
-
-        Args:
-            network: Reference to the instance of the Network class.
-
-        Returns:
-            The encoded JSON result.
-
-        """
         encoded_network = {
-            "meta": {
-                "type": "network",
-                "version": "2.0",
-                "id": ""
-            },
-            "name": "",
-            "device": []
+            'name': instance.network_cl.name,
+            'device': encoded_devices,
+            'meta': {
+                'id': instance.network_cl.uuid,
+                'version': '2.0',
+                'type': 'network'
+            }
         }
-        encoded_network['meta']['id'] = network.uuid
-        encoded_network['name'] = network.name
+
+        if SeluxitRpc.is_upgradable():
+            encoded_network.get('meta').update({'upgradable': True})
+
         self.wapp_log.debug("Network JSON: {}".format(encoded_network))
 
         return encoded_network
@@ -93,36 +78,29 @@ class WappstoEncoder:
             The encoded JSON result.
 
         """
-        encoded_device = {
-            "meta": {
-                "type": "device",
-                "version": "2.0",
-                "id": ""
-            },
-            "name": "",
-            "product": "",
-            "serial": "",
-            "description": "",
-            "protocol": "",
-            "communication": "",
-            "version": "",
-            "manufacturer": "",
-            "value": []
-        }
-
-        encoded_device['meta']['id'] = device.uuid
-        encoded_device['name'] = device.name
-        encoded_device['product'] = device.product
-        encoded_device['protocol'] = device.protocol
-        encoded_device['serial'] = device.serial_number
-        encoded_device['meta']['version'] = device.version
-        encoded_device['manufacturer'] = device.manufacturer
-        encoded_device['communication'] = device.communication
-        encoded_device['description'] = device.description
-
+        encoded_values = []
         for value in device.value_list:
             encoded_value = self.encode_value(value)
-            encoded_device['value'].append(encoded_value)
+            encoded_values.append(encoded_value)
+
+        encoded_device = {
+            'name': device.name,
+            'product': device.product,
+            'protocol': device.protocol,
+            'serial': device.serial_number,
+            'manufacturer': device.manufacturer,
+            'communication': device.communication,
+            'description': device.description,
+            'version': device.version,
+            'value': encoded_values,
+            'meta':
+            {
+                'id': device.uuid,
+                'version': '2.0',
+                'type': 'device'
+            }
+        }
+
         self.wapp_log.debug("Device JSON: {}".format(encoded_device))
 
         return encoded_device
@@ -141,103 +119,58 @@ class WappstoEncoder:
             The encoded JSON result.
 
         """
-        encoded_value = {
-            "meta": {
-                "type": "value",
-                "version": "2.0",
-                "id": ""
-            },
-            "name": "",
-            "permission": "",
-            "type": ""
-        }
-
-        encoded_value['meta']['id'] = value.uuid
-        encoded_value['name'] = value.name
-        encoded_value['type'] = value.type_of_value
-        encoded_value['permission'] = value.permission
-
-        if value.data_type == 'string':
-            encoded_value.update({"string": {}, "state": []})
-            if (value.string_encoding is not None
-                    and value.string_max is not None):
-                encoded_value['string'].update({"encoding": "", "max": "1"})
-                encoded_value['string']['encoding'] = value.string_encoding
-                encoded_value['string']['max'] = value.string_max
-            # TODO (Dimitar): Remove later if unneeded
-            # MAY BE NEEDED, LEAVING HERE FOR NOW
-            # elif value.string_max is None:
-            #     encoded_value['string'].update({"encoding": ""})
-            #     encoded_value['string']['encoding'] = value.string_encoding
-            # elif value.string_encoding is None:
-            #     encoded_value['string'].update({"max": ""})
-            #     encoded_value['string']['max'] = value.string_max
-        elif value.data_type == 'blob':
-            encoded_value.update({"blob": {}, "state": []})
-            if value.blob_encoding is not None and value.blob_max is not None:
-                encoded_value['blob'].update({"encoding": "", "max": "1"})
-                encoded_value['blob']['encoding'] = value.blob_encoding
-                encoded_value['blob']['max'] = value.blob_max
-            # TODO (Dimitar): Remove later if unneeded
-            # MAY BE NEEDED, LEAVING HERE FOR NOW
-            # elif value.blob_max is None:
-            #     encoded_value['blob'].update({"encoding": ""})
-            #     encoded_value['blob']['encoding'] = value.blob_encoding
-            # elif value.blob_encoding is None:
-            #     encoded_value['blob'].update({"max": ""})
-            #     encoded_value['blob']['max'] = value.blob_max
-        elif value.data_type == 'number':
-            encoded_value.update({"number": {}, "state": []})
-            if (
-                value.number_min is not None
-                and value.number_max is not None
-                and value.number_step is not None
-                and value.number_unit is not None
-            ):
-                encoded_value.update({
-                    'number': {
-                        "min": "",
-                        "max": "1",
-                        "step": "",
-                        "unit": ""
-                    },
-                    "state": []
-                })
-                encoded_value['number']['unit'] = value.number_unit
-
-            # TODO (Dimitar): Remove later if unneeded
-            # MAY BE NEEDED, LEAVING HERE FOR NOW
-            # else:
-            #     encoded_value.update({
-            #         'number': {
-            #             "min": "",
-            #             "max": "1",
-            #             "step": ""
-            #         },
-            #         "state": []
-            #     })
-            encoded_value['number']['min'] = value.number_min
-            encoded_value['number']['max'] = value.number_max
-            encoded_value['number']['step'] = value.number_step
-
-        encoded_state = None
+        states = []
         if value.report_state:
             encoded_state = self.encode_state(
                 value.report_state,
                 value.init_value
             )
-            encoded_value['state'].append(encoded_state)
+            states.append(encoded_state)
+
         if value.control_state:
             encoded_state = self.encode_state(
                 value.control_state,
                 value.init_value
             )
-            encoded_value['state'].append(encoded_state)
+            states.append(encoded_state)
+
+        if value.data_type == 'string':
+            details = {
+                'encoding': value.string_encoding,
+                'max': value.string_max
+            }
+        elif value.data_type == 'blob':
+            details = {
+                'encoding': value.blob_encoding,
+                'max': value.string_max
+            }
+        elif value.data_type == 'number':
+            details = {
+                'min': value.number_min,
+                'max': value.number_max,
+                'step': value.number_step,
+                'unit': value.number_unit
+            }
+
+        encoded_value = {
+            'name': value.name,
+            'type': value.type_of_value,
+            'permission': value.permission,
+            'state': states,
+            value.data_type: details,
+            'meta':
+            {
+                'id': value.uuid,
+                'type': 'value',
+                'version': '2.0'
+            }
+        }
+
         self.wapp_log.debug("Value JSON: {}".format(encoded_value))
 
         return encoded_value
 
-    def encode_state(self, state, init_value):
+    def encode_state(self, state, last_controlled):
         """
         Encode instance of State class.
 
@@ -246,27 +179,25 @@ class WappstoEncoder:
 
         Args:
             state: Reference to the instance of the State class.
-            init_value: The data in the State.
+            last_controlled: The data in the State.
 
         Returns:
             The encoded JSON result.
 
         """
         encoded_state = {
-            "meta": {
-                "type": "state",
-                "version": "2.0",
-                "id": "",
-                "contract": []
-            },
-            "data": "",
-            "type": "",
-            "timestamp": ""
+            'data': last_controlled,
+            'type': state.state_type,
+            'timestamp': state.timestamp,
+            'meta':
+            {
+                'id': state.uuid,
+                'type': 'state',
+                'version': '2.0',
+                'contract': []
+            }
         }
-        encoded_state['meta']['id'] = state.uuid
-        encoded_state['data'] = init_value
-        encoded_state['type'] = state.state_type
-        encoded_state['timestamp'] = state.timestamp
+
         self.wapp_log.debug("State JSON: {}".format(encoded_state))
 
         return encoded_state
