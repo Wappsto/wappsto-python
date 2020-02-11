@@ -51,7 +51,6 @@ class SaveObjects:
 
         encoded_string = str(self.wappsto_encoder.encode(instance))
         encoded_string = str(encoded_string).replace("\'", "\\\"")
-        encoded_string = str(encoded_string).replace(" ", "")
         encoded_string = '{"data":"' + encoded_string + '"}'
 
         network_id = instance.network_cl.uuid
