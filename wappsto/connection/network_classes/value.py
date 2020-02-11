@@ -5,8 +5,11 @@ Stores attributes for the value instance and handles value-related
 methods.
 """
 import logging
+import time
 import datetime
 import decimal
+import re	
+from math import fabs
 from .errors import wappsto_errors
 
 
@@ -112,7 +115,7 @@ class Value:
         Args:
             period: Reporting period.
 
-        """	
+        """
         try:
             if self.get_report_state() is not None and int(period) > 0:
                 self.period = period
@@ -215,12 +218,16 @@ class Value:
             msg = "Value {} has no report state.".format(self.name)
             self.wapp_log.warning(msg)
 
-    def get_control_state(self):	
+    def get_control_state(self):
         """
+
         Retrieve child control state reference.
+
         Gets a reference to the child State class.
+
         Returns:
             Reference to instance of State class.
+
         """
         if self.control_state is not None:
             return self.control_state
@@ -273,7 +280,7 @@ class Value:
         updated is greater than current time. If it does then a report is sent.
         Method is running on separate thread which after each loop sleeps for
         one second.
-        """	
+        """
         state = self.get_report_state()
         if state is not None:
             value = state.data
@@ -343,8 +350,8 @@ class Value:
         Returns:
             timestamp
             integer
-            
-        """	
+
+        """
         date_first = re.sub("Z", "", re.sub("T", " ", date))
         date_format = '%Y-%m-%d %H:%M:%S.%f'
         date_datetime = datetime.datetime.strptime(date_first, date_format)
