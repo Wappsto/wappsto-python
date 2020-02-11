@@ -32,22 +32,22 @@ def fake_connect(self, address, port):
 
 def get_send_thread_values(self, type, args, id):
     results = []
-    if type == 1:
+    if type == message_data.SEND_SUCCESS:
         results.append(TestResult(args['id'], id))
         results.append(TestResult(bool(args['result']), True))
-    elif type == 2:
+    elif type == message_data.SEND_FAILED:
         results.append(TestResult(args['id'], id))
         results.append(TestResult(args['error'],
                                   json.loads(
                                       '{"code": -32020, "message": null}')))
-    elif type == 3:
+    elif type == message_data.SEND_REPORT:
         results.append(TestResult(args['params']['data']['type'], "Report"))
         results.append(TestResult(args['method'], "PUT"))
-    elif type == 4:
+    elif type == message_data.SEND_RECONNECT:
         results.append(TestResult(args['params']['data']['meta']['type'],
                                   "network"))
         results.append(TestResult(args['method'], "POST"))
-    elif type == 5:
+    elif type == message_data.SEND_CONTROL:
         results.append(TestResult(args['params']['data']['type'], "Control"))
         results.append(TestResult(args['method'], "PUT"))
     return results
