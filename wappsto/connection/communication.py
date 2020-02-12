@@ -471,12 +471,33 @@ class ClientSocket:
 
         """
         if self.connected:
+            for data_element in data:
+                self.get_object_without_none_values(data_element)
             data = json.dumps(data)
             data = data.encode('utf-8')
             self.wapp_log.debug('Raw Send Json: {}'.format(data))
             self.my_socket.send(data)
         else:
             self.wapp_log.error('Sending while not connected')
+
+    def get_object_without_none_values(self, encoded_object):
+        """
+        Get object without None values.
+
+        Gets objects and removes any keys where value is None or empty.
+
+        Args:
+            encoded_object: dictionary object.
+
+        """
+        for key, val in list(encoded_object.items()):
+            if val is None or val == [] or val == "":
+                del encoded_object[key]
+            elif isinstance(val, dict):
+                self.get_object_without_none_values(val)
+            elif isinstance(val, list):
+                for val_element in val:
+                    self.get_object_without_none_values(val_element)
 
     def send_thread(self):
         """

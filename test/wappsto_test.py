@@ -333,7 +333,7 @@ class TestSendThreadClass:
                 assert bool(request['result']) == True
             elif type == message_data.SEND_FAILED:
                 assert request['id'] == id
-                assert request['error'] == {"code": -32020, "message": None}
+                assert request['error'] == {"code": -32020}
             elif type == message_data.SEND_REPORT:
                 assert request['params']['data']['type'] == "Report"
                 assert request['method'] == "PUT"
