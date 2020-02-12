@@ -388,7 +388,7 @@ class Value:
                 return None
         elif self.__is_string_type():
             if (self.string_max is None
-                    and len(str(data_value)) <= int(self.string_max)):
+                    or len(str(data_value)) <= int(self.string_max)):
                 return data_value
             else:
                 msg = ("Value {} not in correct range for {}"
@@ -397,7 +397,7 @@ class Value:
                 return None
         elif self.__is_blob_type():
             if (self.blob_max is None
-                    and len(str(data_value)) <= int(self.blob_max)):
+                    or len(str(data_value)) <= int(self.blob_max)):
                 return data_value
             else:
                 msg = ("Value {} not in correct range for {}"
