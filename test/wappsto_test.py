@@ -300,13 +300,12 @@ class TestSendThreadClass:
                                       message_data.SEND_FAILED,
                                       message_data.SEND_RECONNECT,
                                       message_data.SEND_CONTROL])
-    @pytest.mark.parametrize("id", [93043873])
     @pytest.mark.parametrize("value,expected_value", [('test_value','test_value'),
                                                                 ('', None),
                                                                 (None, None),
                                                                 ([],None)])
     @pytest.mark.parametrize("messages_in_queue", [1, 2])
-    def test_send_thread(self, id, type, messages_in_queue, value, expected_value):
+    def test_send_thread(self, type, messages_in_queue, value, expected_value):
         # Arrange
         self.service.get_network().name = value
         i = 0
