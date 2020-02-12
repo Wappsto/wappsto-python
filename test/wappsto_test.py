@@ -297,21 +297,27 @@ class TestSendThreadClass:
         self.service = wappsto.Wappsto(json_file_name=test_json_location)
         fake_connect(self, ADDRESS, PORT)
 
-    @pytest.mark.parametrize("id,type", [(93043873, message_data.SEND_SUCCESS),
-                                         (93043873, message_data.SEND_REPORT),
-                                         (93043873, message_data.SEND_FAILED),
-                                         (93043873, message_data.SEND_RECONNECT),
-                                         (93043873, message_data.SEND_CONTROL)])
+    @pytest.mark.parametrize("type", [message_data.SEND_SUCCESS,
+                                      message_data.SEND_REPORT,
+                                      message_data.SEND_FAILED,
+                                      message_data.SEND_RECONNECT,
+                                      message_data.SEND_CONTROL])
+    @pytest.mark.parametrize("value,expected_value", [('test_value','test_value'),
+                                                                ('', None),
+                                                                (None, None),
+                                                                ([],None)])
     @pytest.mark.parametrize("messages_in_queue", [1, 2])
-    def test_send_thread(self, id, type, messages_in_queue):
+    def test_send_thread(self, type, messages_in_queue, value, expected_value):
         # Arrange
         self.service.socket.message_received = True
+        self.service.get_network().name = value
         i = 0
         while i < messages_in_queue:
             i += 1
             reply = message_data.MessageData(
                 type,
-                rpc_id=id
+                rpc_id=value,
+                data=value
             )
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
@@ -332,18 +338,21 @@ class TestSendThreadClass:
         assert messages_in_queue == len(requests)
         for request in requests:
             if type == message_data.SEND_SUCCESS:
-                assert request['id'] == id
+                assert request.get('id', None) == expected_value
                 assert bool(request['result']) == True
             elif type == message_data.SEND_FAILED:
-                assert request['id'] == id
-                assert request['error'] == {"code": -32020, "message": None}
+                assert request.get('id', None) == expected_value
+                assert request['error'] == {"code": -32020}
             elif type == message_data.SEND_REPORT:
+                assert request['params']['data'].get('data', None) == expected_value
                 assert request['params']['data']['type'] == "Report"
                 assert request['method'] == "PUT"
             elif type == message_data.SEND_RECONNECT:
+                assert request['params']['data'].get('name', None) == expected_value
                 assert request['params']['data']['meta']['type'] == "network"
                 assert request['method'] == "POST"
             elif type == message_data.SEND_CONTROL:
+                assert request['params']['data'].get('data', None) == expected_value
                 assert request['params']['data']['type'] == "Control"
                 assert request['method'] == "PUT"
 

@@ -273,29 +273,4 @@ class Instantiator:
         """
         wappsto_encoder = encoder.WappstoEncoder()
         encoded_object = wappsto_encoder.encode(self)
-        encoded_object = self.get_object_without_none_values(encoded_object)
-        return encoded_object
-
-    def get_object_without_none_values(self, encoded_object):
-        """
-        Get object without None values.
-
-        Gets objects and returns different object not containing any keys,
-        where value is None.
-
-        Args:
-            encoded_object: dictionary object.
-
-        Returns:
-            Dictionary object without None values.
-
-        """
-        for key, val in list(encoded_object.items()):
-            if val is None or val == []:
-                del encoded_object[key]
-            elif isinstance(val, dict):
-                self.get_object_without_none_values(val)
-            elif isinstance(val, list):
-                for val_element in val:
-                    self.get_object_without_none_values(val_element)
         return encoded_object
