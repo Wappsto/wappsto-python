@@ -291,8 +291,7 @@ class TestReceiveThreadClass:
 
 class TestSendThreadClass:
 
-    @classmethod
-    def setup_class(self):
+    def setup_method(self):
         test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
         self.service = wappsto.Wappsto(json_file_name=test_json_location)
         fake_connect(self, ADDRESS, PORT)
@@ -325,6 +324,7 @@ class TestSendThreadClass:
         except KeyboardInterrupt:
             args, kwargs = self.service.socket.my_socket.send.call_args
             arg = args[0].decode('utf-8')
+            requests = json.loads(arg)
 
         # Assert
         assert self.service.socket.sending_queue.qsize() == 0
@@ -369,7 +369,3 @@ class TestSendThreadClass:
 
         # Assert
         assert result_trace_id == expected_trace_id
-
-    @classmethod
-    def teardown_class(self):
-        self.service.stop()
