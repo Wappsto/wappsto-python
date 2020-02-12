@@ -63,7 +63,7 @@ class SeluxitRpc:
         success_response = str(response.SuccessResponse(jsonrpc=JSONRPC,
                                                         id=message_id,
                                                         result=True))
-        return success_response.encode('utf-8')
+        return json.loads(success_response)
 
     @staticmethod
     def get_rpc_fail_response(message_id, text):
@@ -85,7 +85,7 @@ class SeluxitRpc:
         error_response = str(response.ErrorResponse(jsonrpc=JSONRPC,
                                                     id=message_id,
                                                     error=error_description))
-        return error_response.encode('utf-8')
+        return json.loads(error_response)
 
     @staticmethod
     def is_upgradable():
@@ -154,7 +154,7 @@ class SeluxitRpc:
             data_json_rpc = requests.Request('POST',
                                              url='/{}'.format(network),
                                              data=data_inside)
-        return json.dumps(data_json_rpc).encode('utf-8')
+        return data_json_rpc
 
     def get_rpc_state(
             self,
@@ -230,7 +230,7 @@ class SeluxitRpc:
             trace_id=trace_id,
             get=get
         )
-        return json.dumps(data_json_rpc).encode('utf-8')
+        return data_json_rpc
 
     def create_json_message(
             self,
@@ -306,7 +306,7 @@ class SeluxitRpc:
         data_json_rpc = requests.Request('POST',
                                          url='/{}'.format("network"),
                                          data=json_data)
-        return json.dumps(data_json_rpc).encode('utf-8')
+        return data_json_rpc
 
     def add_whole_json(
             self,
@@ -338,7 +338,7 @@ class SeluxitRpc:
             json_data: Initial JSON data.
 
         """
-        connection.send_data(json_data)
+        connection.create_bulk(json_data)
         if self.save_init:
             with open(self.filename, 'a+') as file:
                 file.write(str(json_data) + "\n")

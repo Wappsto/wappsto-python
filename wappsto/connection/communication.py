@@ -77,6 +77,7 @@ class ClientSocket:
         self.receiving_thread = threading.Thread(target=self.receive_thread)
         self.receiving_thread.setDaemon(True)
         self.connected = False
+        self.message_received = True
         self.sending_queue = queue.Queue(maxsize=0)
         self.sending_thread = threading.Thread(target=self.send_thread)
         self.sending_thread.setDaemon(True)
@@ -85,6 +86,7 @@ class ClientSocket:
         self.initialize_code = initialize.Initialize(self.rpc)
         self.packet_awaiting_confirm = {}
         self.add_trace_to_report_list = {}
+        self.bulk_send_list = []
         self.lock_await = threading.Lock()
         self.set_sockets()
         self.set_report_states()
@@ -206,8 +208,7 @@ class ClientSocket:
 
         """
         self.lock_await.acquire()
-        decoded = json.loads(data.decode('utf-8'))
-        self.packet_awaiting_confirm[decoded.get('id')] = data
+        self.packet_awaiting_confirm[data.get('id')] = data
         self.lock_await.release()
 
     def remove_id_from_confirm_list(self, _id):
@@ -443,6 +444,23 @@ class ClientSocket:
                 msg = "Failed to reconnect {}".format(e)
                 self.wapp_log.error(msg, exc_info=True)
 
+    def create_bulk(self, data):
+        """
+        Creates bulk message.
+
+        Accomulates all messages in one and once sending_queue is empty it is
+        sent.
+
+        Args:
+            data: JSON communication message data.
+
+        """
+        self.bulk_send_list.append(data)
+        if self.sending_queue.qsize() < 1 and self.message_received:
+            self.send_data(self.bulk_send_list)
+            self.bulk_send_list.clear()
+            self.message_received = False
+
     def send_data(self, data):
         """
         Send JSON data.
@@ -454,6 +472,8 @@ class ClientSocket:
 
         """
         if self.connected:
+            data = json.dumps(data)
+            data = data.encode('utf-8')
             self.wapp_log.debug('Raw Send Json: {}'.format(data))
             self.my_socket.send(data)
         else:
@@ -546,14 +566,15 @@ class ClientSocket:
                 trace_id=package.trace_id
             )
             self.add_id_to_confirm_list(local_data)
-            self.send_data(local_data)
+            self.create_bulk(local_data)
         except OSError as e:
             self.connected = False
             msg = "Error sending control: {}".format(e)
             self.wapp_log.error(msg, exc_info=True)
 
     def receive_data(self):
-        """Socket receive method.
+        """
+        Socket receive method.
 
         Method that handles receiving data from a socket. Capable of handling
         data chunks.
@@ -581,7 +602,6 @@ class ClientSocket:
                     self.wapp_log.error("Value error: {}".format(data))
             else:
                 break
-
         return decoded
 
     def send_reconnect(self):
@@ -597,9 +617,9 @@ class ClientSocket:
                 self.network.name,
                 put=False
             )
-            self.send_data(rpc_network)
+            self.create_bulk(rpc_network)
             for element in self.packet_awaiting_confirm:
-                self.send_data(self.packet_awaiting_confirm[element])
+                self.create_bulk(self.packet_awaiting_confirm[element])
             self.wappsto_status.set_status(status.RUNNING)
         except OSError as e:
             self.connected = False
@@ -623,7 +643,7 @@ class ClientSocket:
         )
         self.wapp_log.debug(rpc_fail_response)
         try:
-            self.send_data(rpc_fail_response)
+            self.create_bulk(rpc_fail_response)
         except OSError as e:
             self.connected = False
             msg = "Error sending failed response: {}".format(e)
@@ -655,9 +675,8 @@ class ClientSocket:
                 trace_id=package.trace_id
             )
             self.add_id_to_confirm_list(local_data)
-            self.send_data(local_data)
-            decoded = json.loads(local_data.decode('utf-8'))
-            data_decoded = decoded.get('params').get('data').get('data')
+            self.create_bulk(local_data)
+            data_decoded = local_data.get('params').get('data').get('data')
             self.wapp_log.info('Sending report value: {}'.format(data_decoded))
         except OSError as e:
             self.connected = False
@@ -678,7 +697,7 @@ class ClientSocket:
             rpc_success_response = self.rpc.get_rpc_success_response(
                 package.rpc_id
             )
-            self.send_data(rpc_success_response)
+            self.create_bulk(rpc_success_response)
 
         except OSError as e:
             self.connected = False
@@ -719,7 +738,16 @@ class ClientSocket:
         """
         try:
             decoded = self.receive_data()
-            self.receive(decoded)
+
+            # if the received string is list
+            if isinstance(decoded, list):
+                for decoded_data in decoded:
+                    self.receive(decoded_data)
+            else:
+                self.receive(decoded)
+
+            if len(self.packet_awaiting_confirm) == 0:
+                self.message_received = True
 
         except JSONDecodeError:
             self.wapp_log.error("Json error: {}".format(decoded))
