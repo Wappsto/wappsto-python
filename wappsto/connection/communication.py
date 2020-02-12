@@ -455,8 +455,8 @@ class ClientSocket:
 
         """
         self.bulk_send_list.append(data)
-        if(self.sending_queue.qsize() < 1 and
-           len(self.packet_awaiting_confirm) == 0):
+        if(self.sending_queue.qsize() < 1
+           and len(self.packet_awaiting_confirm) == 0):
             self.send_data(self.bulk_send_list)
             self.bulk_send_list.clear()
 
