@@ -138,7 +138,7 @@ class TestConnClass:
                 fake_connect(self, address, port)
                 args, kwargs = self.service.socket.my_socket.send.call_args
                 arg = json.loads(args[0].decode('utf-8'))
-                sent_json = json.loads(arg[0])['params']['data']
+                sent_json = arg[0]['params']['data']
             except wappsto_errors.ServerConnectionException:
                 sent_json = None
                 pass
@@ -207,7 +207,7 @@ class TestValueSendClass:
             value.update(input)
             args, kwargs = self.service.socket.my_socket.send.call_args
             arg = json.loads(args[0].decode('utf-8'))
-            result = json.loads(arg[0])['params']['data']['data']
+            result = arg[0]['params']['data']['data']
         except TypeError:
             result = None
 
@@ -332,7 +332,6 @@ class TestSendThreadClass:
         requests = json.loads(arg)
         assert messages_in_queue == len(requests)
         for request in requests:
-            request = json.loads(request)
             if type == message_data.SEND_SUCCESS:
                 assert request['id'] == id
                 assert bool(request['result']) == True

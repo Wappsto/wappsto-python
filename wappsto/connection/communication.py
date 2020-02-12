@@ -678,8 +678,7 @@ class ClientSocket:
             )
             self.add_id_to_confirm_list(local_data)
             self.create_bulk(local_data)
-            decoded = json.loads(local_data)
-            data_decoded = decoded.get('params').get('data').get('data')
+            data_decoded = local_data.get('params').get('data').get('data')
             self.wapp_log.info('Sending report value: {}'.format(data_decoded))
         except OSError as e:
             self.connected = False
