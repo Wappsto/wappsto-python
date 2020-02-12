@@ -328,8 +328,6 @@ class TestSendThreadClass:
 
         # Assert
         assert self.service.socket.sending_queue.qsize() == 0
-
-        requests = json.loads(arg)
         assert messages_in_queue == len(requests)
         for request in requests:
             if type == message_data.SEND_SUCCESS:
@@ -337,7 +335,7 @@ class TestSendThreadClass:
                 assert bool(request['result']) == True
             elif type == message_data.SEND_FAILED:
                 assert request['id'] == id
-                assert request['error'] == json.loads('{"code": -32020, "message": null}')
+                assert request['error'] == {"code": -32020, "message": None}
             elif type == message_data.SEND_REPORT:
                 assert request['params']['data']['type'] == "Report"
                 assert request['method'] == "PUT"

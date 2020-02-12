@@ -6,7 +6,6 @@ sending and receiving threads.
 """
 
 import os
-import ast
 import socket
 import threading
 import time
@@ -209,8 +208,7 @@ class ClientSocket:
 
         """
         self.lock_await.acquire()
-        decoded = json.loads(data)
-        self.packet_awaiting_confirm[decoded.get('id')] = data
+        self.packet_awaiting_confirm[data.get('id')] = data
         self.lock_await.release()
 
     def remove_id_from_confirm_list(self, _id):
@@ -459,10 +457,9 @@ class ClientSocket:
         """
         self.bulk_send_list.append(data)
         if self.sending_queue.qsize() < 1 and self.message_received:
-            bulk_send = json.dumps(self.bulk_send_list)
+            self.send_data(self.bulk_send_list)
             self.bulk_send_list.clear()
             self.message_received = False
-            self.send_data(bulk_send)
 
     def send_data(self, data):
         """
@@ -475,6 +472,7 @@ class ClientSocket:
 
         """
         if self.connected:
+            data = json.dumps(data)
             data = data.encode('utf-8')
             self.wapp_log.debug('Raw Send Json: {}'.format(data))
             self.my_socket.send(data)
