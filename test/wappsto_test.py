@@ -162,11 +162,11 @@ class TestValueSendClass:
                                                      (8, -1, "8"),
                                                      (-8, 1, "-8"),
                                                      (-8, -1, "-8"),
-                                                     (100, 1, "1E+2"),
-                                                     (-100, 1, "-1E+2"),
+                                                     (100, 1, "100"),
+                                                     (-100, 1, "-100"),
                                                      (0, 1, "0"),
                                                      (-0, 1, "0"),
-                                                     (-99.9, 1, "-1E+2"),# decimal value
+                                                     (-99.9, 1, "-100"),# decimal value
                                                      (-0.1, 1, "-1"),
                                                      (0.1, 1, "0"),
                                                      (3.3, 1, "3"),
@@ -193,9 +193,11 @@ class TestValueSendClass:
                                                      (-2.002, 0.02, "-2.02"),
                                                      (-2.002, 0.0002, "-2.002"),
                                                      (2, 1.0e-07, "2"),
-                                                     (2, 123.456e-5, "1.9999872")])
+                                                     (2, 123.456e-5, "1.9999872"),
+                                                     (1, 9.0e-20, "0.99999999999999999999")])
     def test_send_value_update(self, input, step_size, expected):
         # Arrange
+        self.service.socket.message_received = True
         self.service.socket.my_socket.send = Mock()
         device = self.service.get_devices()[0]
         value = device.value_list[0]
@@ -307,6 +309,7 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("messages_in_queue", [1, 2])
     def test_send_thread(self, type, messages_in_queue, value, expected_value):
         # Arrange
+        self.service.socket.message_received = True
         self.service.get_network().name = value
         i = 0
         while i < messages_in_queue:

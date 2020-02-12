@@ -77,6 +77,7 @@ class ClientSocket:
         self.receiving_thread = threading.Thread(target=self.receive_thread)
         self.receiving_thread.setDaemon(True)
         self.connected = False
+        self.message_received = True
         self.sending_queue = queue.Queue(maxsize=0)
         self.sending_thread = threading.Thread(target=self.send_thread)
         self.sending_thread.setDaemon(True)
@@ -455,10 +456,10 @@ class ClientSocket:
 
         """
         self.bulk_send_list.append(data)
-        if(self.sending_queue.qsize() < 1
-           and len(self.packet_awaiting_confirm) == 0):
+        if self.sending_queue.qsize() < 1 and self.message_received:
             self.send_data(self.bulk_send_list)
             self.bulk_send_list.clear()
+            self.message_received = False
 
     def send_data(self, data):
         """
@@ -765,6 +766,9 @@ class ClientSocket:
                     self.receive(decoded_data)
             else:
                 self.receive(decoded)
+
+            if len(self.packet_awaiting_confirm) == 0:
+                self.message_received = True
 
         except JSONDecodeError:
             self.wapp_log.error("Json error: {}".format(decoded))

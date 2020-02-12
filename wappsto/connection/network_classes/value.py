@@ -414,8 +414,8 @@ class Value:
         Ensure number value follows steps.
 
         Converts values to decimal and ensures number step is always positive,
-        ensures that data value follows steps and normalizes it, by removing
-        exes 0's after decimal point.
+        ensures that data value follows steps and removes exes 0's after
+        decimal point.
 
         Args:
             data_value: float value indicating current state of value.
@@ -432,9 +432,11 @@ class Value:
             result += number_step
         data_value = data_value - result
 
-        data_value = data_value.normalize()
+        data_value = str(data_value)
+        data_value = (data_value.rstrip('0').rstrip('.')
+                      if '.' in data_value else data_value)
 
-        return data_value
+        return decimal.Decimal(data_value)
 
     def update(self, data_value, timestamp=None):
         """
