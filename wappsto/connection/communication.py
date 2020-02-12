@@ -745,8 +745,8 @@ class ClientSocket:
                     self.receive(decoded_data)
             else:
                 self.receive(decoded)
-            
-            if len(self.packet_awaiting_confirm) == 0:	
+
+            if len(self.packet_awaiting_confirm) == 0:
                 self.message_received = True
 
         except JSONDecodeError:
