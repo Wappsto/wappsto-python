@@ -1,0 +1,68 @@
+{
+  "id"                  : "device.json",
+  "$schema"             : "http://json-schema.org/draft-04/schema#",
+  "title"               : "device-2.0",
+  "type"                : "object",
+  "properties"          : {
+    "name"                      : {"type": "string"},
+    "manufacturer"              : {"type": "string"},
+    "product"                   : {"type": "string"},
+    "version"                   : {"type": "string"},
+    "serial"                    : {"type": "string"},
+    "description"               : {"type": "string"},
+    "protocol"                  : {"type": "string"},
+    "communication"             : {"type": "string"},
+    "included"                  : {"type": "string"},
+    "inclusion_status"          : {
+      "type": "string",
+      "enum": [
+        "STATUS_DEVICE_INCLUDING",
+        "STATUS_DEVICE_INCLUSION_SUCCESS",
+        "STATUS_DEVICE_INCLUSION_FAILURE",
+        "STATUS_DEVICE_REPORTING",
+        "STATUS_DEVICE_REPORT_SUCCESS",
+        "STATUS_DEVICE_REPORT_FAILURE",
+        "EXCLUDED",
+        "INCLUDED"
+      ]
+    },
+    "firmware_status"           : {
+      "type": "string",
+      "enum": [
+        "UP_TO_DATE",
+        "UPDATE_AVAILABLE",
+        "UPLOADING",
+        "UPLOAD_COMPLETE",
+        "UPLOADING_FAILURE",
+        "FLASHING",
+        "FLASHING_COMPLETE",
+        "FLASHING_FAILURE"
+      ]
+    },
+    "firmware_upload_progress"  : {"type": "string"},
+    "firmware_available_version": {"type": "string"},
+    "command"                   : {
+      "type": "string",
+      "enum": [
+        "idle",
+        "firmware_upload",
+        "firmware_flash",
+        "firmware_cancel",
+        "include",
+        "exclude",
+        "connection_check"
+      ]
+    },
+    "status"                    : {"type": "array", "items": {"$ref": "status.json"}},
+    "value"                     : {"type": "array", "items": {"$ref": "value.json"}},
+    "meta"        : {
+      "properties": {
+        "id": { "$ref": "../../../core/validation/2.0/util/types.json#/id" }
+      },
+      "type": "object",
+      "required": ["id"]
+    }
+  },
+  "required": ["meta"],
+  "additionalProperties": false
+}

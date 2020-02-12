@@ -1,0 +1,22 @@
+{
+  "id"                  : "state.json",
+  "$schema"             : "http://json-schema.org/draft-04/schema#",
+  "title"               : "state-2.0",
+  "type"                : "object",
+  "properties"          : {
+    "timestamp"     : {"type": "string", "format": "date-time"},
+    "data"          : {"type": "string"},
+    "status_payment": {"type": "string"},
+    "type"          : {"type": "string", "enum": ["Report", "Control"]},
+    "status"        : {"type": "string", "enum": ["Send", "Pending", "Failed"]},
+    "meta"        : {
+      "properties": {
+        "id": { "$ref": "../../../core/validation/2.0/util/types.json#/id" }
+      },
+      "type": "object",
+      "required": ["id"]
+    }
+  },
+  "additionalProperties": false,
+  "required"            : ["data", "type", "meta"]
+}
