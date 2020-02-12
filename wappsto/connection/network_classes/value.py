@@ -126,7 +126,7 @@ class Value:
                 self.period = period
 
             else:
-                self.wapp_log.error("Cannot set the period for this value.")
+                self.wapp_log.warning("Cannot set the period for this value.")
         except ValueError:
             self.wapp_log.error("Period value must be a number.")
 
@@ -147,7 +147,7 @@ class Value:
                     and float(delta) > 0):
                 self.delta = delta
             else:
-                self.wapp_log.error("Cannot set the delta for this value.")
+                self.wapp_log.warning("Cannot set the delta for this value.")
         except ValueError:
             self.wapp_log.error("Delta value must be a number")
 
@@ -163,7 +163,7 @@ class Value:
 
         """
         msg = "Callback for value {} was not set".format(self.name)
-        return self.wapp_log.info(msg)
+        return self.wapp_log.debug(msg)
 
     def get_parent_device(self):
         """
@@ -338,7 +338,7 @@ class Value:
                 msg = "Callback method should be a method"
                 raise wappsto_errors.CallbackNotCallableException(msg)
             self.callback = callback
-            self.wapp_log.info("Callback {} has been set.".format(callback))
+            self.wapp_log.debug("Callback {} has been set.".format(callback))
             return True
         except wappsto_errors.CallbackNotCallableException as e:
             self.wapp_log.error("Error setting callback: {}".format(e))
@@ -378,7 +378,7 @@ class Value:
                         self.number_max,
                         str(data_value)
                     )
-                    self.wapp_log.error(msg)
+                    self.wapp_log.warning(msg)
                     return None
             except ValueError:
                 msg = "Invalid type of value. Must be a number: {}".format(
@@ -393,7 +393,7 @@ class Value:
             else:
                 msg = ("Value {} not in correct range for {}"
                        .format(data_value, self.name))
-                self.wapp_log.error(msg)
+                self.wapp_log.warning(msg)
                 return None
         elif self.__is_blob_type():
             if (self.blob_max is None
@@ -402,7 +402,7 @@ class Value:
             else:
                 msg = ("Value {} not in correct range for {}"
                        .format(data_value, self.name))
-                self.wapp_log.error(msg)
+                self.wapp_log.warning(msg)
                 return None
         else:
             msg = ("Value type {} is invalid".format(self.date_type))
@@ -414,8 +414,8 @@ class Value:
         Ensure number value follows steps.
 
         Converts values to decimal and ensures number step is always positive,
-        ensures that data value follows steps and normalizes it, by removing
-        exes 0's after decimal point.
+        ensures that data value follows steps and removes exes 0's after
+        decimal point.
 
         Args:
             data_value: float value indicating current state of value.
@@ -432,9 +432,11 @@ class Value:
             result += number_step
         data_value = data_value - result
 
-        data_value = data_value.normalize()
+        data_value = str(data_value)
+        data_value = (data_value.rstrip('0').rstrip('.')
+                      if '.' in data_value else data_value)
 
-        return data_value
+        return decimal.Decimal(data_value)
 
     def update(self, data_value, timestamp=None):
         """
@@ -453,7 +455,7 @@ class Value:
         """
         state = self.get_report_state()
         if state is None:
-            self.wapp_log.error("Value is write only.")
+            self.wapp_log.warning("Value is write only.")
             return False
 
         data_value = self.__validate_value_data(data_value)

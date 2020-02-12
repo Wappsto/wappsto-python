@@ -55,19 +55,3 @@ class Initialize:
         )
         # All of the debug logs may need relocation to the RPC class.
         self.wapp_log.debug(msg)
-
-    def create_message(self):
-        """
-        Create a message.
-
-        Returns a message informing about adding a value to a sending queue
-
-        Returns:
-            Formatted string message
-
-        """
-        return "Value ({}) {} added to sending queue {}.".format(
-            self.value_data_type,
-            self.value_name,
-            self.rpc
-        )
