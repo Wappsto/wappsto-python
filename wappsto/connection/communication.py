@@ -78,6 +78,7 @@ class ClientSocket:
         self.receiving_thread = threading.Thread(target=self.receive_thread)
         self.receiving_thread.setDaemon(True)
         self.connected = False
+        self.message_received = True
         self.sending_queue = queue.Queue(maxsize=0)
         self.sending_thread = threading.Thread(target=self.send_thread)
         self.sending_thread.setDaemon(True)
@@ -457,9 +458,10 @@ class ClientSocket:
 
         """
         self.bulk_send_list.append(data)
-        if self.sending_queue.qsize() < 1:
-            bulk_send = str(self.bulk_send_list)
+        if self.sending_queue.qsize() < 1 and self.message_received:
+            bulk_send = json.dumps(self.bulk_send_list)
             self.bulk_send_list.clear()
+            self.message_received = False
             self.send_data(bulk_send)
 
     def send_data(self, data):
@@ -594,15 +596,14 @@ class ClientSocket:
                 break
 
             try:
-                decoded = ast.literal_eval(''.join(total_decoded))
-            except ValueError:
+                decoded = json.loads(''.join(total_decoded))
+            except JSONDecodeError:
                 if data == b'':
                     self.reconnect()
                 else:
                     self.wapp_log.error("Value error: {}".format(data))
             else:
                 break
-
         return decoded
 
     def send_reconnect(self):
@@ -744,10 +745,12 @@ class ClientSocket:
             # if the received string is list
             if isinstance(decoded, list):
                 for decoded_data in decoded:
-                    decoded_data = json.loads(decoded_data)
                     self.receive(decoded_data)
             else:
                 self.receive(decoded)
+
+            if len(self.packet_awaiting_confirm) == 0:
+                self.message_received = True
 
         except JSONDecodeError:
             self.wapp_log.error("Json error: {}".format(decoded))

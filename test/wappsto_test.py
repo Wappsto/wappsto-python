@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import os
-import ast
 import json
 import pytest
 import wappsto
@@ -138,7 +137,7 @@ class TestConnClass:
             try:
                 fake_connect(self, address, port)
                 args, kwargs = self.service.socket.my_socket.send.call_args
-                arg = ast.literal_eval(args[0].decode('utf-8'))
+                arg = json.loads(args[0].decode('utf-8'))
                 sent_json = json.loads(arg[0])['params']['data']
             except wappsto_errors.ServerConnectionException:
                 sent_json = None
@@ -197,6 +196,7 @@ class TestValueSendClass:
                                                      (2, 123.456e-5, "1.9999872")])
     def test_send_value_update(self, input, step_size, expected):
         # Arrange
+        self.service.socket.message_received = True
         self.service.socket.my_socket.send = Mock()
         device = self.service.get_devices()[0]
         value = device.value_list[0]
@@ -206,7 +206,7 @@ class TestValueSendClass:
         try:
             value.update(input)
             args, kwargs = self.service.socket.my_socket.send.call_args
-            arg = ast.literal_eval(args[0].decode('utf-8'))
+            arg = json.loads(args[0].decode('utf-8'))
             result = json.loads(arg[0])['params']['data']['data']
         except TypeError:
             result = None
@@ -305,6 +305,7 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("messages_in_queue", [1, 2])
     def test_send_thread(self, id, type, messages_in_queue):
         # Arrange
+        self.service.socket.message_received = True
         i = 0
         while i < messages_in_queue:
             i += 1
@@ -327,8 +328,8 @@ class TestSendThreadClass:
 
         # Assert
         assert self.service.socket.sending_queue.qsize() == 0
-        
-        requests = ast.literal_eval(arg)
+
+        requests = json.loads(arg)
         assert messages_in_queue == len(requests)
         for request in requests:
             request = json.loads(request)
