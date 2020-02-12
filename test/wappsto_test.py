@@ -196,6 +196,7 @@ class TestValueSendClass:
                                                      (2, 123.456e-5, "1.9999872")])
     def test_send_value_update(self, input, step_size, expected):
         # Arrange
+        self.service.socket.message_received = True
         self.service.socket.my_socket.send = Mock()
         device = self.service.get_devices()[0]
         value = device.value_list[0]
@@ -303,6 +304,7 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("messages_in_queue", [1, 2])
     def test_send_thread(self, id, type, messages_in_queue):
         # Arrange
+        self.service.socket.message_received = True
         i = 0
         while i < messages_in_queue:
             i += 1
