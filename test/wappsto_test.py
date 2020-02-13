@@ -62,7 +62,7 @@ def fix_object(self, callback_exists, testing_object):
     return testing_object
 
 
-def create_response(self, verb, callback_exists, trace_id, data_value):
+def create_response(self, verb, callback_exists, trace_id):
     value = self.service.instance.device_list[0].value_list[0]
     value = fix_object(self, callback_exists, value)
     id = str(value.control_state.uuid)
@@ -82,7 +82,7 @@ def create_response(self, verb, callback_exists, trace_id, data_value):
     if trace_id is not None:
         trace = '"meta": {"trace": "'+str(trace_id)+'"},'
 
-    return '{"jsonrpc": "2.0", "id": "1", "params": {"url": "'+url+'",'+trace+' "data": {"meta": {"id": "'+id+'"}, "data": "'+data_value+'"}}, "method": "'+verb+'"}'
+    return '{"jsonrpc": "2.0", "id": "1", "params": {"url": "'+url+'",'+trace+' "data": {"meta": {"id": "'+id+'"}, "data": "44"}}, "method": "'+verb+'"}'
 
 
 def get_expected_json(self):
@@ -275,31 +275,31 @@ class TestReceiveThreadClass:
         self.service = wappsto.Wappsto(json_file_name=test_json_location)
         fake_connect(self, ADDRESS, PORT)
 
-    @pytest.mark.parametrize("id,verb,callback_exists,trace_id,expected_rpc_id,expected_msg_id,expected_trace_id,data_value,expected_data_value",
-                             [(1, 'PUT', True, None, '1', send_data.SEND_SUCCESS, None, '44', '44'),
-                              (1, 'PUT', False, None, '1', send_data.SEND_FAILED, None, '44', '44'),
-                              (1, 'DELETE', True, None, '1', send_data.SEND_SUCCESS, None, '44', '1'),
-                              (1, 'DELETE', False, None, '1', send_data.SEND_SUCCESS, None, '44', '1'),
-                              (1, 'GET', True, None, '1', send_data.SEND_SUCCESS, None, '44', '1'),
-                              (1, 'GET', False, None, '1', send_data.SEND_SUCCESS, None, '44', '1'),
-                              (1, 'wrong_verb', False, None, '1', send_data.SEND_FAILED, None, '44', '1'),
-                              (1, 'wrong_verb', True, None, '1', send_data.SEND_FAILED, None, '44', '1'),
-                              (1, 'PUT', True, 321, None, send_data.SEND_TRACE, '321', '44', '44'),
-                              (1, 'PUT', False, 321, '1', send_data.SEND_FAILED, None, '44', '44'),
-                              (1, 'DELETE', True, 321, None, send_data.SEND_TRACE, '321', '44', '1'),
-                              (1, 'DELETE', False, 321, None, send_data.SEND_TRACE, '321', '44', '1'),
-                              (1, 'GET', True, 321, None, send_data.SEND_TRACE, '321', '44', '1'),
-                              (1, 'GET', False, 321, None, send_data.SEND_TRACE, '321', '44', '1'),
-                              (1, 'wrong_verb', False, 321, '1', send_data.SEND_FAILED, None, '44', '1'),
-                              (1, 'wrong_verb', True, 321, '1', send_data.SEND_FAILED, None, '44', '1')
+    @pytest.mark.parametrize("id,verb,callback_exists,trace_id,expected_rpc_id,expected_msg_id,expected_trace_id,expected_data_value",
+                             [(1, 'PUT', True, None, '1', send_data.SEND_SUCCESS, None, '44'),
+                              (1, 'PUT', False, None, '1', send_data.SEND_FAILED, None, '44'),
+                              (1, 'DELETE', True, None, '1', send_data.SEND_SUCCESS, None, '1'),
+                              (1, 'DELETE', False, None, '1', send_data.SEND_SUCCESS, None, '1'),
+                              (1, 'GET', True, None, '1', send_data.SEND_SUCCESS, None, '1'),
+                              (1, 'GET', False, None, '1', send_data.SEND_SUCCESS, None, '1'),
+                              (1, 'wrong_verb', False, None, '1', send_data.SEND_FAILED, None, '1'),
+                              (1, 'wrong_verb', True, None, '1', send_data.SEND_FAILED, None, '1'),
+                              (1, 'PUT', True, 321, None, send_data.SEND_TRACE, '321', '44'),
+                              (1, 'PUT', False, 321, '1', send_data.SEND_FAILED, None, '44'),
+                              (1, 'DELETE', True, 321, None, send_data.SEND_TRACE, '321', '1'),
+                              (1, 'DELETE', False, 321, None, send_data.SEND_TRACE, '321', '1'),
+                              (1, 'GET', True, 321, None, send_data.SEND_TRACE, '321', '1'),
+                              (1, 'GET', False, 321, None, send_data.SEND_TRACE, '321', '1'),
+                              (1, 'wrong_verb', False, 321, '1', send_data.SEND_FAILED, None, '1'),
+                              (1, 'wrong_verb', True, 321, '1', send_data.SEND_FAILED, None, '1')
                              ])
     def test_receive_thread_method(self, id, verb, callback_exists, trace_id, 
                                    expected_rpc_id, expected_msg_id, expected_trace_id, 
-                                   data_value, expected_data_value):
+                                   expected_data_value):
         # Arrange
         value = self.service.instance.device_list[0].value_list[0]
         value.control_state.data = '1'
-        response = create_response(self, verb, callback_exists, trace_id, data_value)
+        response = create_response(self, verb, callback_exists, trace_id)
         self.service.socket.my_socket.recv = Mock(
             return_value=response.encode('utf-8'))
         self.service.socket.sending_queue.put = Mock(side_effect=Exception)
