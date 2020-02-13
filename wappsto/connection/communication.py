@@ -15,7 +15,7 @@ import ssl
 # REPLACED request WITH NATIVE MODULE
 import urllib.request as request
 import logging
-from . import send_data
+from . import message_data
 from . import initialize
 from . import handlers
 from ..object_instantiation import status
@@ -77,6 +77,7 @@ class ClientSocket:
         self.receiving_thread = threading.Thread(target=self.receive_thread)
         self.receiving_thread.setDaemon(True)
         self.connected = False
+        self.message_received = True
         self.sending_queue = queue.Queue(maxsize=0)
         self.sending_thread = threading.Thread(target=self.send_thread)
         self.sending_thread.setDaemon(True)
@@ -85,6 +86,7 @@ class ClientSocket:
         self.initialize_code = initialize.Initialize(self.rpc)
         self.packet_awaiting_confirm = {}
         self.add_trace_to_report_list = {}
+        self.bulk_send_list = []
         self.lock_await = threading.Lock()
         self.set_sockets()
         self.set_report_states()
@@ -206,8 +208,7 @@ class ClientSocket:
 
         """
         self.lock_await.acquire()
-        decoded = json.loads(data.decode('utf-8'))
-        self.packet_awaiting_confirm[decoded.get('id')] = data
+        self.packet_awaiting_confirm[data.get('id')] = data
         self.lock_await.release()
 
     def remove_id_from_confirm_list(self, _id):
@@ -299,8 +300,8 @@ class ClientSocket:
             return_id: ID of the success message.
 
         """
-        success_reply = send_data.SendData(
-            send_data.SEND_SUCCESS,
+        success_reply = message_data.MessageData(
+            message_data.SEND_SUCCESS,
             rpc_id=return_id
         )
         self.sending_queue.put(success_reply)
@@ -316,8 +317,8 @@ class ClientSocket:
             return_id: ID of the error message.
 
         """
-        error_reply = send_data.SendData(
-            send_data.SEND_FAILED,
+        error_reply = message_data.MessageData(
+            message_data.SEND_FAILED,
             rpc_id=return_id,
             text=error_str
         )
@@ -436,11 +437,29 @@ class ClientSocket:
                 self.wapp_log.info("Reconnected")
                 self.connected = True
                 self.wappsto_status.set_status(status.CONNECTED)
-                reconnect_reply = send_data.SendData(send_data.SEND_RECONNECT)
+                reconnect_reply = message_data.MessageData(
+                    message_data.SEND_RECONNECT)
                 self.sending_queue.put(reconnect_reply)
             except Exception as e:
                 msg = "Failed to reconnect {}".format(e)
                 self.wapp_log.error(msg, exc_info=True)
+
+    def create_bulk(self, data):
+        """
+        Creates bulk message.
+
+        Accomulates all messages in one and once sending_queue is empty it is
+        sent.
+
+        Args:
+            data: JSON communication message data.
+
+        """
+        self.bulk_send_list.append(data)
+        if self.sending_queue.qsize() < 1 and self.message_received:
+            self.send_data(self.bulk_send_list)
+            self.bulk_send_list.clear()
+            self.message_received = False
 
     def send_data(self, data):
         """
@@ -453,10 +472,33 @@ class ClientSocket:
 
         """
         if self.connected:
+            for data_element in data:
+                self.get_object_without_none_values(data_element)
+            data = json.dumps(data)
+            data = data.encode('utf-8')
             self.wapp_log.debug('Raw Send Json: {}'.format(data))
             self.my_socket.send(data)
         else:
             self.wapp_log.error('Sending while not connected')
+
+    def get_object_without_none_values(self, encoded_object):
+        """
+        Get object without None values.
+
+        Gets objects and removes any keys where value is None or empty.
+
+        Args:
+            encoded_object: dictionary object.
+
+        """
+        for key, val in list(encoded_object.items()):
+            if val is None or val == []:
+                del encoded_object[key]
+            elif isinstance(val, dict):
+                self.get_object_without_none_values(val)
+            elif isinstance(val, list):
+                for val_element in val:
+                    self.get_object_without_none_values(val_element)
 
     def send_thread(self):
         """
@@ -470,22 +512,22 @@ class ClientSocket:
         while True:
             package = self.sending_queue.get()
             if self.connected:
-                if package.msg_id == send_data.SEND_SUCCESS:
+                if package.msg_id == message_data.SEND_SUCCESS:
                     self.send_success(package)
 
-                elif package.msg_id == send_data.SEND_REPORT:
+                elif package.msg_id == message_data.SEND_REPORT:
                     self.send_report(package)
 
-                elif package.msg_id == send_data.SEND_FAILED:
+                elif package.msg_id == message_data.SEND_FAILED:
                     self.send_failed(package)
 
-                elif package.msg_id == send_data.SEND_RECONNECT:
+                elif package.msg_id == message_data.SEND_RECONNECT:
                     self.send_reconnect()
 
-                elif package.msg_id == send_data.SEND_CONTROL:
+                elif package.msg_id == message_data.SEND_CONTROL:
                     self.send_control(package)
 
-                elif package.msg_id == send_data.SEND_TRACE:
+                elif package.msg_id == message_data.SEND_TRACE:
                     self.send_trace(package)
 
                 else:
@@ -545,14 +587,15 @@ class ClientSocket:
                 trace_id=package.trace_id
             )
             self.add_id_to_confirm_list(local_data)
-            self.send_data(local_data)
+            self.create_bulk(local_data)
         except OSError as e:
             self.connected = False
             msg = "Error sending control: {}".format(e)
             self.wapp_log.error(msg, exc_info=True)
 
     def receive_data(self):
-        """Socket receive method.
+        """
+        Socket receive method.
 
         Method that handles receiving data from a socket. Capable of handling
         data chunks.
@@ -580,7 +623,6 @@ class ClientSocket:
                     self.wapp_log.error("Value error: {}".format(data))
             else:
                 break
-
         return decoded
 
     def send_reconnect(self):
@@ -596,9 +638,9 @@ class ClientSocket:
                 self.network.name,
                 put=False
             )
-            self.send_data(rpc_network)
+            self.create_bulk(rpc_network)
             for element in self.packet_awaiting_confirm:
-                self.send_data(self.packet_awaiting_confirm[element])
+                self.create_bulk(self.packet_awaiting_confirm[element])
             self.wappsto_status.set_status(status.RUNNING)
         except OSError as e:
             self.connected = False
@@ -622,7 +664,7 @@ class ClientSocket:
         )
         self.wapp_log.debug(rpc_fail_response)
         try:
-            self.send_data(rpc_fail_response)
+            self.create_bulk(rpc_fail_response)
         except OSError as e:
             self.connected = False
             msg = "Error sending failed response: {}".format(e)
@@ -654,9 +696,8 @@ class ClientSocket:
                 trace_id=package.trace_id
             )
             self.add_id_to_confirm_list(local_data)
-            self.send_data(local_data)
-            decoded = json.loads(local_data.decode('utf-8'))
-            data_decoded = decoded.get('params').get('data').get('data')
+            self.create_bulk(local_data)
+            data_decoded = local_data.get('params').get('data').get('data')
             self.wapp_log.info('Sending report value: {}'.format(data_decoded))
         except OSError as e:
             self.connected = False
@@ -677,7 +718,7 @@ class ClientSocket:
             rpc_success_response = self.rpc.get_rpc_success_response(
                 package.rpc_id
             )
-            self.send_data(rpc_success_response)
+            self.create_bulk(rpc_success_response)
 
         except OSError as e:
             self.connected = False
@@ -718,7 +759,16 @@ class ClientSocket:
         """
         try:
             decoded = self.receive_data()
-            self.receive(decoded)
+
+            # if the received string is list
+            if isinstance(decoded, list):
+                for decoded_data in decoded:
+                    self.receive(decoded_data)
+            else:
+                self.receive(decoded)
+
+            if len(self.packet_awaiting_confirm) == 0:
+                self.message_received = True
 
         except JSONDecodeError:
             self.wapp_log.error("Json error: {}".format(decoded))

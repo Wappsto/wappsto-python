@@ -1,7 +1,8 @@
 """
-Send data module.
+Message data module.
 
-Sends data packages to the server and stores global state flags.
+Saves message data packages to be sent the server and stores
+global state flags.
 
 Attributes:
     SEND_SUCCESS: Successful sending response global flag.
@@ -20,9 +21,9 @@ SEND_CONTROL = 5
 SEND_TRACE = 6
 
 
-class SendData:
+class MessageData:
     """
-    Send data class.
+    Message data class.
 
     Stores data package attributes to send to the server.
     """
@@ -42,9 +43,9 @@ class SendData:
             control_value_id=None
     ):
         """
-        Initialize the SendData class.
+        Initialize the MessageData class.
 
-        Holds data sending values so they can be accessed from the RPC
+        Holds the message values so they can be accessed from the RPC
         and socket.
 
         Args:

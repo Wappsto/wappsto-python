@@ -1,0 +1,65 @@
+{
+  "id"                  : "value.json",
+  "$schema"             : "http://json-schema.org/draft-04/schema#",
+  "title"               : "value-2.0",
+  "type"                : "object",
+  "properties"          : {
+    "name"      : {"type": "string"},
+    "type"      : {"type": "string"},
+    "period"    : {"type": "string"},
+    "delta"     : {"type": "string"},
+    "permission": {"type": "string", "enum": ["r", "w", "rw", "wr", "none"]},
+    "status"    : {"type": "string", "enum": ["ok", "update", "pending"]},
+    "number"    : {
+      "type"                : "object",
+      "additionalProperties": false,
+      "properties"          : {
+        "min"          : {"type": "number"},
+        "max"          : {"type": "number"},
+        "step"         : {"type": "number"},
+        "unit"         : {"type": "string"},
+        "si_conversion": {"type": "string"}
+      },
+      "required"            : ["min", "max", "step"]
+    },
+    "string"    : {
+      "type"                : "object",
+      "additionalProperties": false,
+      "properties"          : {
+        "max"     : {"type": "integer", "multipleOf": 1, "minimum": 1},
+        "encoding": {"type": "string"}
+      }
+    },
+    "blob"      : {
+      "type"                : "object",
+      "additionalProperties": false,
+      "properties"          : {
+        "max"     : {"type": "integer", "multipleOf": 1, "minimum": 1},
+        "encoding": {"type": "string"}
+      }
+    },
+    "xml"       : {
+      "type"                : "object",
+      "additionalProperties": false,
+      "properties"          : {
+        "xsd"      : {"type": "string"},
+        "namespace": {"type": "string"}
+      }
+    },
+    "state"     : {"type": "array", "items": {"$ref": "state.json"}},
+    "meta"        : {
+      "properties": {
+        "id": { "$ref": "../../../core/validation/2.0/util/types.json#/id" }
+      },
+      "type": "object",
+      "required": ["id"]
+    }
+  },
+  "oneOf": [
+    {"required": ["number", "meta"]},
+    {"required": ["string", "meta"]},
+    {"required": ["blob", "meta"]},
+    {"required": ["xml", "meta"]}
+  ],
+  "additionalProperties": false
+}

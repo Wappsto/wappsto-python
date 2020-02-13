@@ -6,7 +6,7 @@ sending queue.
 """
 import random
 import logging
-from . import send_data
+from . import message_data
 
 
 def send_trace(sending_queue, parent, trace_id, data, control_value_id=None):
@@ -25,83 +25,14 @@ def send_trace(sending_queue, parent, trace_id, data, control_value_id=None):
 
     """
     if trace_id:
-        trace = send_data.SendData(
-            send_data.SEND_TRACE,
+        trace = message_data.MessageData(
+            message_data.SEND_TRACE,
             parent=parent,
             trace_id=trace_id,
             data=data,
             text="ok",
             control_value_id=control_value_id)
         sending_queue.put(trace)
-
-
-def send_report(
-        incoming_value,
-        sending_queue,
-        network,
-        device,
-        value,
-        state,
-        trace_id=None):
-    """
-    Send a report message to the server.
-
-    Sends a report message to the server containing data about the state of the
-    specific value in a specific device. Puts a report message into
-    sending_queue.
-
-    Args:
-        incoming_value: Value received from the server.
-        sending_queue: The queue requests are being added to.
-        network: Network the device is on.
-        device: Device the value is on.
-        value: Value the state belongs to.
-        state: State of the device.
-        trace_id: Trace ID used to create a URL for debugging (default: {None})
-
-    """
-    report = send_data.SendData(
-        send_data.SEND_REPORT,
-        data=str(incoming_value),
-        network_id=network.uuid,
-        device_id=device.uuid,
-        value_id=value.uuid,
-        state_id=state.uuid,
-        trace_id=trace_id
-    )
-    sending_queue.put(report)
-
-
-def get_control(incoming_value, network, device, value, state, trace_id=None):
-    """
-    Send a control message to the server.
-
-    Sends a control message to the server containing data about a change in the
-    state of the value of the specific device.
-
-    Args:
-        incoming_value: Value received from the server.
-        network: Network the device is on.
-        device: Device the value is on.
-        value: Value the state belongs to.
-        state: State of the device.
-        trace_id: Trace ID used to create a URL for debugging.
-            (default: {None})
-
-    Returns:
-        The result of the control request.
-
-    """
-    control = send_data.SendData(
-        send_data.SEND_CONTROL,
-        data=str(incoming_value),
-        network_id=network.uuid,
-        device_id=device.uuid,
-        value_id=value.uuid,
-        state_id=state.uuid,
-        trace_id=trace_id
-    )
-    return control
 
 
 class Handlers:
