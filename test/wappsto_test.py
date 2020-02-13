@@ -95,11 +95,18 @@ class TestJsonLoadClass:
         # Assert
         assert service.instance.decoded == decoded
 
-    def test_json_follows_schema(self):
+    @pytest.mark.parametrize("file_uri,expected_result", [("test_json.json", True),
+                                                          ("test_json_wrong_network.json", False),
+                                                          ("test_json_wrong_device.json", False),
+                                                          ("test_json_wrong_value.json", False),
+                                                          ("test_json_wrong_state.json", False),
+                                                          ("test_json_wrong_id.json", False)])
+    def test_json_follows_schema(self, file_uri, expected_result):
         # Arrange
-        service = wappsto.Wappsto(json_file_name=self.test_json_location)
-        network = service.instance.json_container
-        
+        file_location = os.path.join(os.path.dirname(__file__),"test_JSON/"+file_uri)
+        with open(file_location, "r") as json_file:
+            network = json.loads(json.load(json_file)['data'])
+
         network_schema_location = os.path.join(os.path.dirname(__file__),"schema/network.json")
         with open(network_schema_location, "r") as json_file:
             schema = json.load(json_file)
@@ -112,11 +119,11 @@ class TestJsonLoadClass:
         try:
             jsonschema.validate(network, schema, resolver=resolver)
             result = True
-        except:
+        except jsonschema.exceptions.ValidationError:
             result = False
 
         # Assert
-        assert result
+        assert result == expected_result
 
 class TestConnClass:
 
@@ -326,9 +333,9 @@ class TestSendThreadClass:
                                       message_data.SEND_RECONNECT,
                                       message_data.SEND_CONTROL])
     @pytest.mark.parametrize("value,expected_value", [('test_value','test_value'),
-                                                                ('', None),
+                                                                ('', ''),
                                                                 (None, None),
-                                                                ([],None)])
+                                                                ([],[])])
     @pytest.mark.parametrize("messages_in_queue", [1, 2])
     def test_send_thread(self, type, messages_in_queue, value, expected_value):
         # Arrange
