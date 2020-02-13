@@ -8,8 +8,6 @@
     "id"                        : {"type": "number"},
     "result"                    : {"type": "boolean"}
   },
-  "required": ["jsonrpc"],
-  "required": ["id"],
-  "required": ["result"],
+  "required": ["jsonrpc", "id", "result"],
   "additionalProperties": false
 }

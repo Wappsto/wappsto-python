@@ -67,6 +67,22 @@ def create_response(self, verb, callback_exists, trace_id, bulk):
     return message
 
 
+def validate_json(json_schema, arg):
+    schema_location = os.path.join(os.path.dirname(__file__),"schema/"+json_schema+".json")
+    with open(schema_location, "r") as json_file:
+        schema = json.load(json_file)
+    base_uri = os.path.join(os.path.dirname(__file__),"schema")
+    base_uri = base_uri.replace("\\","/")
+    base_uri = "file:///" + base_uri + "/"
+    resolver = jsonschema.RefResolver(base_uri, schema)
+    try:
+        for i in arg:
+            jsonschema.validate(i, schema, resolver=resolver)
+        return True
+    except jsonschema.exceptions.ValidationError:
+        return False
+
+
 def exists_in_dictionary(key, dict):
     return True if key in dict else False
 
@@ -153,14 +169,6 @@ class TestConnClass:
                                                      ("wappstoFail.com", PORT, False, status.DISCONNECTING, True, True)])
     def test_connection(self, address, port, callback_exists, expected_status, value_changed_to_none, upgradable):
         # Arrange
-        schema_location = os.path.join(os.path.dirname(__file__),"schema/request.json")
-        with open(schema_location, "r") as json_file:
-            schema = json.load(json_file)
-        base_uri = os.path.join(os.path.dirname(__file__),"schema")
-        base_uri = base_uri.replace("\\","/")
-        base_uri = "file:///" + base_uri + "/"
-        resolver = jsonschema.RefResolver(base_uri, schema)
-
         status_service = self.service.get_status()
         fix_object(self, callback_exists, status_service)
         if value_changed_to_none:
@@ -175,23 +183,11 @@ class TestConnClass:
                 sent_json = arg[0]['params']['data']
             except wappsto_errors.ServerConnectionException:
                 sent_json = None
-                arg = None
+                arg = []
                 pass
 
-        if arg:
-            for i in arg:
-                jsonschema.validate(i, schema, resolver=resolver)
-            try:
-                for i in arg:
-                    jsonschema.validate(i, schema, resolver=resolver)
-                result = True
-            except jsonschema.exceptions.ValidationError:
-                result = False
-        else:
-            result = True
-
         # Assert
-        assert result == True
+        assert validate_json("request",arg) == True
         if sent_json != None:
             assert not 'None' in str(sent_json)
             assert (upgradable and 'upgradable' in str(sent_json['meta']) or
@@ -259,8 +255,10 @@ class TestValueSendClass:
             result = arg[0]['params']['data']['data']
         except TypeError:
             result = None
+            arg = []
 
         # Assert
+        assert validate_json("request",arg) == True
         assert result == expected
 
     @classmethod
@@ -350,10 +348,8 @@ class TestSendThreadClass:
                                       message_data.SEND_FAILED,
                                       message_data.SEND_RECONNECT,
                                       message_data.SEND_CONTROL])
-    @pytest.mark.parametrize("value,expected_value", [('test_value','test_value'),
-                                                                ('', ''),
-                                                                (None, None),
-                                                                ([],[])])
+    @pytest.mark.parametrize("value,expected_value", [('1','1'),
+                                                                (None, None)])
     @pytest.mark.parametrize("messages_in_queue", [1, 2])
     def test_send_thread(self, type, messages_in_queue, value, expected_value):
         # Arrange
@@ -364,8 +360,9 @@ class TestSendThreadClass:
             i += 1
             reply = message_data.MessageData(
                 type,
-                rpc_id=value,
-                data=value
+                state_id=self.service.get_network().uuid,
+                rpc_id=1,
+                data=value,
             )
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
@@ -378,28 +375,30 @@ class TestSendThreadClass:
             self.service.socket.send_thread()
         except KeyboardInterrupt:
             args, kwargs = self.service.socket.my_socket.send.call_args
-            arg = args[0].decode('utf-8')
-            requests = json.loads(arg)
+            arg = json.loads(args[0].decode('utf-8'))
 
         # Assert
         assert self.service.socket.sending_queue.qsize() == 0
-        assert messages_in_queue == len(requests)
-        for request in requests:
+        assert messages_in_queue == len(arg)
+        for request in arg:
             if type == message_data.SEND_SUCCESS:
-                assert request.get('id', None) == expected_value
+                assert validate_json("successResponse",arg) == True
                 assert bool(request['result']) == True
             elif type == message_data.SEND_FAILED:
-                assert request.get('id', None) == expected_value
+                assert validate_json("errorResponse",arg) == True
                 assert request['error'] == {"code": -32020}
             elif type == message_data.SEND_REPORT:
+                assert validate_json("request",arg) == bool(expected_value)
                 assert request['params']['data'].get('data', None) == expected_value
                 assert request['params']['data']['type'] == "Report"
                 assert request['method'] == "PUT"
             elif type == message_data.SEND_RECONNECT:
+                assert validate_json("request",arg) == True
                 assert request['params']['data'].get('name', None) == expected_value
                 assert request['params']['data']['meta']['type'] == "network"
                 assert request['method'] == "POST"
             elif type == message_data.SEND_CONTROL:
+                assert validate_json("request",arg) == bool(expected_value)
                 assert request['params']['data'].get('data', None) == expected_value
                 assert request['params']['data']['type'] == "Control"
                 assert request['method'] == "PUT"

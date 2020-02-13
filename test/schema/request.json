@@ -6,7 +6,7 @@
   "properties"          : {
     "jsonrpc"                   : {"type": "string"},
     "id"                        : {"type": "number"},
-	"params"                    : {"$ref": "requestData.json"},
+	"params"                    : {"$ref": "params.json"},
     "method"                    : {
       "type": "string",
       "enum": [

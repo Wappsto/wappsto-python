@@ -8,8 +8,6 @@
     "id"                        : {"type": "number"},
     "error"                     : {"type": "object"}
   },
-  "required": ["jsonrpc"],
-  "required": ["id"],
-  "required": ["error"],
+  "required": ["jsonrpc", "id", "error"],
   "additionalProperties": false
 }
