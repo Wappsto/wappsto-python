@@ -3,6 +3,7 @@ import os
 import json
 import pytest
 import wappsto
+import jsonschema
 import urllib.parse
 from mock import Mock
 from unittest.mock import patch
@@ -94,6 +95,28 @@ class TestJsonLoadClass:
         # Assert
         assert service.instance.decoded == decoded
 
+    def test_json_follows_schema(self):
+        # Arrange
+        service = wappsto.Wappsto(json_file_name=self.test_json_location)
+        network = service.instance.json_container
+        
+        network_schema_location = os.path.join(os.path.dirname(__file__),"schema/network.json")
+        with open(network_schema_location, "r") as json_file:
+            schema = json.load(json_file)
+
+        # Act
+        base_uri = os.path.join(os.path.dirname(__file__),"schema")
+        base_uri = base_uri.replace("\\","/")
+        base_uri = 'file:///' + base_uri + "/"
+        resolver = jsonschema.RefResolver(base_uri, schema)
+        try:
+            jsonschema.validate(network, schema, resolver=resolver)
+            result = True
+        except:
+            result = False
+
+        # Assert
+        assert result
 
 class TestConnClass:
 

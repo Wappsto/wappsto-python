@@ -8,7 +8,7 @@
     "device": {"type": "array", "items": {"$ref": "device.json"}},
     "meta"        : {
       "properties": {
-        "id": { "$ref": "../../../core/validation/2.0/util/types.json#/id" },
+        "id": { "$ref": "types.json#/definitions/id" },
         "upgradable": {"type": "boolean"}
       },
       "type": "object",
