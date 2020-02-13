@@ -62,7 +62,7 @@ def fix_object(self, callback_exists, testing_object):
     return testing_object
 
 
-def create_response(self, verb, callback_exists, trace_id):
+def create_response(self, verb, callback_exists, trace_id, data_value):
     value = self.service.instance.device_list[0].value_list[0]
     value = fix_object(self, callback_exists, value)
     id = str(value.control_state.uuid)
@@ -82,7 +82,7 @@ def create_response(self, verb, callback_exists, trace_id):
     if trace_id is not None:
         trace = '"meta": {"trace": "'+str(trace_id)+'"},'
 
-    return '{"jsonrpc": "2.0", "id": "1", "params": {"url": "'+url+'",'+trace+' "data": {"meta": {"id": "'+id+'"}, "data": "93"}}, "method": "'+verb+'"}'
+    return '{"jsonrpc": "2.0", "id": "1", "params": {"url": "'+url+'",'+trace+' "data": {"meta": {"id": "'+id+'"}, "data": "'+data_value+'"}}, "method": "'+verb+'"}'
 
 
 def get_expected_json(self):
@@ -270,42 +270,36 @@ class TestValueSendClass:
 
 class TestReceiveThreadClass:
 
-    @classmethod
-    def setup_class(self):
+    def setup_method(self):
         test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
         self.service = wappsto.Wappsto(json_file_name=test_json_location)
         fake_connect(self, ADDRESS, PORT)
 
-    '''
-    Testing test_receive_thread_method specificaly
-    '''
-
-    def setup_method(self, test_receive_thread_method):
-        self.recv_reset = self.service.socket.my_socket.recv
-        self.put_reset = self.service.socket.sending_queue.put
-
-    @pytest.mark.parametrize("id,verb,callback_exists,trace_id,expected_rpc_id,expected_msg_id,expected_trace_id",
-                             [(1, 'PUT', True, None, '1', send_data.SEND_SUCCESS, None),
-                              (1, 'PUT', False, None, '1', send_data.SEND_FAILED, None),
-                              (1, 'DELETE', True, None, '1', send_data.SEND_SUCCESS, None),
-                              (1, 'DELETE', False, None, '1', send_data.SEND_SUCCESS, None),
-                              (1, 'GET', True, None, '1', send_data.SEND_SUCCESS, None),
-                              (1, 'GET', False, None, '1', send_data.SEND_SUCCESS, None),
-                              (1, 'wrong_verb', False, None, '1', send_data.SEND_FAILED, None),
-                              (1, 'wrong_verb', True, None, '1', send_data.SEND_FAILED, None),
-                              (1, 'PUT', True, 321, None, send_data.SEND_TRACE, '321'),
-                              (1, 'PUT', False, 321, '1', send_data.SEND_FAILED, None),
-                              (1, 'DELETE', True, 321, None, send_data.SEND_TRACE, '321'),
-                              (1, 'DELETE', False, 321, None, send_data.SEND_TRACE, '321'),
-                              (1, 'GET', True, 321, None, send_data.SEND_TRACE, '321'),
-                              (1, 'GET', False, 321, None, send_data.SEND_TRACE, '321'),
-                              (1, 'wrong_verb', False, 321, '1', send_data.SEND_FAILED, None),
-                              (1, 'wrong_verb', True, 321, '1', send_data.SEND_FAILED, None)
+    @pytest.mark.parametrize("id,verb,callback_exists,trace_id,expected_rpc_id,expected_msg_id,expected_trace_id,data_value,expected_data_value",
+                             [(1, 'PUT', True, None, '1', send_data.SEND_SUCCESS, None, '44', '44'),
+                              (1, 'PUT', False, None, '1', send_data.SEND_FAILED, None, '44', '44'),
+                              (1, 'DELETE', True, None, '1', send_data.SEND_SUCCESS, None, '44', '1'),
+                              (1, 'DELETE', False, None, '1', send_data.SEND_SUCCESS, None, '44', '1'),
+                              (1, 'GET', True, None, '1', send_data.SEND_SUCCESS, None, '44', '1'),
+                              (1, 'GET', False, None, '1', send_data.SEND_SUCCESS, None, '44', '1'),
+                              (1, 'wrong_verb', False, None, '1', send_data.SEND_FAILED, None, '44', '1'),
+                              (1, 'wrong_verb', True, None, '1', send_data.SEND_FAILED, None, '44', '1'),
+                              (1, 'PUT', True, 321, None, send_data.SEND_TRACE, '321', '44', '44'),
+                              (1, 'PUT', False, 321, '1', send_data.SEND_FAILED, None, '44', '44'),
+                              (1, 'DELETE', True, 321, None, send_data.SEND_TRACE, '321', '44', '1'),
+                              (1, 'DELETE', False, 321, None, send_data.SEND_TRACE, '321', '44', '1'),
+                              (1, 'GET', True, 321, None, send_data.SEND_TRACE, '321', '44', '1'),
+                              (1, 'GET', False, 321, None, send_data.SEND_TRACE, '321', '44', '1'),
+                              (1, 'wrong_verb', False, 321, '1', send_data.SEND_FAILED, None, '44', '1'),
+                              (1, 'wrong_verb', True, 321, '1', send_data.SEND_FAILED, None, '44', '1')
                              ])
     def test_receive_thread_method(self, id, verb, callback_exists, trace_id, 
-                                   expected_rpc_id, expected_msg_id, expected_trace_id):
+                                   expected_rpc_id, expected_msg_id, expected_trace_id, 
+                                   data_value, expected_data_value):
         # Arrange
-        response = create_response(self, verb, callback_exists, trace_id)
+        value = self.service.instance.device_list[0].value_list[0]
+        value.control_state.data = '1'
+        response = create_response(self, verb, callback_exists, trace_id, data_value)
         self.service.socket.my_socket.recv = Mock(
             return_value=response.encode('utf-8'))
         self.service.socket.sending_queue.put = Mock(side_effect=Exception)
@@ -319,13 +313,10 @@ class TestReceiveThreadClass:
             args, kwargs = self.service.socket.sending_queue.put.call_args
 
         # Assert
+        assert value.control_state.data == expected_data_value
         assert args[0].rpc_id == expected_rpc_id
         assert args[0].msg_id == expected_msg_id
         assert args[0].trace_id == expected_trace_id
-
-    '''
-    Testing test_receive_thread_other specificaly
-    '''
 
     @pytest.mark.parametrize("id,type", [(93043873, "error"),
                                          (93043873, "result")])
@@ -347,10 +338,6 @@ class TestReceiveThreadClass:
 
         # Assert
         assert int(args[0]) == id
-
-    @classmethod
-    def teardown_class(self):
-        self.service.stop()
 
 
 class TestSendThreadClass:
