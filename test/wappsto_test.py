@@ -94,28 +94,24 @@ class TestJsonLoadClass:
 
         # Assert
         assert service.instance.decoded == decoded
-
-    @pytest.mark.parametrize("file_uri,expected_result", [("test_json.json", True),
-                                                          ("test_json_wrong_network.json", False),
-                                                          ("test_json_wrong_device.json", False),
-                                                          ("test_json_wrong_value.json", False),
-                                                          ("test_json_wrong_state.json", False),
-                                                          ("test_json_wrong_id.json", False)])
+'''
+    @pytest.mark.parametrize("file_uri,expected_result", [("test_json.json", True)])
     def test_json_follows_schema(self, file_uri, expected_result):
         # Arrange
-        file_location = os.path.join(os.path.dirname(__file__),"test_JSON/"+file_uri)
-        with open(file_location, "r") as json_file:
-            network = json.loads(json.load(json_file)['data'])
+        #file_location = os.path.join(os.path.dirname(__file__),"test_JSON/"+file_uri)
+        #with open(file_location, "r") as json_file:
+        #    network = json.loads(json.load(json_file)['data'])
 
-        network_schema_location = os.path.join(os.path.dirname(__file__),"schema/network.json")
-        with open(network_schema_location, "r") as json_file:
+        network = {"jsonrpc": "2.0", "id": 71739833, "params": {"url": "/network/None/device/None/value/None/state/None?trace=1", "data": {"meta": {"id": 1, "type": "state", "version": "2.0"}, "type": "Report", "status": "Send", "data": 1, "timestamp": "2020-01-22T13:40:16.586851Z"}}, "method": "PUT"}
+
+        schema_location = os.path.join(os.path.dirname(__file__),"schema/request.json")
+        with open(schema_location, "r") as json_file:
             schema = json.load(json_file)
-
-        # Act
         base_uri = os.path.join(os.path.dirname(__file__),"schema")
         base_uri = base_uri.replace("\\","/")
         base_uri = 'file:///' + base_uri + "/"
         resolver = jsonschema.RefResolver(base_uri, schema)
+        
         try:
             jsonschema.validate(network, schema, resolver=resolver)
             result = True
@@ -124,7 +120,7 @@ class TestJsonLoadClass:
 
         # Assert
         assert result == expected_result
-
+'''
 class TestConnClass:
 
     def setup_method(self):
@@ -157,6 +153,14 @@ class TestConnClass:
                                                      ("wappstoFail.com", PORT, False, status.DISCONNECTING, True, True)])
     def test_connection(self, address, port, callback_exists, expected_status, value_changed_to_none, upgradable):
         # Arrange
+        schema_location = os.path.join(os.path.dirname(__file__),"schema/request.json")
+        with open(schema_location, "r") as json_file:
+            schema = json.load(json_file)
+        base_uri = os.path.join(os.path.dirname(__file__),"schema")
+        base_uri = base_uri.replace("\\","/")
+        base_uri = "file:///" + base_uri + "/"
+        resolver = jsonschema.RefResolver(base_uri, schema)
+
         status_service = self.service.get_status()
         fix_object(self, callback_exists, status_service)
         if value_changed_to_none:
@@ -171,9 +175,23 @@ class TestConnClass:
                 sent_json = arg[0]['params']['data']
             except wappsto_errors.ServerConnectionException:
                 sent_json = None
+                arg = None
                 pass
 
+        if arg:
+            for i in arg:
+                jsonschema.validate(i, schema, resolver=resolver)
+            try:
+                for i in arg:
+                    jsonschema.validate(i, schema, resolver=resolver)
+                result = True
+            except jsonschema.exceptions.ValidationError:
+                result = False
+        else:
+            result = True
+
         # Assert
+        assert result == True
         if sent_json != None:
             assert not 'None' in str(sent_json)
             assert (upgradable and 'upgradable' in str(sent_json['meta']) or

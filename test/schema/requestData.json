@@ -1,0 +1,12 @@
+{
+  "id"                  : "requestData.json",
+  "$schema"             : "http://json-schema.org/draft-04/schema#",
+  "title"               : "requestData-2.0",
+  "type"                : "object",
+  "properties"          : {
+    "url"                   	: {"type": "string"},
+    "data"                      : {"$ref": "network.json"}
+  },
+  "required": ["url", "data"],
+  "additionalProperties": false
+}

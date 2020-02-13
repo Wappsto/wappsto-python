@@ -1,0 +1,15 @@
+{
+  "id"                  : "successResponse.json",
+  "$schema"             : "http://json-schema.org/draft-04/schema#",
+  "title"               : "successResponse-2.0",
+  "type"                : "object",
+  "properties"          : {
+    "jsonrpc"                   : {"type": "string"},
+    "id"                        : {"type": "number"},
+    "result"                    : {"type": "boolean"}
+  },
+  "required": ["jsonrpc"],
+  "required": ["id"],
+  "required": ["result"],
+  "additionalProperties": false
+}

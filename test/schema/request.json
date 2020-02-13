@@ -1,0 +1,21 @@
+{
+  "id"                  : "request.json",
+  "$schema"             : "http://json-schema.org/draft-04/schema#",
+  "title"               : "request-2.0",
+  "type"                : "object",
+  "properties"          : {
+    "jsonrpc"                   : {"type": "string"},
+    "id"                        : {"type": "number"},
+	"params"                    : {"$ref": "requestData.json"},
+    "method"                    : {
+      "type": "string",
+      "enum": [
+        "PUT",
+		"GET",
+        "POST"
+      ]
+    }
+  },
+  "required": ["jsonrpc", "id", "params", "method"],
+  "additionalProperties": false
+}
