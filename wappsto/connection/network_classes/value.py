@@ -5,6 +5,7 @@ Stores attributes for the value instance and handles value-related
 methods.
 """
 import logging
+import warnings
 import time
 import datetime
 import decimal
@@ -104,6 +105,11 @@ class Value:
 
         msg = "Value {} debug: {}".format(name, str(self.__dict__))
         self.wapp_log.debug(msg)
+
+    def __getattr__(self, attr):
+        if attr in ["last_controlled"]:
+            warnings.warn("Property %s is deprecated" % attr)
+            return self.get_data()
 
     def set_period(self, period):
         """
