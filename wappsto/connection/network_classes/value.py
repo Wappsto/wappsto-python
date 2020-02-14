@@ -107,6 +107,16 @@ class Value:
         self.wapp_log.debug(msg)
 
     def __getattr__(self, attr):
+        """
+        Get attribute value.
+
+        When trying to get value from last_controlled warning is raised about
+        it being deprecated and calls get_data instead.
+
+        Returns:
+            value of get_data
+
+        """
         if attr in ["last_controlled"]:
             warnings.warn("Property %s is deprecated" % attr)
             return self.get_data()
