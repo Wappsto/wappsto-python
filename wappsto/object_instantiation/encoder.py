@@ -122,15 +122,13 @@ class WappstoEncoder:
         states = []
         if value.report_state:
             encoded_state = self.encode_state(
-                value.report_state,
-                value.init_value
+                value.report_state
             )
             states.append(encoded_state)
 
         if value.control_state:
             encoded_state = self.encode_state(
-                value.control_state,
-                value.init_value
+                value.control_state
             )
             states.append(encoded_state)
 
@@ -170,7 +168,7 @@ class WappstoEncoder:
 
         return encoded_value
 
-    def encode_state(self, state, last_controlled):
+    def encode_state(self, state):
         """
         Encode instance of State class.
 
@@ -179,14 +177,13 @@ class WappstoEncoder:
 
         Args:
             state: Reference to the instance of the State class.
-            last_controlled: The data in the State.
 
         Returns:
             The encoded JSON result.
 
         """
         encoded_state = {
-            'data': last_controlled,
+            'data': state.data,
             'type': state.state_type,
             'timestamp': state.timestamp,
             'meta':

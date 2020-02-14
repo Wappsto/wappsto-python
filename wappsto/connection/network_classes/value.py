@@ -5,6 +5,7 @@ Stores attributes for the value instance and handles value-related
 methods.
 """
 import logging
+import warnings
 import time
 import datetime
 import decimal
@@ -29,7 +30,6 @@ class Value:
         type_of_value,
         data_type,
         permission,
-        init_value,
         number_max,
         number_min,
         number_step,
@@ -53,7 +53,6 @@ class Value:
             type_of_value: Determines a type of value [e.g temperature, CO2]
             data_type: Defines whether a value is string, blob or number
             permission: Defines permission [read, write, read and write]
-            init_value: Initial value after creation of an object
             (if data_type is number then these parameters are relevant):
             number_max: Maximum number a value can have
             number_min: Minimum number a value can have
@@ -80,7 +79,6 @@ class Value:
         self.data_type = data_type
         self.permission = permission
         # The value shared between state instances.
-        self.init_value = init_value
         self.number_max = number_max
         self.number_min = number_min
         self.number_step = number_step
@@ -99,16 +97,29 @@ class Value:
         self.conn = None
         self.reporting_thread = None
         self.last_update_of_control = None
-        self.data_value = init_value
         self.difference = 0
         self.delta_report = 0
-        self.last_controlled = self.data_value
         self.parent_network_id = parent_device.get_parent_network().uuid
         self.parent_device_id = parent_device.uuid
         self.state_list = []
 
         msg = "Value {} debug: {}".format(name, str(self.__dict__))
         self.wapp_log.debug(msg)
+
+    def __getattr__(self, attr):
+        """
+        Get attribute value.
+
+        When trying to get value from last_controlled warning is raised about
+        it being deprecated and calls get_data instead.
+
+        Returns:
+            value of get_data
+
+        """
+        if attr in ["last_controlled"]:
+            warnings.warn("Property %s is deprecated" % attr)
+            return self.get_data()
 
     def set_period(self, period):
         """
@@ -190,10 +201,6 @@ class Value:
         self.report_state = state
         self.state_list.append(state)
         msg = "Report state {} has been added.".format(state)
-        # self.reporting_thread = threading.Thread(target=
-        #                                           self.__send_report_thread)
-        # self.reporting_thread.setDaemon(True)
-        # self.reporting_thread.start()
         self.wapp_log.debug(msg)
 
     def add_control_state(self, state):
@@ -290,12 +297,12 @@ class Value:
         one second.
         """
         state = self.get_report_state()
-        value = self.last_controlled
         if state is not None:
+            value = state.data
             while True:
-                if (self.last_controlled is not None
+                if (state.data is not None
                         and self.__is_number_type()):
-                    value_check = self.last_controlled
+                    value_check = state.data
                     if value != value_check:
                         self.difference = fabs(int(value) - int(value_check))
                         value = value_check
@@ -469,6 +476,23 @@ class Value:
             timestamp=timestamp
         )
 
+    def get_data(self):
+        """
+        Get value from report state.
+
+        Check if value has a report state if it has return its data else return
+        None.
+
+        Returns:
+            Value of report state.
+
+        """
+        state = self.get_report_state()
+        if state is None:
+            return None
+        else:
+            return state.data
+
     def __call_callback(self, type):
         if self.callback is not None:
             self.callback(self, type)
@@ -491,8 +515,8 @@ class Value:
         """
         Handles the control request.
 
-        Sets data_value and last_controlled values of this Value object, with
-        value provided and calls __call_callback method with input of 'set'.
+        Sets data value of control_state object, with value provided and calls
+        __call_callback method with input of 'set'.
 
         Args:
             data_value: the new value.
@@ -501,9 +525,7 @@ class Value:
             results of __call_callback
 
         """
-        self.data_value = data_value
-        # self.last_update_of_control = state.timestamp
-        self.last_controlled = data_value
+        self.control_state.data = data_value
 
         return self.__call_callback('set')
 
