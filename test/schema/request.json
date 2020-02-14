@@ -10,9 +10,10 @@
     "method"                    : {
       "type": "string",
       "enum": [
-        "PUT",
+		"PUT",
 		"GET",
-        "POST"
+		"POST",
+		"DELETE"
       ]
     }
   },

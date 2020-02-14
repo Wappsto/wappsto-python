@@ -4,8 +4,8 @@
   "title"               : "params-2.0",
   "type"                : "object",
   "properties"          : {
-    "url"                   	: {"type": "string"},
-    "data"                      : {"oneOf":[{"$ref": "state.json"}, {"$ref": "network.json"}]}
+    "url"					: {"type": "string"},
+    "data"					: {"oneOf":[{"$ref": "state.json"}, {"$ref": "network.json"}]}
   },
   "required": ["url", "data"],
   "additionalProperties": false
