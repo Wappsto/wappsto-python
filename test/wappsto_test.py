@@ -110,33 +110,8 @@ class TestJsonLoadClass:
 
         # Assert
         assert service.instance.decoded == decoded
-'''
-    @pytest.mark.parametrize("file_uri,expected_result", [("test_json.json", True)])
-    def test_json_follows_schema(self, file_uri, expected_result):
-        # Arrange
-        #file_location = os.path.join(os.path.dirname(__file__),"test_JSON/"+file_uri)
-        #with open(file_location, "r") as json_file:
-        #    network = json.loads(json.load(json_file)['data'])
 
-        network = {"jsonrpc": "2.0", "id": 71739833, "params": {"url": "/network/None/device/None/value/None/state/None?trace=1", "data": {"meta": {"id": 1, "type": "state", "version": "2.0"}, "type": "Report", "status": "Send", "data": 1, "timestamp": "2020-01-22T13:40:16.586851Z"}}, "method": "PUT"}
 
-        schema_location = os.path.join(os.path.dirname(__file__),"schema/request.json")
-        with open(schema_location, "r") as json_file:
-            schema = json.load(json_file)
-        base_uri = os.path.join(os.path.dirname(__file__),"schema")
-        base_uri = base_uri.replace("\\","/")
-        base_uri = 'file:///' + base_uri + "/"
-        resolver = jsonschema.RefResolver(base_uri, schema)
-        
-        try:
-            jsonschema.validate(network, schema, resolver=resolver)
-            result = True
-        except jsonschema.exceptions.ValidationError:
-            result = False
-
-        # Assert
-        assert result == expected_result
-'''
 class TestConnClass:
 
     def setup_method(self):
@@ -167,12 +142,15 @@ class TestConnClass:
                                                      (ADDRESS, PORT, False, status.RUNNING, True, True),
                                                      (ADDRESS, -1, False, status.DISCONNECTING, True, True),
                                                      ("wappstoFail.com", PORT, False, status.DISCONNECTING, True, True)])
-    def test_connection(self, address, port, callback_exists, expected_status, value_changed_to_none, upgradable):
+    @pytest.mark.parametrize("valid_json", [True, False])
+    def test_connection(self, address, port, callback_exists, expected_status, value_changed_to_none, upgradable, valid_json):
         # Arrange
         status_service = self.service.get_status()
         fix_object(self, callback_exists, status_service)
         if value_changed_to_none:
             self.service.instance.network_cl.name = None
+        if not valid_json:
+            self.service.instance.network_cl.uuid = None
 
         # Act
         with patch('os.getenv', return_value=str(upgradable)):
@@ -187,8 +165,8 @@ class TestConnClass:
                 pass
 
         # Assert
-        assert validate_json("request",arg) == True
         if sent_json != None:
+            assert validate_json("request",arg) == valid_json
             assert not 'None' in str(sent_json)
             assert (upgradable and 'upgradable' in str(sent_json['meta']) or
                     not upgradable and not 'upgradable' in str(sent_json['meta']))
@@ -258,7 +236,7 @@ class TestValueSendClass:
             arg = []
 
         # Assert
-        assert validate_json("request",arg) == True
+        assert validate_json("request", arg) == True
         assert result == expected
 
     @classmethod
@@ -348,21 +326,29 @@ class TestSendThreadClass:
                                       message_data.SEND_FAILED,
                                       message_data.SEND_RECONNECT,
                                       message_data.SEND_CONTROL])
-    @pytest.mark.parametrize("value,expected_value", [('1','1'),
-                                                                (None, None)])
+    @pytest.mark.parametrize("valid_message", [True, False])
     @pytest.mark.parametrize("messages_in_queue", [1, 2])
-    def test_send_thread(self, type, messages_in_queue, value, expected_value):
+    def test_send_thread(self, type, messages_in_queue, valid_message):
         # Arrange
         self.service.socket.message_received = True
+        if valid_message:
+            state_id =self.service.get_network().uuid
+            rpc_id=1
+            value = "test_info"
+        else:
+            self.service.get_network().uuid = 1
+            state_id = 1
+            rpc_id = None
+            value = None
         self.service.get_network().name = value
         i = 0
         while i < messages_in_queue:
             i += 1
             reply = message_data.MessageData(
                 type,
-                state_id=self.service.get_network().uuid,
-                rpc_id=1,
-                data=value,
+                state_id=state_id,
+                rpc_id=rpc_id,
+                data=value
             )
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
@@ -382,24 +368,26 @@ class TestSendThreadClass:
         assert messages_in_queue == len(arg)
         for request in arg:
             if type == message_data.SEND_SUCCESS:
-                assert validate_json("successResponse",arg) == True
+                assert request.get('id', None) == rpc_id
+                assert validate_json("successResponse",arg) == valid_message
                 assert bool(request['result']) == True
             elif type == message_data.SEND_FAILED:
-                assert validate_json("errorResponse",arg) == True
+                assert request.get('id', None) == rpc_id
+                assert validate_json("errorResponse",arg) == valid_message
                 assert request['error'] == {"code": -32020}
             elif type == message_data.SEND_REPORT:
-                assert validate_json("request",arg) == bool(expected_value)
-                assert request['params']['data'].get('data', None) == expected_value
+                assert validate_json("request",arg) == valid_message
+                assert request['params']['data'].get('data', None) == value
                 assert request['params']['data']['type'] == "Report"
                 assert request['method'] == "PUT"
             elif type == message_data.SEND_RECONNECT:
-                assert validate_json("request",arg) == True
-                assert request['params']['data'].get('name', None) == expected_value
+                assert validate_json("request",arg) == valid_message
+                assert request['params']['data'].get('name', None) == value
                 assert request['params']['data']['meta']['type'] == "network"
                 assert request['method'] == "POST"
             elif type == message_data.SEND_CONTROL:
-                assert validate_json("request",arg) == bool(expected_value)
-                assert request['params']['data'].get('data', None) == expected_value
+                assert validate_json("request",arg) == valid_message
+                assert request['params']['data'].get('data', None) == value
                 assert request['params']['data']['type'] == "Control"
                 assert request['method'] == "PUT"
 
