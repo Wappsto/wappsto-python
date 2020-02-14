@@ -501,7 +501,7 @@ class ClientSocket:
 
         """
         for key, val in list(encoded_object.items()):
-            if val is None or val == [] or val == "":
+            if val is None or val == []:
                 del encoded_object[key]
             elif isinstance(val, dict):
                 self.get_object_without_none_values(val)

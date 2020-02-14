@@ -66,15 +66,15 @@ def create_response(self, verb, callback_exists, trace_id, bulk):
 
     if verb == "DELETE" or verb == "PUT" or verb == "GET":
         if trace_id is not None:
-            trace = '"meta": {"trace": "'+str(trace_id)+'"},'
+            trace = {"trace": str(trace_id)}
 
-        message = '{"jsonrpc": "2.0", "id": "1", "params": {"url": "'+url+'",'+trace+' "data": {"meta": {"id": "'+id+'"}, "data": "93"}}, "method": "'+verb+'"}'
+        message = {"jsonrpc": "2.0", "id": "1", "params": {"url": str(url), "meta": trace, "data": {"meta": {"id": id}, "data": "44"}}, "method": verb}
     else:
-        message = '{"jsonrpc": "2.0", "id": "1", "params": {"url": "/network/b03f246d-63ef-446d-be58-ef1d1e83b338/device/a0e087c1-9678-491c-ac47-5b065dea3ac0/value/7ce2afdd-3be3-4945-862e-c73a800eb209/state/a7b4f66b-2558-4559-9fcc-c60768083164", "data": {"meta": {"id": "a7b4f66b-2558-4559-9fcc-c60768083164", "type": "state", "version": "2.0"}, "type": "Report", "status": "Send", "data": "93", "timestamp": "2020-01-22T08:22:57.216500Z"}}, "method": "??????"}'
+        message = {"jsonrpc": "2.0", "id": "1", "params": {"url": "/network/b03f246d-63ef-446d-be58-ef1d1e83b338/device/a0e087c1-9678-491c-ac47-5b065dea3ac0/value/7ce2afdd-3be3-4945-862e-c73a800eb209/state/a7b4f66b-2558-4559-9fcc-c60768083164", "data": {"meta": {"id": "a7b4f66b-2558-4559-9fcc-c60768083164", "type": "state", "version": "2.0"}, "type": "Report", "status": "Send", "data": "44", "timestamp": "2020-01-22T08:22:57.216500Z"}}, "method": "??????"}
 
     if bulk:
         message = [message, message]
-        message = str(message)
+    message = json.dumps(message)
 
     return message
 
@@ -235,26 +235,32 @@ class TestReceiveThreadClass:
         self.service = wappsto.Wappsto(json_file_name=test_json_location)
         fake_connect(self, ADDRESS, PORT)
 
-    @pytest.mark.parametrize("verb,callback_exists,expected_msg_id,trace_id", [
-        ('PUT', True, message_data.SEND_SUCCESS, None),
-        ('DELETE', True, message_data.SEND_SUCCESS, None),
-        ('GET', True, message_data.SEND_SUCCESS, None),
-        ('wrong_verb', True, message_data.SEND_FAILED, None),
-        ('PUT', False, message_data.SEND_FAILED, None),
-        ('DELETE', False, message_data.SEND_SUCCESS, None),
-        ('GET', False, message_data.SEND_SUCCESS, None),
-        ('wrong_verb', False, message_data.SEND_FAILED, None),
-        ('PUT', True, message_data.SEND_TRACE, '123'),
-        ('DELETE', True, message_data.SEND_TRACE, '123'),
-        ('GET', True, message_data.SEND_TRACE, '123'),
-        ('wrong_verb', True, message_data.SEND_FAILED, '123'),
-        ('PUT', False, message_data.SEND_FAILED, '123'),
-        ('DELETE', False, message_data.SEND_TRACE, '123'),
-        ('GET', False, message_data.SEND_TRACE, '123'),
-        ('wrong_verb', False, message_data.SEND_FAILED, '123')])
+
+    @pytest.mark.parametrize("id,verb,callback_exists,trace_id,expected_rpc_id,expected_msg_id,expected_trace_id,expected_data_value",
+                             [(1, 'PUT', True, None, '1', message_data.SEND_SUCCESS, None, '44'),
+                              (1, 'PUT', False, None, '1', message_data.SEND_FAILED, None, '44'),
+                              (1, 'DELETE', True, None, '1', message_data.SEND_SUCCESS, None, 1),
+                              (1, 'DELETE', False, None, '1', message_data.SEND_SUCCESS, None, 1),
+                              (1, 'GET', True, None, '1', message_data.SEND_SUCCESS, None, 1),
+                              (1, 'GET', False, None, '1', message_data.SEND_SUCCESS, None, 1),
+                              (1, 'wrong_verb', False, None, '1', message_data.SEND_FAILED, None, 1),
+                              (1, 'wrong_verb', True, None, '1', message_data.SEND_FAILED, None, 1),
+                              (1, 'PUT', True, 321, None, message_data.SEND_TRACE, '321', '44'),
+                              (1, 'PUT', False, 321, '1', message_data.SEND_FAILED, None, '44'),
+                              (1, 'DELETE', True, 321, None, message_data.SEND_TRACE, '321', 1),
+                              (1, 'DELETE', False, 321, None, message_data.SEND_TRACE, '321', 1),
+                              (1, 'GET', True, 321, None, message_data.SEND_TRACE, '321', 1),
+                              (1, 'GET', False, 321, None, message_data.SEND_TRACE, '321', 1),
+                              (1, 'wrong_verb', False, 321, '1', message_data.SEND_FAILED, None, 1),
+                              (1, 'wrong_verb', True, 321, '1', message_data.SEND_FAILED, None, 1)
+                             ])
     @pytest.mark.parametrize("bulk", [False, True])
-    def test_receive_thread_method(self, verb, callback_exists, expected_msg_id, trace_id, bulk):
+    def test_receive_thread_method(self, id, verb, callback_exists, trace_id,
+                                   expected_rpc_id, expected_msg_id, expected_trace_id,
+                                   expected_data_value, bulk):
         # Arrange
+        value = self.service.instance.device_list[0].value_list[0]
+        value.control_state.data = 1
         response = create_response(self, verb, callback_exists, trace_id, bulk)
         self.service.socket.my_socket.recv = Mock(side_effect=[response.encode('utf-8'), KeyboardInterrupt])
         
@@ -267,7 +273,9 @@ class TestReceiveThreadClass:
             pass
         
         # Assert
+        #todo fix
         #assert send.trace_id == trace_id
+        assert value.control_state.data == expected_data_value
         while self.service.socket.sending_queue.qsize() > 0:
             send = self.service.socket.sending_queue.get()
             assert (send.msg_id == message_data.SEND_SUCCESS or 
@@ -309,9 +317,9 @@ class TestSendThreadClass:
                                                  (message_data.SEND_RECONNECT, True),
                                                  (message_data.SEND_CONTROL, True)])
     @pytest.mark.parametrize("value,expected_value", [('test_value','test_value'),
-                                                      ('', None),
-                                                      (None, None),
-                                                      ([],None)])
+                                                                ('', ''),
+                                                                (None, None),
+                                                                ([],None)])
     @pytest.mark.parametrize("messages_in_queue", [1, 2])
     def test_send_thread(self, type, messages_in_queue, value, expected_value, send_trace):
         # Arrange

@@ -1,0 +1,20 @@
+{
+  "id"                  : "network.json",
+  "$schema"             : "http://json-schema.org/draft-04/schema#",
+  "title"               : "network-2.0",
+  "type"                : "object",
+  "properties"          : {
+    "name"  : {"type": "string"},
+    "device": {"type": "array", "items": {"$ref": "device.json"}},
+    "meta"        : {
+      "properties": {
+        "id": { "$ref": "../../../core/validation/2.0/util/types.json#/id" },
+        "upgradable": {"type": "boolean"}
+      },
+      "type": "object",
+      "required": ["id"]
+    }
+  },
+  "required": ["meta"],
+  "additionalProperties": false
+}

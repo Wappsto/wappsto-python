@@ -1,0 +1,46 @@
+{
+  "id"                  : "status.json",
+  "$schema"             : "http://json-schema.org/draft-04/schema#",
+  "title"               : "status-2.0",
+  "type"                : "object",
+  "properties"          : {
+    "message"  : {"type": "string"},
+    "timestamp": {"type": "string", "format": "date-time"},
+    "data"     : {"type": "string"},
+    "level"    : {
+      "type": "string",
+      "enum": ["important", "error", "warning", "info", "debug"]
+    },
+    "type"     : {
+      "type": "string",
+      "enum": [
+        "public key",
+        "memory information",
+        "device description",
+        "value description",
+        "value",
+        "partner information",
+        "action",
+        "calculation",
+        "timer",
+        "calendar",
+        "statemachine",
+        "firmware update",
+        "configuration",
+        "exi",
+        "system",
+        "application",
+        "gateway"
+      ]
+    },
+    "meta"        : {
+      "properties": {
+        "id": { "$ref": "../../../core/validation/2.0/util/types.json#/id" }
+      },
+      "type": "object",
+      "required": ["id"]
+    }
+  },
+  "additionalProperties": false,
+  "required"            : ["message", "timestamp", "level", "type", "meta"]
+}
