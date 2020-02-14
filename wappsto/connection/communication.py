@@ -196,8 +196,9 @@ class ClientSocket:
 
         Initializes the object instances on the sending/receiving queue.
         """
-        package = send_data.SendData(send_data.SEND_TRACE,
-                                     parent=self.instance.network_cl.uuid)
+        package = message_data.MessageData(message_data.SEND_TRACE,
+                                           parent=self.instance.network_cl.uuid
+                                           )
         package = self.create_trace(package)
 
         self.initialize_code.initialize_all(self, self.instance,
@@ -593,8 +594,8 @@ class ClientSocket:
 
             package.trace_id = random_int
 
-            trace = send_data.SendData(
-                send_data.SEND_TRACE,
+            trace = message_data.MessageData(
+                message_data.SEND_TRACE,
                 parent=package.network_id,
                 trace_id=package.trace_id,
                 data=None,
@@ -797,38 +798,6 @@ class ClientSocket:
         """
         while len(self.packet_awaiting_confirm) > 0:
             self.receive_message()
-
-    def receive_data(self):
-        """Socket receive method.
-
-        Method that handles receiving data from a socket. Capable of handling
-        data chunks.
-
-        Returns:
-            The decoded message from the socket.
-
-        """
-        total_decoded = []
-        decoded = None
-        while True:
-            if self.connected:
-                data = self.my_socket.recv(2000)
-                decoded_data = data.decode('utf-8')
-                total_decoded.append(decoded_data)
-            else:
-                break
-
-            try:
-                decoded = json.loads(''.join(total_decoded))
-            except JSONDecodeError:
-                if data == b'':
-                    self.reconnect()
-                else:
-                    self.wapp_log.error("Value error: {}".format(data))
-            else:
-                break
-
-        return decoded
 
     def receive_message(self):
         """
