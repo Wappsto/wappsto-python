@@ -5,7 +5,7 @@
   "type"                : "object",
   "properties"          : {
     "jsonrpc"                   : {"type": "string"},
-    "id"                        : {"type": "number"},
+    "id"                        : {"oneOf":[{"type": "string"}, {"type": "number"}]},
 	"params"                    : {"$ref": "params.json"},
     "method"                    : {
       "type": "string",
