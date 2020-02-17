@@ -289,14 +289,16 @@ class TestReceiveThreadClass:
             pass
 
         # Assert
+        if expected_msg_id == message_data.SEND_TRACE:
+            assert any(message.msg_id == message_data.SEND_TRACE for message in self.service.socket.sending_queue.queue)
         while self.service.socket.sending_queue.qsize() > 0:
-            send = self.service.socket.sending_queue.get()
-            if send.msg_id == message_data.SEND_SUCCESS:
-                send.data == expected_data_value
+            message = self.service.socket.sending_queue.get()
+            if message.msg_id == message_data.SEND_SUCCESS:
+                message.data == expected_data_value
             else:
-                assert send.msg_id == expected_msg_id
-                if send.msg_id == message_data.SEND_TRACE:
-                    assert send.trace_id == trace_id
+                assert message.msg_id == expected_msg_id
+                if message.msg_id == message_data.SEND_TRACE:
+                    assert message.trace_id == trace_id
 
     @pytest.mark.parametrize("id", [93043873])
     @pytest.mark.parametrize("type", ["error", "result"])
