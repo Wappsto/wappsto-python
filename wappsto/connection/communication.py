@@ -196,13 +196,7 @@ class ClientSocket:
 
         Initializes the object instances on the sending/receiving queue.
         """
-        package = message_data.MessageData(message_data.SEND_TRACE,
-                                           parent=self.instance.network_cl.uuid
-                                           )
-        package = self.create_trace(package)
-
-        self.initialize_code.initialize_all(self, self.instance,
-                                            package.trace_id)
+        self.initialize_code.initialize_all(self, self.instance)
         self.confirm_initialize_all()
 
     def add_id_to_confirm_list(self, data):
@@ -573,36 +567,37 @@ class ClientSocket:
         )
         self.wapp_log.debug(msg)
 
-    def create_trace(self, package):
+    def create_trace(self, parent, trace_id=None):
         """
         Creates trace.
 
         Creates trace if necessary, by using generated data and existing
-        information from package.
+        information.
 
         Args:
-            package: Sending queue item.
+            parent: owner of trace.
+            trace_id: existing id used for tracing.
 
         Returns:
-            Sending queue item with new trace id.
+            trace id.
 
         """
-        if self.automatic_trace and package.trace_id is None:
+        if self.automatic_trace and trace_id is None:
             random_int = random.randint(1, 25000)
             control_value_id = "{}{}".format(self.instance.network_cl.name,
                                              random_int)
 
-            package.trace_id = random_int
+            trace_id = random_int
 
             trace = message_data.MessageData(
                 message_data.SEND_TRACE,
-                parent=package.network_id,
-                trace_id=package.trace_id,
+                parent=parent,
+                trace_id=trace_id,
                 data=None,
                 text="ok",
                 control_value_id=control_value_id)
             self.send_trace(trace)
-        return package
+        return trace_id
 
     def send_control(self, package):
         """
@@ -617,7 +612,8 @@ class ClientSocket:
         """
         self.wapp_log.info("Sending control message")
         try:
-            package = self.create_trace(package)
+            package.trace_id = self.create_trace(
+                package.network_id, package.trace_id)
 
             local_data = self.rpc.get_rpc_state(
                 package.data,
@@ -675,7 +671,8 @@ class ClientSocket:
         """
         self.wapp_log.info("Sending reconnect data")
         try:
-            package = self.create_trace(package)
+            package.trace_id = self.create_trace(
+                package.network_id, package.trace_id)
 
             rpc_network = self.rpc.get_rpc_network(
                 self.network.uuid,
@@ -733,7 +730,8 @@ class ClientSocket:
                         self.add_trace_to_report_list.pop(package.value_id)
                     )
 
-            package = self.create_trace(package)
+            package.trace_id = self.create_trace(
+                package.network_id, package.trace_id)
 
             local_data = self.rpc.get_rpc_state(
                 package.data,

@@ -30,7 +30,7 @@ class Initialize:
         """
         self.rpc = rpc
 
-    def initialize_all(self, conn, instance, trace_id):
+    def initialize_all(self, conn, instance):
         """
         Initialize all of the devices on the sending and receiving queue.
 
@@ -40,11 +40,12 @@ class Initialize:
         Args:
             conn: A reference to the socket instance.
             instance: A reference to the network and device instances.
-            trace_id:  ID of the debug trace.
 
         """
         self.wapp_log = logging.getLogger(__name__)
         self.wapp_log.addHandler(logging.NullHandler())
+
+        trace_id = conn.create_trace(instance.network_cl.uuid)
 
         self.rpc.add_whole_json(conn,
                                 instance.build_json(), trace_id)

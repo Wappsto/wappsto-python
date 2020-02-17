@@ -3,7 +3,6 @@ import os
 import json
 import pytest
 import wappsto
-import urllib.parse
 from mock import Mock
 from unittest.mock import patch
 import urllib.parse as urlparse
@@ -30,17 +29,17 @@ def stop_if_success_or_failed(*args, **kwargs):
 
 
 def check_if_element_exists(change_indicator, key_name, dict1, dict2):
-    result1 = exists_in_dictionary(key_name,dict1)
-    result2 = exists_in_dictionary(key_name,dict2)
+    result1 = exists_in_dictionary(key_name, dict1)
+    result2 = exists_in_dictionary(key_name, dict2)
     return (change_indicator and result1 != result2) or (not change_indicator and result1 == result2)
 
 
-def fake_connect(self, address, port, send_trace = False):
+def fake_connect(self, address, port, send_trace=False):
     wappsto.RETRY_LIMIT = 2
     with patch('ssl.SSLContext.wrap_socket') as context:
         context.connect = Mock(side_effect=check_for_correct_conn)
         with patch('time.sleep', return_value=None), patch('threading.Thread'), patch('wappsto.communication.ClientSocket.add_id_to_confirm_list'), patch('socket.socket'), patch('ssl.SSLContext.wrap_socket', return_value=context):
-            self.service.start(address=address, port=port)
+            self.service.start(address=address, port=port, automatic_trace=send_trace)
 
 
 def fix_object_callback(callback_exists, testing_object):
@@ -68,7 +67,7 @@ def create_response(self, verb, callback_exists, trace_id, bulk):
         if trace_id is not None:
             trace = {"trace": str(trace_id)}
 
-        message = {"jsonrpc": "2.0", "id": "1", "params": {"url": str(url), "meta": trace, "data": {"meta": {"id": id}, "data": "44"}}, "method": verb}
+        message = {"jsonrpc": "2.0", "id": "1", "params": {"url": url, "meta": trace, "data": {"meta": {"id": id}, "data": "44"}}, "method": verb}
     else:
         message = {"jsonrpc": "2.0", "id": "1", "params": {"url": "/network/b03f246d-63ef-446d-be58-ef1d1e83b338/device/a0e087c1-9678-491c-ac47-5b065dea3ac0/value/7ce2afdd-3be3-4945-862e-c73a800eb209/state/a7b4f66b-2558-4559-9fcc-c60768083164", "data": {"meta": {"id": "a7b4f66b-2558-4559-9fcc-c60768083164", "type": "state", "version": "2.0"}, "type": "Report", "status": "Send", "data": "44", "timestamp": "2020-01-22T08:22:57.216500Z"}}, "method": "??????"}
 
@@ -114,15 +113,17 @@ class TestConnClass:
         self.test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
         self.service = wappsto.Wappsto(json_file_name=self.test_json_location)
 
-    @pytest.mark.parametrize("address,port,expected_status", [(ADDRESS, PORT, status.RUNNING),
-                                              (ADDRESS, -1, status.DISCONNECTING),
-                                              ("wappstoFail.com", PORT, status.DISCONNECTING),
-                                              ("wappstoFail.com", -1, status.DISCONNECTING)])
+    @pytest.mark.parametrize("address,port,expected_status",
+                             [(ADDRESS, PORT, status.RUNNING),
+                              (ADDRESS, -1, status.DISCONNECTING),
+                              ("wappstoFail.com", PORT, status.DISCONNECTING),
+                              ("wappstoFail.com", -1, status.DISCONNECTING)])
     @pytest.mark.parametrize("send_trace", [True, False])
     @pytest.mark.parametrize("callback_exists", [True, False])
     @pytest.mark.parametrize("value_changed_to_none", [True, False])
     @pytest.mark.parametrize("upgradable", [True, False])
-    def test_connection(self, address, port, expected_status, send_trace, callback_exists, value_changed_to_none, upgradable):
+    def test_connection(self, address, port, expected_status, send_trace,
+                        callback_exists, value_changed_to_none, upgradable):
         # Arrange
         status_service = self.service.get_status()
         fix_object_callback(callback_exists, status_service)
@@ -137,34 +138,34 @@ class TestConnClass:
                 args, kwargs = self.service.socket.my_socket.send.call_args
                 arg = json.loads(args[0].decode('utf-8'))
                 sent_json = arg[0]['params']['data']
-                
-                if urlopen.called:
+
+                if send_trace:
                     urlopen_args, urlopen_kwargs = urlopen.call_args
 
                     parsed_urlopen = urlparse.urlparse(urlopen_args[0])
                     urlopen_trace_id = parse_qs(parsed_urlopen.query)['id']
-    
-                    parsed_sent_json = urlparse.urlparse(arg['params']['url'])
+
+                    parsed_sent_json = urlparse.urlparse(arg[0]['params']['url'])
                     sent_json_trace_id = parse_qs(parsed_sent_json.query)['trace']
 
             except wappsto_errors.ServerConnectionException:
                 sent_json = None
-                send_trace = False
 
         # Assert
-        if sent_json != None:
+        if sent_json is not None:
             assert not 'None' in str(sent_json)
+            assert sent_json_trace_id == urlopen_trace_id
+            assert (send_trace and urlopen_trace_id != '' or
+                    not send_trace and urlopen_trace_id == '')
             assert (upgradable and 'upgradable' in str(sent_json['meta']) or
                     not upgradable and not 'upgradable' in str(sent_json['meta']))
         assert self.service.status.get_status() == expected_status
 
 class TestValueSendClass:
 
-    @classmethod
-    def setup_class(self):
+    def setup_method(self):
         test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
         self.service = wappsto.Wappsto(json_file_name=test_json_location)
-        fake_connect(self, ADDRESS, PORT)
 
     @pytest.mark.parametrize("input,step_size,expected", [(8, 1, "8"),# value on the step
                                                      (8, -1, "8"),
@@ -203,29 +204,44 @@ class TestValueSendClass:
                                                      (2, 1.0e-07, "2"),
                                                      (2, 123.456e-5, "1.9999872"),
                                                      (1, 9.0e-20, "0.99999999999999999999")])
-    def test_send_value_update(self, input, step_size, expected):
+    @pytest.mark.parametrize("send_trace", [True, False])
+    def test_send_value_update(self, input, step_size, expected, send_trace):
         # Arrange
+        with patch('urllib.request.urlopen'):
+            fake_connect(self, ADDRESS, PORT, send_trace)
         self.service.socket.message_received = True
         self.service.socket.my_socket.send = Mock()
+        urlopen_trace_id = sent_json_trace_id = ''
         device = self.service.get_devices()[0]
         value = device.value_list[0]
         value.number_step = step_size
 
         # Act
-        try:
-            value.update(input)
-            args, kwargs = self.service.socket.my_socket.send.call_args
-            arg = json.loads(args[0].decode('utf-8'))
-            result = arg[0]['params']['data']['data']
-        except TypeError:
-            result = None
+        with patch('urllib.request.urlopen') as urlopen:
+            try:
+                value.update(input)
+                args, kwargs = self.service.socket.my_socket.send.call_args
+                arg = json.loads(args[0].decode('utf-8'))
+                result = arg[0]['params']['data']['data']
+    
+                if send_trace:
+                    urlopen_args, urlopen_kwargs = urlopen.call_args
+    
+                    parsed_urlopen = urlparse.urlparse(urlopen_args[0])
+                    urlopen_trace_id = parse_qs(parsed_urlopen.query)['id']
+    
+                    parsed_sent_json = urlparse.urlparse(arg[0]['params']['url'])
+                    sent_json_trace_id = parse_qs(parsed_sent_json.query)['trace']
+            except TypeError:
+                result = None
 
         # Assert
         assert result == expected
-
-    @classmethod
-    def teardown_class(self):
-        self.service.stop()
+        assert sent_json_trace_id == urlopen_trace_id
+        if send_trace and result is not None:
+            assert urlopen_trace_id != ''
+        else:
+            assert urlopen_trace_id == ''
 
 
 class TestReceiveThreadClass:
@@ -271,7 +287,7 @@ class TestReceiveThreadClass:
             self.service.socket.receive_thread()
         except KeyboardInterrupt:
             pass
-        
+
         # Assert
         #todo fix
         #assert send.trace_id == trace_id
@@ -363,10 +379,11 @@ class TestSendThreadClass:
                     sent_json_trace_id = parse_qs(parsed_sent_json.query)['trace']
 
         # Assert
-        assert urlopen_trace_id == sent_json_trace_id and (
-            not send_trace and urlopen_trace_id == '' or
-            send_trace and urlopen_trace_id != ''
-            )
+        assert urlopen_trace_id == sent_json_trace_id
+        if send_trace:
+            assert urlopen_trace_id != ''
+        else:
+            assert urlopen_trace_id == ''
         assert self.service.socket.sending_queue.qsize() == 0
         assert messages_in_queue == len(requests)
         for request in requests:
@@ -396,7 +413,7 @@ class TestSendThreadClass:
         # Arrange
         reply = message_data.MessageData(
             type,
-            trace_id = trace_id,
+            trace_id=trace_id,
             rpc_id=rpc_id
         )
         self.service.socket.sending_queue.put(reply)

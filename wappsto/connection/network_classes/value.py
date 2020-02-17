@@ -553,6 +553,8 @@ class Value:
 
         """
         try:
+            trace_id = self.conn.create_trace(state.uuid)
+
             json_data = self.rpc.get_rpc_state(
                 str(data_value),
                 self.parent_network_id,
@@ -560,7 +562,8 @@ class Value:
                 self.uuid,
                 state.uuid,
                 type,
-                state_obj=state
+                state_obj=state,
+                trace_id=trace_id
             )
             if timestamp:
                 state.timestamp = timestamp
