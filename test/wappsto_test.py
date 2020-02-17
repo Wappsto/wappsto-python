@@ -152,8 +152,7 @@ class TestConnClass:
 
 class TestValueSendClass:
 
-    @classmethod
-    def setup_class(self):
+    def setup_method(self):
         test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
         self.service = wappsto.Wappsto(json_file_name=test_json_location)
         fake_connect(self, ADDRESS, PORT)
@@ -195,12 +194,13 @@ class TestValueSendClass:
                                                      (2, 1.0e-07, "2"),
                                                      (2, 123.456e-5, "1.9999872"),
                                                      (1, 9.0e-20, "0.99999999999999999999")])
-    def test_send_value_update(self, input, step_size, expected):
+    def test_send_value_update_number_type(self, input, step_size, expected):
         # Arrange
         self.service.socket.message_received = True
         self.service.socket.my_socket.send = Mock()
         device = self.service.get_devices()[0]
         value = device.value_list[0]
+        value.data_type == "number"
         value.number_step = step_size
 
         # Act
@@ -215,10 +215,38 @@ class TestValueSendClass:
         # Assert
         assert result == expected
 
-    @classmethod
-    def teardown_class(self):
-        self.service.stop()
+    @pytest.mark.parametrize("input,max,expected", [("test", 10, "test"),#value under max
+                                                           ("", 10, ""),
+                                                           ("", 0, ""),#value on max
+                                                           ("testtestte", 10, "testtestte"),
+                                                           ("", None, ""),#no max
+                                                           ("testtesttesttesttesttest", None, "testtesttesttesttesttest"),
+                                                           (None, 10, None),#no value
+                                                           (None, None, None),
+                                                           ("test", 1, None)#value over max
+                                                           ])
+    @pytest.mark.parametrize("type", ["string", "blob"])
+    def test_send_value_update_text_type(self, input, max, expected, type):
+        # Arrange
+        self.service.socket.message_received = True
+        self.service.socket.my_socket.send = Mock()
+        device = self.service.get_devices()[0]
+        value = device.value_list[0]
+        value.data_type = type
+        value.string_max = max
+        value.blob_max = max
 
+        # Act
+        try:
+            value.update(input)
+            args, kwargs = self.service.socket.my_socket.send.call_args
+            arg = json.loads(args[0].decode('utf-8'))
+            result = arg[0]['params']['data']['data']
+        except TypeError:
+            result = None
+
+        # Assert
+        assert result == expected
 
 class TestReceiveThreadClass:
 
