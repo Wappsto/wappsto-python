@@ -5,7 +5,6 @@ Stores the Wappsto class functionality.
 """
 
 import os
-import time
 import logging
 import inspect
 from .connection import seluxit_rpc
@@ -182,51 +181,19 @@ class Wappsto:
 
         """
         self.status.set_status(status.STARTING)
-        # TODO(Dimitar): Change try except wrap to not encompass whole block.
-        try:
-            # Instance the socket class.
-            reconnect_attempt_counter = 0
-            self.status.set_status(status.CONNECTING)
 
-            while (not self.connected
-                    and reconnect_attempt_counter
-                    < RETRY_LIMIT):
-                self.socket = communication.ClientSocket(
-                    rpc=self.rpc,
-                    instance=self.instance,
-                    address=address,
-                    port=port,
-                    path_to_calling_file=self.path_to_calling_file,
-                    wappsto_status=self.status
-                )
+        self.socket = communication.ClientSocket(
+            rpc=self.rpc,
+            instance=self.instance,
+            address=address,
+            port=port,
+            path_to_calling_file=self.path_to_calling_file,
+            wappsto_status=self.status
+        )
 
-                # Attempts to connect to the server.
-                self.connected = self.socket.connect()
-                if self.connected:
-                    self.status.set_status(status.CONNECTED)
-                    break
-                # If it cannot connect it begins attempting the connection
-                # until the retry limit is reached
-
-                self.status.set_status(status.RECONNECTING)
-                msg = "Cannot connect, attempting again in 5 seconds ..."
-                self.wapp_log.info(msg)
-                time.sleep(5)
-                reconnect_attempt_counter += 1
-                self.socket.close()
-
-            # If the connection is not established,
-            # a custom ServerConnectionException is raised.
-            if reconnect_attempt_counter == RETRY_LIMIT:
-                msg = ("Unable to connect to the server[IP: {}, Port: {}]"
-                       .format(self.socket.address, self.socket.port)
-                       )
-                raise wappsto_errors.ServerConnectionException(msg)
-        except wappsto_errors.ServerConnectionException as ce:
-            msg = "Could not connect: {}".format(ce)
-            self.wapp_log.error(msg, exc_info=True)
-            self.stop(False)
-            raise ce
+        self.status.set_status(status.CONNECTING)
+        if not self.socket.connect():
+            self.socket.reconnect(RETRY_LIMIT,send_reconnect=False)
 
         self.status.set_status(status.INITIALIZING)
         # Initializes the network, and all the subsequent devices, values and
