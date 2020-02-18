@@ -68,7 +68,6 @@ class Wappsto:
             self.instance = instantiate.Instantiator(
                 json_file_name=json_file_name,
                 load_from_state_file=load_from_state_file,
-                status=self.status,
                 path_to_calling_file=self.path_to_calling_file
             )
         # When the file fails to open a FileNotFoundError is raised and

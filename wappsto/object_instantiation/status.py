@@ -19,13 +19,12 @@ import logging
 
 
 STARTING = "Starting"
-INSTANTIATING = "Instantiating"
 CONNECTING = "Connecting"
-RECONNECTING = "Reconnecting"
 CONNECTED = "Connected"
 INITIALIZING = "Initializing"
 STARTING_THREADS = "Starting Threads"
 RUNNING = "Running"
+RECONNECTING = "Reconnecting"
 DISCONNECTING = "Disconnecting"
 
 
