@@ -7,8 +7,8 @@ import urllib.parse
 from mock import Mock
 from unittest.mock import patch
 
+from wappsto import status
 from wappsto.connection import message_data
-from wappsto.object_instantiation import status
 from wappsto.connection.network_classes.errors import wappsto_errors
 
 ADDRESS = "wappsto.com"

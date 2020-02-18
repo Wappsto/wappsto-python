@@ -18,7 +18,8 @@ import logging
 from . import message_data
 from . import initialize
 from . import handlers
-from ..object_instantiation import status
+from .. import status
+from .network_classes.errors import wappsto_errors
 
 try:
     from json.decoder import JSONDecodeError
@@ -181,6 +182,7 @@ class ClientSocket:
             self.my_socket.connect((self.address, self.port))
             self.connected = True
             self.my_socket.settimeout(None)
+            self.wappsto_status.set_status(status.CONNECTED)
             return True
 
         except Exception as e:
@@ -418,31 +420,39 @@ class ClientSocket:
         while True:
             self.receive_message()
 
-    def reconnect(self):
+    def reconnect(self, retry_limit=None, send_reconnect=True):
         """
         Attempt to reconnect.
 
         Reconnection attemps in the instance of a connection being interrupted.
         """
-        self.wapp_log.info("Server Disconnect")
         self.wappsto_status.set_status(status.RECONNECTING)
         self.connected = False
-        while not self.connected:
+        attempt = 0
+        while not self.connected and (retry_limit is None
+                                      or retry_limit > attempt):
+            attempt += 1
             self.wapp_log.info("Trying to reconnect in 5 seconds")
             time.sleep(5)
             self.close()
             try:
                 self.set_sockets()
-                self.my_socket.connect((self.address, self.port))
-                self.wapp_log.info("Reconnected")
-                self.connected = True
-                self.wappsto_status.set_status(status.CONNECTED)
-                reconnect_reply = message_data.MessageData(
-                    message_data.SEND_RECONNECT)
-                self.sending_queue.put(reconnect_reply)
+                self.connect()
             except Exception as e:
                 msg = "Failed to reconnect {}".format(e)
                 self.wapp_log.error(msg, exc_info=True)
+
+        if self.connected is True:
+            self.wapp_log.info("Reconnected with " + attempt + " attempts")
+            if send_reconnect:
+                reconnect = message_data.MessageData(
+                    message_data.SEND_RECONNECT)
+                self.sending_queue.put(reconnect)
+        else:
+            msg = ("Unable to connect to the server[IP: {}, Port: {}]"
+                   .format(self.address, self.port)
+                   )
+            raise wappsto_errors.ServerConnectionException(msg)
 
     def create_bulk(self, data):
         """
@@ -469,7 +479,6 @@ class ClientSocket:
 
         Args:
             data: JSON communication message data.
-
         """
         if self.connected:
             for data_element in data:
@@ -641,7 +650,6 @@ class ClientSocket:
             self.create_bulk(rpc_network)
             for element in self.packet_awaiting_confirm:
                 self.create_bulk(self.packet_awaiting_confirm[element])
-            self.wappsto_status.set_status(status.RUNNING)
         except OSError as e:
             self.connected = False
             msg = "Error sending reconnect: {}".format(e)
