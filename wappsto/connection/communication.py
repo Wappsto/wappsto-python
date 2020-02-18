@@ -16,7 +16,6 @@ import ssl
 import urllib.request as request
 import logging
 from . import message_data
-from . import initialize
 from . import handlers
 from ..object_instantiation import status
 
@@ -83,7 +82,6 @@ class ClientSocket:
         self.sending_thread.setDaemon(True)
         self.rpc = rpc
         self.handlers = handlers.Handlers(self.instance)
-        self.initialize_code = initialize.Initialize(self.rpc)
         self.packet_awaiting_confirm = {}
         self.add_trace_to_report_list = {}
         self.bulk_send_list = []
@@ -200,7 +198,16 @@ class ClientSocket:
                     self.get_control(state)
 
         self.message_received = True
-        self.initialize_code.initialize_all(self, self.instance)
+        message = self.rpc.get_rpc_whole_json(self.instance.build_json())
+        self.rpc.send_init_json(self, message)
+        self.add_id_to_confirm_list(message)
+
+        msg = "The whole network {} added to Sending queue {}.".format(
+            self.instance.network_cl.name,
+            self.rpc
+        )
+        self.wapp_log.debug(msg)
+
         self.confirm_initialize_all()
 
     def add_id_to_confirm_list(self, data):

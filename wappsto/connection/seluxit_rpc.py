@@ -247,25 +247,6 @@ class SeluxitRpc:
                                          data=json_data)
         return data_json_rpc
 
-    def add_whole_json(
-            self,
-            connection,
-            json_data
-    ):
-        """Add an instance of the whole json file.
-
-        While initializing adds network/device/value/state to send and
-        receive queue.
-
-        Args:
-            connection: A reference to the socket instance.
-            json_data: Data read from json file.
-
-        """
-        message = self.get_rpc_whole_json(json_data)
-        self.send_init_json(connection, message)
-        connection.add_id_to_confirm_list(message)
-
     def send_init_json(self, connection, json_data):
         """Send initial JSON data.
 
