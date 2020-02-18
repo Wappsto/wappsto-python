@@ -18,7 +18,7 @@ import logging
 from . import send_data
 from . import initialize
 from . import handlers
-from ..object_instantiation import status
+from .. import status
 
 try:
     from json.decoder import JSONDecodeError

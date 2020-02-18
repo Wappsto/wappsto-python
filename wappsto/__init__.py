@@ -11,7 +11,7 @@ import inspect
 from .connection import seluxit_rpc
 from .connection import communication
 from .connection.network_classes.errors import wappsto_errors
-from .object_instantiation import status
+from . import status
 from .object_instantiation import instantiate
 from .object_instantiation import save_objects
 
