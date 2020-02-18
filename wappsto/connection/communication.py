@@ -77,7 +77,7 @@ class ClientSocket:
         self.receiving_thread = threading.Thread(target=self.receive_thread)
         self.receiving_thread.setDaemon(True)
         self.connected = False
-        self.message_received = True
+        self.message_received = False
         self.sending_queue = queue.Queue(maxsize=0)
         self.sending_thread = threading.Thread(target=self.send_thread)
         self.sending_thread.setDaemon(True)
@@ -193,6 +193,13 @@ class ClientSocket:
 
         Initializes the object instances on the sending/receiving queue.
         """
+        for device in self.instance.device_list:
+            for value in device.value_list:
+                state = value.get_control_state()
+                if state is not None:
+                    self.get_control(state)
+
+        self.message_received = True
         self.initialize_code.initialize_all(self, self.instance)
         self.confirm_initialize_all()
 
@@ -535,6 +542,34 @@ class ClientSocket:
 
             self.sending_queue.task_done()
 
+    def get_control(self, state):
+        """
+        Send get control state data.
+
+        Sends requests fot the data of control state.
+
+        Args:
+            state: State object referece.
+
+        """
+        self.wapp_log.info("Getting control value")
+        try:
+            local_data = self.rpc.get_rpc_state(
+                None,
+                state.parent_value.parent_network_id,
+                state.parent_value.parent_device_id,
+                state.parent_value.uuid,
+                state.uuid,
+                'control',
+                get=True
+            )
+            self.add_id_to_confirm_list(local_data)
+            self.create_bulk(local_data)
+        except OSError as e:
+            self.connected = False
+            msg = "Error sending control: {}".format(e)
+            self.wapp_log.error(msg, exc_info=True)
+
     def send_trace(self, package):
         """
         Send data trace.
@@ -815,6 +850,15 @@ class ClientSocket:
                     self.remove_id_from_confirm_list(decoded_id)
 
                 elif decoded.get('result', False):
+                    value = decoded['result'].get('value', True)
+                    if value is not True:
+                        uuid = value['meta']['id']
+                        data = value['data']
+                        for device in self.instance.device_list:
+                            for value in device.value_list:
+                                state = value.get_control_state()
+                                if state is not None and state.uuid == uuid:
+                                    state.data = data
                     self.remove_id_from_confirm_list(decoded_id)
 
                 else:

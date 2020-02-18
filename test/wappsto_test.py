@@ -141,7 +141,7 @@ class TestConnClass:
                 fake_connect(self, address, port)
                 args, kwargs = self.service.socket.my_socket.send.call_args
                 arg = json.loads(args[0].decode('utf-8'))
-                sent_json = arg[0]['params']['data']
+                sent_json = arg[len(arg)-1]['params']['data']
             except wappsto_errors.ServerConnectionException:
                 sent_json = None
                 pass
@@ -404,13 +404,35 @@ class TestReceiveThreadClass:
             if message.msg_id == message_data.SEND_TRACE:
                 assert message.trace_id == trace_id
 
-
-    @pytest.mark.parametrize("id,type", [(93043873, "error"),
-                                         (93043873, "result")])
-    def test_receive_thread_other(self, id, type):
+    @pytest.mark.parametrize("id", ["93043873"])
+    @pytest.mark.parametrize("data", ["55"])
+    def test_receive_thread_result(self, id, data):
         # Arrange
-        response = '{"jsonrpc": "2.0", "id": "'+ str(id) +'", "'+type+'": {"value": "True", "meta": {"server_send_time": "2020-01-22T08:22:55.315Z"}}}'
-        self.service.socket.packet_awaiting_confirm[str(id)] = response
+        state = self.service.instance.device_list[0].value_list[0].control_state
+        state.data = 1
+        response = {'jsonrpc': '2.0', 'id': id, 'result': {'value': {'data': data, 'type': 'Control', 'timestamp': '2020-01-20T09:20:21.092Z', 'meta': {'type': 'state', 'version': '2.0', 'id': state.uuid, 'manufacturer': '31439b87-040b-4b41-b5b8-f3774b2a1c19', 'updated': '2020-02-18T09:14:12.880+00:00', 'created': '2020-01-20T09:20:21.290+00:00', 'revision': 1035, 'contract': [], 'owner': 'bb10f0f1-390f-478e-81c2-a67f58de88be'}}, 'meta': {'server_send_time': '2020-02-18T09:18:05.792Z'}}}
+        self.service.socket.packet_awaiting_confirm[id] = response
+        response = json.dumps(response)
+        self.service.socket.my_socket.recv = Mock(side_effect=[response.encode('utf-8'), KeyboardInterrupt])
+
+        # Act
+        try:
+            # runs until mock object is run and its side_effect raises
+            # exception
+            self.service.socket.receive_thread()
+        except KeyboardInterrupt:
+            pass
+
+        # Assert
+        assert state.data == data
+        assert len(self.service.socket.packet_awaiting_confirm) == 0
+    
+    @pytest.mark.parametrize("id", ["93043873"])
+    def test_receive_thread_error(self, id):
+        # Arrange
+        response = {'jsonrpc': '2.0', 'id': id, 'error': {'message': "test message", 'code': -32020, 'data': ''}}
+        self.service.socket.packet_awaiting_confirm[id] = response
+        response = json.dumps(response)
         self.service.socket.my_socket.recv = Mock(side_effect=[response.encode('utf-8'), KeyboardInterrupt])
 
         # Act

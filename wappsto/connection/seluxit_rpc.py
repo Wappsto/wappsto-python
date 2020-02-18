@@ -135,25 +135,24 @@ class SeluxitRpc:
             JSON formatted data of network
 
         """
-        network = "network"
-        meta = self.create_meta(network, network_id)
+        meta = self.create_meta("network", network_id)
         if SeluxitRpc.is_upgradable():
             meta.update({'upgradable': True})
         data_inside = {
             "meta": meta,
             'name': network_name
         }
+        url = '/network'
 
         if put:
-            data_json_rpc = requests.Request('PUT',
-                                             url='/{}/{}'.format(
-                                                 network,
-                                                 network_id),
-                                             data=data_inside)
+            verb = 'PUT'
+            url = '{}/{}'.format(url, network_id)
         else:
-            data_json_rpc = requests.Request('POST',
-                                             url='/{}'.format(network),
-                                             data=data_inside)
+            verb = 'POST'
+
+        data_json_rpc = requests.Request(verb,
+                                         url=url,
+                                         data=data_inside)
         return data_json_rpc
 
     def get_rpc_state(
@@ -162,7 +161,7 @@ class SeluxitRpc:
             network_id,
             device_id,
             value_id,
-            report_id,
+            state_id,
             set_type,
             get=False,
             put=True,
@@ -181,7 +180,7 @@ class SeluxitRpc:
             network_id: Unique identifier of the network.
             device_id: Unique identifier of a device.
             value_id: Unique identifier of a value.
-            report_id: Unique identifier of the report state.
+            state_id: Unique identifier of the state.
             set_type: The type to set.
             get: Defines if the request is of type GET. (default: {False})
             put: Defines if the request is of type PUT. (default: {True})
@@ -194,100 +193,40 @@ class SeluxitRpc:
 
         """
         update = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-        device_state = {
-            'meta': {},
-            'type': '',
-            'status': 'Send',
-            'data': data,
-            'timestamp': update
-        }
-        state = "state"
-        device_state["meta"] = self.create_meta(state, report_id)
-
-        if state_obj is not None:
-            state_obj.timestamp = update
-
         if set_type == 'report':
             set_type = 'Report'
         else:
             set_type = 'Control'
+        device_state = {
+            'meta': self.create_meta("state", state_id),
+            'type': set_type,
+            'status': 'Send',
+            'data': data,
+            'timestamp': update
+        }
 
-        device_state['type'] = set_type
+        if state_obj is not None:
+            state_obj.timestamp = update
 
-        if get is True and put is False:
-            put = True
-        else:
-            get = False
-
-        data_json_rpc = self.create_json_message(
-            device_id,
-            network_id,
-            value_id,
-            device_state,
-            put=put,
-            state=state,
-            state_id=report_id,
-            trace_id=trace_id,
-            get=get
-        )
-        return data_json_rpc
-
-    def create_json_message(
-            self,
-            device_id,
-            network_id,
-            value_id,
-            data,
-            put,
-            state=None,
-            state_id=None,
-            trace_id=None,
-            get=False
-    ):
-        """
-        Create a JSON encoded message.
-
-        Creates a message that is used for communicating with a server. Both
-        for put and post as well as get request methods. The message is build
-        as a url and contains information about a network, device, value and
-        state.
-
-        Args:
-            device_id: Unique identifying number of device.
-            network_id: Unique identifying number of network.
-            value_id: Unique identifying number of value.
-            data: Passed data around which a message will be created.
-            put: Determines whether or not it is put request.
-            state: reference to a state object.
-            state_id: Unique identifying number of state.
-            trace_id: Id of trace is necessary.
-            get: Defines if the request is of type GET. (default: {False})
-
-        """
-        base_url = '/network/{}/device/{}/value/'.format(network_id, device_id)
+        base_url = '/network/{}/device/{}/value/{}/state'
+        base_url = base_url.format(network_id, device_id, value_id)
         if put:
             if get:
                 verb = 'GET'
+                device_state = None
             else:
                 verb = 'PUT'
-
-            if state == 'state':
-                url = "{}{}/{}/{}".format(base_url, value_id, state, state_id)
-            else:
-                url = "{}{}".format(base_url, value_id)
-
-            if trace_id:
-                url = "{}?trace={}".format(url, trace_id)
+            url = "{}/{}".format(base_url, state_id)
         else:
             verb = 'POST'
-            if state == 'state':
-                url = "{}{}/{}".format(base_url, value_id, state)
-            else:
-                url = base_url
 
-        return requests.Request(verb,
-                                url=url,
-                                data=data)
+        if trace_id:
+            url = "{}?trace={}".format(url, trace_id)
+
+        data_json_rpc = requests.Request(verb,
+                                         url=url,
+                                         data=device_state)
+        return data_json_rpc
 
     def get_rpc_whole_json(self, json_data):
         """
