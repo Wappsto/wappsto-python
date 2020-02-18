@@ -180,7 +180,7 @@ class Handlers:
                 control_value_id=random_id
             )
 
-        if True or self.instance.network_cl.uuid == id:
+        if self.instance.network_cl.uuid == id:
             return self.instance.network_cl.handle_delete()
 
         for device in self.instance.device_list:
