@@ -466,7 +466,7 @@ class Value:
             return False
 
         data_value = self.__validate_value_data(data_value)
-        if not data_value:
+        if data_value is None:
             return False
 
         return self.__send_logic(
