@@ -263,6 +263,7 @@ class TestValueSendClass:
             fake_connect(self, ADDRESS, PORT, send_trace)
         self.service.socket.message_received = True
         self.service.socket.my_socket.send = Mock()
+        urlopen_trace_id = sent_json_trace_id = ''
         device = self.service.get_devices()[0]
         value = device.value_list[0]
         value.data_type = type
