@@ -48,26 +48,27 @@ def fix_object_callback(callback_exists, testing_object):
         testing_object.set_callback(test_callback)
     else:
         testing_object.callback = None
-    return testing_object
 
 
-def create_response(self, verb, callback_exists, trace_id, bulk):
-    value = self.service.instance.device_list[0].value_list[0]
-    value = fix_object_callback(callback_exists, value)
-    id = str(value.control_state.uuid)
-    url = str(value.report_state.uuid)
+def get_object(self, object_name):
+    actual_object = None
+    if object_name == "network":
+        actual_object = self.service.instance.network_cl
+    elif object_name == "device":
+        actual_object = self.service.instance.device_list[0]
+    elif object_name == "value":
+        actual_object = self.service.instance.device_list[0].value_list[0]
+    elif object_name == "state":
+        actual_object = self.service.instance.device_list[0].value_list[0].state_list[0]
+    return actual_object
+
+
+def create_response(self, verb, trace_id, bulk, id, url, data):
     trace = ''
-
-    if verb == "DELETE":
-        network = self.service.get_network()
-        network = fix_object_callback(callback_exists, network)
-        url = str(network.uuid)
-
     if verb == "DELETE" or verb == "PUT" or verb == "GET":
         if trace_id is not None:
             trace = {"trace": trace_id}
-
-        message = {"jsonrpc": "2.0", "id": "1", "params": {"url": url, "meta": trace, "data": {"meta": {"id": id}, "data": "44"}}, "method": verb}
+        message = {"jsonrpc": "2.0", "id": "1", "params": {"url": str(url), "meta": trace, "data": {"meta": {"id": id}, "data": data}}, "method": verb}
     else:
         message = {"jsonrpc": "2.0", "id": "1", "params": {"url": "/network/b03f246d-63ef-446d-be58-ef1d1e83b338/device/a0e087c1-9678-491c-ac47-5b065dea3ac0/value/7ce2afdd-3be3-4945-862e-c73a800eb209/state/a7b4f66b-2558-4559-9fcc-c60768083164", "data": {"meta": {"id": "a7b4f66b-2558-4559-9fcc-c60768083164", "type": "state", "version": "2.0"}, "type": "Report", "status": "Send", "data": "44", "timestamp": "2020-01-22T08:22:57.216500Z"}}, "method": "??????"}
 
@@ -205,7 +206,7 @@ class TestValueSendClass:
                                                      (2, 123.456e-5, "1.9999872"),
                                                      (1, 9.0e-20, "0.99999999999999999999")])
     @pytest.mark.parametrize("send_trace", [True, False])
-    def test_send_value_update(self, input, step_size, expected, send_trace):
+    def test_send_value_update_number_type(self, input, step_size, expected, send_trace):
         # Arrange
         with patch('urllib.request.urlopen'):
             fake_connect(self, ADDRESS, PORT, send_trace)
@@ -214,6 +215,7 @@ class TestValueSendClass:
         urlopen_trace_id = sent_json_trace_id = ''
         device = self.service.get_devices()[0]
         value = device.value_list[0]
+        value.data_type == "number"
         value.number_step = step_size
 
         # Act
@@ -243,6 +245,56 @@ class TestValueSendClass:
         else:
             assert urlopen_trace_id == ''
 
+    @pytest.mark.parametrize("input,max,expected", [("test", 10, "test"),#value under max
+                                                           ("", 10, ""),
+                                                           ("", 0, ""),#value on max
+                                                           ("testtestte", 10, "testtestte"),
+                                                           ("", None, ""),#no max
+                                                           ("testtesttesttesttesttest", None, "testtesttesttesttesttest"),
+                                                           (None, 10, None),#no value
+                                                           (None, None, None),
+                                                           ("test", 1, None)#value over max
+                                                           ])
+    @pytest.mark.parametrize("type", ["string", "blob"])
+    @pytest.mark.parametrize("send_trace", [True, False])
+    def test_send_value_update_text_type(self, input, max, expected, type, send_trace):
+        # Arrange
+        with patch('urllib.request.urlopen'):
+            fake_connect(self, ADDRESS, PORT, send_trace)
+        self.service.socket.message_received = True
+        self.service.socket.my_socket.send = Mock()
+        device = self.service.get_devices()[0]
+        value = device.value_list[0]
+        value.data_type = type
+        value.string_max = max
+        value.blob_max = max
+
+         # Act
+        with patch('urllib.request.urlopen') as urlopen:
+            try:
+                value.update(input)
+                args, kwargs = self.service.socket.my_socket.send.call_args
+                arg = json.loads(args[0].decode('utf-8'))
+                result = arg[0]['params']['data']['data']
+    
+                if send_trace:
+                    urlopen_args, urlopen_kwargs = urlopen.call_args
+    
+                    parsed_urlopen = urlparse.urlparse(urlopen_args[0])
+                    urlopen_trace_id = parse_qs(parsed_urlopen.query)['id']
+    
+                    parsed_sent_json = urlparse.urlparse(arg[0]['params']['url'])
+                    sent_json_trace_id = parse_qs(parsed_sent_json.query)['trace']
+            except TypeError:
+                result = None
+
+        # Assert
+        assert result == expected
+        assert sent_json_trace_id == urlopen_trace_id
+        if send_trace and result is not None:
+            assert urlopen_trace_id != ''
+        else:
+            assert urlopen_trace_id == ''
 
 class TestReceiveThreadClass:
 
@@ -251,33 +303,12 @@ class TestReceiveThreadClass:
         self.service = wappsto.Wappsto(json_file_name=test_json_location)
         fake_connect(self, ADDRESS, PORT)
 
-
-    @pytest.mark.parametrize("verb,callback_exists,trace_id,expected_msg_id,expected_data_value",
-                             [('PUT', True, None, message_data.SEND_SUCCESS, '44'),
-                              ('PUT', False, None, message_data.SEND_FAILED, '44'),
-                              ('DELETE', True, None, message_data.SEND_SUCCESS, '1'),
-                              ('DELETE', False, None, message_data.SEND_SUCCESS, '1'),
-                              ('GET', True, None, message_data.SEND_SUCCESS, '1'),
-                              ('GET', False, None, message_data.SEND_SUCCESS, '1'),
-                              ('wrong_verb', False, None, message_data.SEND_FAILED, '1'),
-                              ('wrong_verb', True, None, message_data.SEND_FAILED, '1'),
-                              ('PUT', True, '321', message_data.SEND_TRACE, '44'),
-                              ('PUT', False, '321', message_data.SEND_FAILED, '44'),
-                              ('DELETE', True, '321', message_data.SEND_TRACE, '1'),
-                              ('DELETE', False, '321', message_data.SEND_TRACE, '1'),
-                              ('GET', True, '321', message_data.SEND_TRACE, '1'),
-                              ('GET', False, '321',  message_data.SEND_TRACE, '1'),
-                              ('wrong_verb', False, '321',  message_data.SEND_FAILED, '1'),
-                              ('wrong_verb', True, '321', message_data.SEND_FAILED, '1')
-                             ])
+    @pytest.mark.parametrize("trace_id", [None, '321'])
+    @pytest.mark.parametrize("expected_msg_id", [message_data.SEND_FAILED])
     @pytest.mark.parametrize("bulk", [False, True])
-    def test_receive_thread_method(self, verb, callback_exists, trace_id,
-                                   expected_msg_id,
-                                   expected_data_value, bulk):
+    def test_receive_thread_wrong_verb(self, trace_id, expected_msg_id, bulk):
         # Arrange
-        value = self.service.instance.device_list[0].value_list[0]
-        value.control_state.data = 1
-        response = create_response(self, verb, callback_exists, trace_id, bulk)
+        response = create_response(self, "wrong_verb", trace_id, bulk, "1", "1", "1")
         self.service.socket.my_socket.recv = Mock(side_effect=[response.encode('utf-8'), KeyboardInterrupt])
 
         # Act
@@ -289,19 +320,138 @@ class TestReceiveThreadClass:
             pass
 
         # Assert
-        if expected_msg_id == message_data.SEND_TRACE:
-            assert any(message.msg_id == message_data.SEND_TRACE for message in self.service.socket.sending_queue.queue)
+        while self.service.socket.sending_queue.qsize() > 0:
+            message = self.service.socket.sending_queue.get()
+            assert message.msg_id == message_data.SEND_FAILED
+
+
+    @pytest.mark.parametrize("callback_exists", [False, True])
+    @pytest.mark.parametrize("trace_id", [None, '321'])
+    @pytest.mark.parametrize("expected_msg_id", [message_data.SEND_SUCCESS])
+    @pytest.mark.parametrize("object_name", ["value", "wrong"])
+    @pytest.mark.parametrize("bulk", [False, True])
+    @pytest.mark.parametrize("data", ["1"])
+    def test_receive_thread_Put(self, callback_exists, trace_id,
+                                   expected_msg_id, object_name, bulk, data):
+        # Arrange
+        actual_object = get_object(self, object_name)
+        if actual_object:
+            fix_object_callback(callback_exists, actual_object)
+            actual_object.control_state.data = '1'
+            id = str(actual_object.control_state.uuid)
+            url = str(actual_object.report_state.uuid)
+        else:
+            expected_msg_id = message_data.SEND_FAILED
+            id = url = '1'
+
+        response = create_response(self, 'PUT', trace_id, bulk, id, url, data)
+        self.service.socket.my_socket.recv = Mock(side_effect=[response.encode('utf-8'), KeyboardInterrupt])
+
+        # Act
+        try:
+            # runs until mock object is run and its side_effect raises
+            # exception
+            self.service.socket.receive_thread()
+        except KeyboardInterrupt:
+            pass
+
+        # Assert
+        if actual_object:
+            if callback_exists:
+                assert actual_object.callback.call_args[0][1] == 'set'
         while self.service.socket.sending_queue.qsize() > 0:
             message = self.service.socket.sending_queue.get()
             if message.msg_id == message_data.SEND_SUCCESS:
-                message.data == expected_data_value
-            else:
-                assert message.msg_id == expected_msg_id
-                if message.msg_id == message_data.SEND_TRACE:
-                    assert message.trace_id == trace_id
+                message.data == data
+            assert (message.msg_id == message_data.SEND_TRACE or
+                    message.msg_id == expected_msg_id)
+            if message.msg_id == message_data.SEND_TRACE:
+                assert message.trace_id == trace_id
 
-    @pytest.mark.parametrize("id", [93043873])
-    @pytest.mark.parametrize("type", ["error", "result"])
+
+    @pytest.mark.parametrize("callback_exists", [False, True])
+    @pytest.mark.parametrize("trace_id", [None, '321'])
+    @pytest.mark.parametrize("expected_msg_id", [message_data.SEND_SUCCESS])
+    @pytest.mark.parametrize("object_name", ["value", "wrong"])
+    @pytest.mark.parametrize("bulk", [False, True])
+    def test_receive_thread_Get(self, callback_exists, trace_id,
+                                   expected_msg_id, object_name, bulk):
+        # Arrange
+        actual_object = get_object(self, object_name)
+        if actual_object:
+            fix_object_callback(callback_exists, actual_object)
+            id = str(actual_object.control_state.uuid)
+            url = str(actual_object.report_state.uuid)
+        else:
+            expected_msg_id = message_data.SEND_FAILED
+            id = url = '1'
+
+        response = create_response(self, 'GET', trace_id, bulk, id, url, "1")
+        self.service.socket.my_socket.recv = Mock(side_effect=[response.encode('utf-8'), KeyboardInterrupt])
+
+        # Act
+        try:
+            # runs until mock object is run and its side_effect raises
+            # exception
+            self.service.socket.receive_thread()
+        except KeyboardInterrupt:
+            pass
+
+        # Assert
+        if actual_object:
+            if callback_exists:
+                assert actual_object.callback.call_args[0][1] == 'refresh'
+        while self.service.socket.sending_queue.qsize() > 0:
+            message = self.service.socket.sending_queue.get()
+            assert (message.msg_id == message_data.SEND_TRACE or
+                    message.msg_id == expected_msg_id)
+            if message.msg_id == message_data.SEND_TRACE:
+                assert message.trace_id == trace_id
+
+
+    @pytest.mark.parametrize("callback_exists", [False, True])
+    @pytest.mark.parametrize("trace_id", [None, '321'])
+    @pytest.mark.parametrize("expected_msg_id", [message_data.SEND_SUCCESS])
+    @pytest.mark.parametrize("object_name", ["network", "device", "value", "state", "wrong"])
+    @pytest.mark.parametrize("bulk", [False, True])
+    def test_receive_thread_Delete(self, callback_exists, trace_id,
+                                   expected_msg_id, object_name, bulk):
+        # Arrange
+        actual_object = get_object(self, object_name)
+        if actual_object:
+            fix_object_callback(callback_exists, actual_object)
+            id = url = str(actual_object.uuid)
+        else:
+            expected_msg_id = message_data.SEND_FAILED
+            id = url = '1'
+
+        response = create_response(self, 'DELETE', trace_id, bulk, id, url, "1")
+        self.service.socket.my_socket.recv = Mock(side_effect=[response.encode('utf-8'), KeyboardInterrupt])
+
+        # Act
+        try:
+            # runs until mock object is run and its side_effect raises
+            # exception
+            self.service.socket.receive_thread()
+        except KeyboardInterrupt:
+            pass
+
+        # Assert
+        if trace_id:
+            assert any(message.msg_id == message_data.SEND_TRACE for message in self.service.socket.sending_queue.queue)
+        if actual_object:
+            if callback_exists:
+                assert actual_object.callback.call_args[0][1] == 'remove'
+        while self.service.socket.sending_queue.qsize() > 0:
+            message = self.service.socket.sending_queue.get()
+            assert (message.msg_id == message_data.SEND_TRACE or
+                    message.msg_id == expected_msg_id)
+            if message.msg_id == message_data.SEND_TRACE:
+                assert message.trace_id == trace_id
+
+
+    @pytest.mark.parametrize("id,type", [(93043873, "error"),
+                                         (93043873, "result")])
     def test_receive_thread_other(self, id, type):
         # Arrange
         response = '{"jsonrpc": "2.0", "id": "'+ str(id) +'", "'+type+'": {"value": "True", "meta": {"server_send_time": "2020-01-22T08:22:55.315Z"}}}'

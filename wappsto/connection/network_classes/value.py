@@ -466,7 +466,7 @@ class Value:
             return False
 
         data_value = self.__validate_value_data(data_value)
-        if not data_value:
+        if data_value is None:
             return False
 
         return self.__send_logic(
@@ -493,12 +493,6 @@ class Value:
         else:
             return state.data
 
-    def __call_callback(self, type):
-        if self.callback is not None:
-            self.callback(self, type)
-            return True
-        return False
-
     def handle_refresh(self):
         """
         Handles the refresh request.
@@ -510,6 +504,23 @@ class Value:
 
         """
         return self.__call_callback('refresh')
+
+    def handle_delete(self):
+        """
+        Handle delete.
+
+        Calls the __call_callback method with initial input of "remove".
+
+        Returns:
+            result of __call_callback method.
+
+        """
+        return self.__call_callback('remove')
+
+    def __call_callback(self, event):
+        if self.callback is not None:
+            return self.callback(self, event)
+        return True
 
     def handle_control(self, data_value):
         """
