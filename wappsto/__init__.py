@@ -192,8 +192,12 @@ class Wappsto:
         )
 
         self.status.set_status(status.CONNECTING)
-        if not self.socket.connect():
-            self.socket.reconnect(RETRY_LIMIT,send_reconnect=False)
+        try:
+            if not self.socket.connect():
+                self.socket.reconnect(RETRY_LIMIT, send_reconnect=False)
+        except wappsto_errors.ServerConnectionException as ce:
+            self.stop(False)
+            raise ce
 
         self.status.set_status(status.INITIALIZING)
         # Initializes the network, and all the subsequent devices, values and

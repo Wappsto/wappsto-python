@@ -429,8 +429,8 @@ class ClientSocket:
         self.wappsto_status.set_status(status.RECONNECTING)
         self.connected = False
         attempt = 0
-        while not self.connected and (retry_limit is None or
-                                      retry_limit > attempt):
+        while not self.connected and (retry_limit is None
+                                      or retry_limit > attempt):
             attempt += 1
             self.wapp_log.info("Trying to reconnect in 5 seconds")
             time.sleep(5)
@@ -443,10 +443,11 @@ class ClientSocket:
                 self.wapp_log.error(msg, exc_info=True)
 
         if self.connected is True:
-            self.wapp_log.info("Reconnected with "+attempt+" attempts")
+            self.wapp_log.info("Reconnected with " + attempt + " attempts")
             if send_reconnect:
-                reconnect_reply = send_data.SendData(send_data.SEND_RECONNECT)
-                self.sending_queue.put(reconnect_reply)
+                reconnect = message_data.MessageData(
+                    message_data.SEND_RECONNECT)
+                self.sending_queue.put(reconnect)
         else:
             msg = ("Unable to connect to the server[IP: {}, Port: {}]"
                    .format(self.address, self.port)
@@ -470,7 +471,6 @@ class ClientSocket:
             self.bulk_send_list.clear()
             self.message_received = False
 
-
     def send_data(self, data):
         """
         Send JSON data.
@@ -479,7 +479,6 @@ class ClientSocket:
 
         Args:
             data: JSON communication message data.
-
         """
         if self.connected:
             for data_element in data:

@@ -16,6 +16,7 @@ Attributes:
 
 """
 import logging
+from .connection.network_classes.errors import wappsto_errors
 
 
 STARTING = "Starting"
