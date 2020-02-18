@@ -51,17 +51,29 @@ class Status:
 
     def set_callback(self, callback):
         """
-        Set callback reference.
+        Set the callback.
 
-        Sets the reference to the method to the balled whenever the status
-        is changed.
+        Sets the callback attribute. It will be called by the __send_logic
+        method.
 
         Args:
-            callback: Function callback reference.
+            callback: Callback reference.
+
+        Raises:
+            CallbackNotCallableException: Custom exception to signify invalid
+            callback.
 
         """
-        self.callback = callback
-        self.wapp_log.debug("Callback {} has been set.".format(callback))
+        try:
+            if not callable(callback):
+                msg = "Callback method should be a method"
+                raise wappsto_errors.CallbackNotCallableException(msg)
+            self.callback = callback
+            self.wapp_log.debug("Callback {} has been set.".format(callback))
+            return True
+        except wappsto_errors.CallbackNotCallableException as e:
+            self.wapp_log.error("Error setting callback: {}".format(e))
+            raise
 
     def get_status(self):
         """
