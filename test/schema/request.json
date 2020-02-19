@@ -4,10 +4,10 @@
   "title"               : "request-2.0",
   "type"                : "object",
   "properties"          : {
-	"jsonrpc"					: {"type": "string"},
-	"id"						: {"oneOf":[{"type": "string"}, {"type": "number"}]},
-	"params"					: {"$ref": "params.json"},
-	"method"					: {
+	"jsonrpc"                   : {"type": "string"},
+	"id"                        : {"oneOf":[{"type": "string"}, {"type": "number"}]},
+	"params"                    : {"$ref": "params.json"},
+	"method"                    : {
 	  "type": "string",
 	  "enum": [
 		"PUT",
