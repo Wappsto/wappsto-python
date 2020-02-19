@@ -4,7 +4,7 @@
   "title"               : "errorResponse-2.0",
   "type"                : "object",
   "properties"          : {
-	"jsonrpc"					: {"type": "string"},
+	"jsonrpc"				: {"type": "string"},
 	"id"					: {"oneOf":[{"type": "string"}, {"type": "number"}]},
 	"error"					: {"type": "object"}
   },
