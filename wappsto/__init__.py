@@ -5,13 +5,12 @@ Stores the Wappsto class functionality.
 """
 
 import os
-import time
 import logging
 import inspect
 from .connection import seluxit_rpc
 from .connection import communication
 from .connection.network_classes.errors import wappsto_errors
-from .object_instantiation import status
+from . import status
 from .object_instantiation import instantiate
 from .object_instantiation import save_objects
 
@@ -68,7 +67,6 @@ class Wappsto:
             self.instance = instantiate.Instantiator(
                 json_file_name=json_file_name,
                 load_from_state_file=load_from_state_file,
-                status=self.status,
                 path_to_calling_file=self.path_to_calling_file
             )
         # When the file fails to open a FileNotFoundError is raised and
@@ -184,50 +182,22 @@ class Wappsto:
 
         """
         self.status.set_status(status.STARTING)
-        # TODO(Dimitar): Change try except wrap to not encompass whole block.
+
+        self.socket = communication.ClientSocket(
+            rpc=self.rpc,
+            instance=self.instance,
+            address=address,
+            port=port,
+            path_to_calling_file=self.path_to_calling_file,
+            wappsto_status=self.status,
+            automatic_trace=automatic_trace
+        )
+
+        self.status.set_status(status.CONNECTING)
         try:
-            # Instance the socket class.
-            reconnect_attempt_counter = 0
-            self.status.set_status(status.CONNECTING)
-
-            while (not self.connected
-                    and reconnect_attempt_counter
-                    < RETRY_LIMIT):
-                self.socket = communication.ClientSocket(
-                    rpc=self.rpc,
-                    instance=self.instance,
-                    address=address,
-                    port=port,
-                    path_to_calling_file=self.path_to_calling_file,
-                    wappsto_status=self.status,
-                    automatic_trace=automatic_trace
-                )
-
-                # Attempts to connect to the server.
-                self.connected = self.socket.connect()
-                if self.connected:
-                    self.status.set_status(status.CONNECTED)
-                    break
-                # If it cannot connect it begins attempting the connection
-                # until the retry limit is reached
-
-                self.status.set_status(status.RECONNECTING)
-                msg = "Cannot connect, attempting again in 5 seconds ..."
-                self.wapp_log.info(msg)
-                time.sleep(5)
-                reconnect_attempt_counter += 1
-                self.socket.close()
-
-            # If the connection is not established,
-            # a custom ServerConnectionException is raised.
-            if reconnect_attempt_counter == RETRY_LIMIT:
-                msg = ("Unable to connect to the server[IP: {}, Port: {}]"
-                       .format(self.socket.address, self.socket.port)
-                       )
-                raise wappsto_errors.ServerConnectionException(msg)
+            if not self.socket.connect():
+                self.socket.reconnect(RETRY_LIMIT, send_reconnect=False)
         except wappsto_errors.ServerConnectionException as ce:
-            msg = "Could not connect: {}".format(ce)
-            self.wapp_log.error(msg, exc_info=True)
             self.stop(False)
             raise ce
 
