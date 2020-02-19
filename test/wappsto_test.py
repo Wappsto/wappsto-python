@@ -43,11 +43,11 @@ def get_object(self, object_name):
     if object_name == "network":
         actual_object = self.service.instance.network_cl
     elif object_name == "device":
-        actual_object = self.service.instance.device_list[0]
+        actual_object = self.service.instance.network_cl.devices[0]
     elif object_name == "value":
-        actual_object = self.service.instance.device_list[0].value_list[0]
+        actual_object = self.service.instance.network_cl.devices[0].value_list[0]
     elif object_name == "state":
-        actual_object = self.service.instance.device_list[0].value_list[0].state_list[0]
+        actual_object = self.service.instance.network_cl.devices[0].value_list[0].state_list[0]
     return actual_object
 
 

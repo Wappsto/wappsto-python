@@ -14,7 +14,7 @@ class Network:
     Stores attributes for the network instance.
     """
 
-    def __init__(self, uuid, version, name):
+    def __init__(self, uuid, version, name, devices):
         """
         Initialize the Network class.
 
@@ -31,6 +31,7 @@ class Network:
         self.uuid = uuid
         self.version = version
         self.name = name
+        self.devices = devices
         self.callback = self.__callback_not_set
         msg = "Network {} Debug \n{}".format(name, str(self.__dict__))
         self.wapp_log.debug(msg)

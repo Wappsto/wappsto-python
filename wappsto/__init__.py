@@ -111,7 +111,7 @@ class Wappsto:
             A list of devices.
 
         """
-        return self.instance.device_list
+        return self.instance.network_cl.devices
 
     def get_by_id(self, id):
         """
@@ -156,7 +156,7 @@ class Wappsto:
             DeviceNotFoundException: Device {name} not found in {instance}.
 
         """
-        for device in self.instance.device_list:
+        for device in self.instance.network_cl.devices:
             if name == device.name:
                 return device
         else:

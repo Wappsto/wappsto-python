@@ -18,7 +18,7 @@ class Device:
 
     def __init__(
         self,
-        parent_network,
+        parent,
         uuid,
         name,
         product,
@@ -35,7 +35,7 @@ class Device:
         Initializes an object of device class by passing required parameters.
 
         Args:
-            parent_network: Reference to an object of network class
+            parent: Reference to an object of network class
             uuid: Unique identifier of a device
             name: Name of a device
             product: Defines what a product is
@@ -49,7 +49,7 @@ class Device:
         """
         self.wapp_log = logging.getLogger(__name__)
         self.wapp_log.addHandler(logging.NullHandler())
-        self.parent_network = parent_network
+        self.parent = parent
         self.uuid = uuid
         self.name = name
         self.product = product
@@ -74,7 +74,7 @@ class Device:
             Reference to instance of Network class that owns this Device.
 
         """
-        return self.parent_network
+        return self.parent
 
     def add_value(self, value):
         """

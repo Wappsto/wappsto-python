@@ -90,7 +90,7 @@ class Handlers:
         if trace_id:
             random_id = self.__get_random_id()
 
-        for device in self.instance.device_list:
+        for device in self.instance.network_cl.devices:
             for value in device.value_list:
                 if value.control_state is not None:
                     if value.control_state.uuid == control_id:
@@ -132,7 +132,7 @@ class Handlers:
         if trace_id:
             random_id = self.__get_random_id()
 
-        for device in self.instance.device_list:
+        for device in self.instance.network_cl.devices:
             for value in device.value_list:
                 if value.report_state is not None:
                     if report_id.endswith(value.report_state.uuid):
@@ -183,7 +183,7 @@ class Handlers:
         if self.instance.network_cl.uuid == id:
             return self.instance.network_cl.handle_delete()
 
-        for device in self.instance.device_list:
+        for device in self.instance.network_cl.devices:
             if device.uuid == id:
                 try:
                     return device.handle_delete()

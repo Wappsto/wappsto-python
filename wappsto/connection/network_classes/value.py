@@ -24,7 +24,7 @@ class Value:
 
     def __init__(
         self,
-        parent_device,
+        parent,
         uuid,
         name,
         type_of_value,
@@ -47,7 +47,7 @@ class Value:
         Initializes an object of value class by passing required parameters.
 
         Args:
-            parent_device: Reference to a device object
+            parent: Reference to a device object
             uuid: An unique identifier of a device
             name: A name of a device
             type_of_value: Determines a type of value [e.g temperature, CO2]
@@ -72,7 +72,7 @@ class Value:
         """
         self.wapp_log = logging.getLogger(__name__)
         self.wapp_log.addHandler(logging.NullHandler())
-        self.parent_device = parent_device
+        self.parent = parent
         self.uuid = uuid
         self.name = name
         self.type_of_value = type_of_value
@@ -99,8 +99,6 @@ class Value:
         self.last_update_of_control = None
         self.difference = 0
         self.delta_report = 0
-        self.parent_network_id = parent_device.get_parent_network().uuid
-        self.parent_device_id = parent_device.uuid
         self.state_list = []
 
         msg = "Value {} debug: {}".format(name, str(self.__dict__))
@@ -186,7 +184,7 @@ class Value:
             Reference to instance of Device class that owns this Value.
 
         """
-        return self.parent_device
+        return self.parent
 
     def add_report_state(self, state):
         """
@@ -566,8 +564,8 @@ class Value:
         try:
             json_data = self.rpc.get_rpc_state(
                 str(data_value),
-                self.parent_network_id,
-                self.parent_device_id,
+                self.parent.parent.uuid,
+                self.parent.uuid,
                 self.uuid,
                 state.uuid,
                 type,

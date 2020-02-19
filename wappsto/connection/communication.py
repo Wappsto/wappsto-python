@@ -99,7 +99,7 @@ class ClientSocket:
         Provides value classes with a referece to the queue and socket
         instances to enable report sending.
         """
-        for device in self.instance.device_list:
+        for device in self.network.devices:
             for value in device.value_list:
                 value.rpc = self.rpc
                 value.conn = self
