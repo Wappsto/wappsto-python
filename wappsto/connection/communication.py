@@ -100,7 +100,7 @@ class ClientSocket:
         instances to enable report sending.
         """
         for device in self.network.devices:
-            for value in device.value_list:
+            for value in device.values:
                 value.rpc = self.rpc
                 value.conn = self
 

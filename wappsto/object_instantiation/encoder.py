@@ -79,7 +79,7 @@ class WappstoEncoder:
 
         """
         encoded_values = []
-        for value in device.value_list:
+        for value in device.values:
             encoded_value = self.encode_value(value)
             encoded_values.append(encoded_value)
 

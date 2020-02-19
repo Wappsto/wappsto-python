@@ -133,7 +133,7 @@ class Wappsto:
             if device.uuid == id:
                 return device
 
-            for value in device.value_list:
+            for value in device.values:
                 if value.uuid == id:
                     return value
 

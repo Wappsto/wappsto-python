@@ -91,7 +91,7 @@ class Handlers:
             random_id = self.__get_random_id()
 
         for device in self.instance.network_cl.devices:
-            for value in device.value_list:
+            for value in device.values:
                 if value.control_state is not None:
                     if value.control_state.uuid == control_id:
                         if value.handle_control(data_value=incoming_value):
@@ -133,7 +133,7 @@ class Handlers:
             random_id = self.__get_random_id()
 
         for device in self.instance.network_cl.devices:
-            for value in device.value_list:
+            for value in device.values:
                 if value.report_state is not None:
                     if report_id.endswith(value.report_state.uuid):
                         current_value = value.report_state.data
@@ -191,7 +191,7 @@ class Handlers:
                     self.wapp_log.warning("Unhandled device delete for {}"
                                           .format(id))
                     return False
-            for value in device.value_list:
+            for value in device.values:
                 if value.uuid == id:
                     try:
                         return value.handle_delete()

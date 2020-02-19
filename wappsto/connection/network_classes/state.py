@@ -93,6 +93,12 @@ class State:
         """
         return self.__call_callback('remove')
 
+    def delete(self):
+        if self == self.parent.report_state:
+            self.parent.report_state = None
+        elif self == self.parent.control_state:
+            self.parent.control_state = None
+
     def __call_callback(self, event):
         if self.callback is not None:
             return self.callback(self, event)

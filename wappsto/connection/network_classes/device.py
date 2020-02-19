@@ -59,10 +59,25 @@ class Device:
         self.communication = communication
         self.protocol = protocol
         self.description = description
-        self.value_list = []
+        self.values = []
         self.callback = None
         msg = "Device {} Debug: \n {}".format(name, str(self.__dict__))
         self.wapp_log.debug(msg)
+
+    def __getattr__(self, attr):
+        """
+        Get attribute value.
+
+        When trying to get value from value_list warning is raised about
+        it being deprecated and calls values instead.
+
+        Returns:
+            values
+
+        """
+        if attr in ["value_list"]:
+            warnings.warn("Property %s is deprecated" % attr)
+            return self.values
 
     def get_parent_network(self):
         """
@@ -87,7 +102,7 @@ class Device:
             value: Reference to instance of Value class.
 
         """
-        self.value_list.append(value)
+        self.values.append(value)
         self.wapp_log.debug("Value {} has been added.".format(value))
 
     def get_value(self, value_name):
@@ -103,7 +118,7 @@ class Device:
             Reference to instance of Value class.
 
         """
-        for value in self.value_list:
+        for value in self.values:
             if value_name in list(value.__dict__.values()):
                 return value
             else:
@@ -147,6 +162,9 @@ class Device:
 
         """
         return self.__call_callback('remove')
+
+    def delete(self):
+        self.parent.devices.remove(self)
 
     def __call_callback(self, event):
         if self.callback is not None:

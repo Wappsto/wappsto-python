@@ -512,6 +512,9 @@ class Value:
         """
         return self.__call_callback('remove')
 
+    def delete(self):
+        self.parent.values.remove(self)
+
     def __call_callback(self, event):
         if self.callback is not None:
             return self.callback(self, event)

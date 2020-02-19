@@ -122,7 +122,8 @@ class Instantiator:
             uuid=self.uuid,
             version=self.version,
             name=self.name,
-            devices=[]
+            devices=[],
+            instance=self
         )
 
         self.wapp_log.debug("Network {} built.".format(self.network_cl))
@@ -209,7 +210,7 @@ class Instantiator:
 
                 device_cl.add_value(value_cl)
                 self.wapp_log.debug("Value {} appended to {}"
-                                    .format(value_cl, device_cl.value_list)
+                                    .format(value_cl, device_cl.values)
                                     )
 
                 for state_iterator in value_iterator.get('state', []):

@@ -45,9 +45,9 @@ def get_object(self, object_name):
     elif object_name == "device":
         actual_object = self.service.instance.network_cl.devices[0]
     elif object_name == "value":
-        actual_object = self.service.instance.network_cl.devices[0].value_list[0]
+        actual_object = self.service.instance.network_cl.devices[0].values[0]
     elif object_name == "state":
-        actual_object = self.service.instance.network_cl.devices[0].value_list[0].get_control_state()
+        actual_object = self.service.instance.network_cl.devices[0].values[0].get_control_state()
     return actual_object
 
 
@@ -202,7 +202,7 @@ class TestValueSendClass:
         self.service.socket.message_received = True
         self.service.socket.my_socket.send = Mock()
         device = self.service.get_devices()[0]
-        value = device.value_list[0]
+        value = device.values[0]
         value.data_type == "number"
         value.number_step = step_size
 
@@ -234,7 +234,7 @@ class TestValueSendClass:
         self.service.socket.message_received = True
         self.service.socket.my_socket.send = Mock()
         device = self.service.get_devices()[0]
-        value = device.value_list[0]
+        value = device.values[0]
         value.data_type = type
         value.string_max = max
         value.blob_max = max
