@@ -865,7 +865,7 @@ class ClientSocket:
                             for value in device.value_list:
                                 state = value.get_control_state()
                                 if state is not None and state.uuid == uuid:
-                                    state.data = data
+                                    value.handle_control(data_value=data)
                     self.remove_id_from_confirm_list(decoded_id)
 
                 else:
