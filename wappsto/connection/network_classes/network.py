@@ -32,6 +32,7 @@ class Network:
         self.version = version
         self.name = name
         self.devices = devices
+        self.parent = None
         self.callback = self.__callback_not_set
         msg = "Network {} Debug \n{}".format(name, str(self.__dict__))
         self.wapp_log.debug(msg)

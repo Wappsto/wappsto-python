@@ -199,7 +199,17 @@ class Handlers:
                         self.wapp_log.warning("Unhandled value delete for {}"
                                               .format(id))
                         return False
-                for state in value.state_list:
+
+                states = []
+                state = value.get_report_state()
+                if state is not None:
+                    states.append(state)
+
+                state = value.get_control_state()
+                if state is not None:
+                    states.append(state)
+
+                for state in states:
                     if state.uuid == id:
                         try:
                             return state.handle_delete()

@@ -99,7 +99,6 @@ class Value:
         self.last_update_of_control = None
         self.difference = 0
         self.delta_report = 0
-        self.state_list = []
 
         msg = "Value {} debug: {}".format(name, str(self.__dict__))
         self.wapp_log.debug(msg)
@@ -197,7 +196,6 @@ class Value:
 
         """
         self.report_state = state
-        self.state_list.append(state)
         msg = "Report state {} has been added.".format(state)
         self.wapp_log.debug(msg)
 
@@ -212,7 +210,6 @@ class Value:
 
         """
         self.control_state = state
-        self.state_list.append(state)
         msg = "Control state {} has been added".format(state)
         self.wapp_log.debug(msg)
 

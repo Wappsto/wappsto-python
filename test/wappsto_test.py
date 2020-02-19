@@ -47,7 +47,7 @@ def get_object(self, object_name):
     elif object_name == "value":
         actual_object = self.service.instance.network_cl.devices[0].value_list[0]
     elif object_name == "state":
-        actual_object = self.service.instance.network_cl.devices[0].value_list[0].state_list[0]
+        actual_object = self.service.instance.network_cl.devices[0].value_list[0].get_control_state()
     return actual_object
 
 
