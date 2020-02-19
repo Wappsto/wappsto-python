@@ -539,10 +539,29 @@ class ClientSocket:
                 elif package.msg_id == message_data.SEND_TRACE:
                     self.send_trace(package)
 
+                elif package.msg_id == message_data.SEND_DELETE:
+                    self.send_delete(package)
+
                 else:
                     self.wapp_log.warning("Unhandled send")
 
             self.sending_queue.task_done()
+
+    def send_delete(self, package):
+        self.wapp_log.info("Sending delete message")
+        try:
+            local_data = self.rpc.get_rpc_delete(
+                package.network_id,
+                package.device_id,
+                package.value_id,
+                package.state_id
+            )
+            self.add_id_to_confirm_list(local_data)
+            self.create_bulk(local_data)
+        except OSError as e:
+            self.connected = False
+            msg = "Error sending delete: {}".format(e)
+            self.wapp_log.error(msg, exc_info=True)
 
     def send_trace(self, package):
         """

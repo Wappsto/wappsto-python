@@ -289,6 +289,25 @@ class SeluxitRpc:
                                 url=url,
                                 data=data)
 
+    def get_rpc_delete(self,
+                       network_id,
+                       device_id,
+                       value_id,
+                       state_id):
+        if network_id:
+            url = '/network/{}'.format(network_id)
+            if device_id:
+                url += '/device/{}'.format(device_id)
+                if value_id:
+                    url += '/value/{}'.format(value_id)
+                    if state_id:
+                        url += '/state/{}'.format(state_id)
+
+        data_json_rpc = requests.Request('Delete',
+                                         url=url)
+
+        return data_json_rpc
+
     def get_rpc_whole_json(self, json_data):
         """
         Creates request containing the whole json file.
