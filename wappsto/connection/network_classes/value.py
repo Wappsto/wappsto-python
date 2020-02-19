@@ -257,13 +257,10 @@ class Value:
         """
         try:
             result = int(self.difference) >= int(self.delta)
-            if result and self.rpc is not None and self.delta_report == 1:
-                if timestamp:
-                    state.timestamp = timestamp
-                else:
-                    state.timestamp = self.get_now()
+            if result and self.delta_report == 1:
+                state.timestamp = self.get_now()
                 self.last_update_of_report = state.timestamp
-                self.parent.parent.conn.send_logic(state, "report")
+                self.parent.parent.conn.send_state(state)
                 self.wapp_log.info("Sent report [DELTA].")
                 self.delta_report = 0
                 return True
@@ -316,14 +313,11 @@ class Value:
                         now = self.get_now()
                         now_timestamp = self.__date_converter(now)
                         the_time = last_update_timestamp + self.period
-                        if the_time <= now_timestamp and self.rpc is not None:
+                        if the_time <= now_timestamp:
                             self.wapp_log.info("Sending report [PERIOD].")
-                            if timestamp:
-                                state.timestamp = timestamp
-                            else:
-                                state.timestamp = self.get_now()
+                            state.timestamp = self.get_now()
                             self.last_update_of_report = state.timestamp
-                            self.parent.parent.conn.send_logic(state, 'report')
+                            self.parent.parent.conn.send_state(state)
                     except Exception as e:
                         self.reporting_thread.join()
                         self.wapp_log.error(e)
@@ -479,11 +473,9 @@ class Value:
             state.timestamp = self.get_now()
         self.last_update_of_report = state.timestamp
 
-        return self.parent.parent.conn.send_logic(
+        return self.parent.parent.conn.send_state(
             state,
-            'report',
             data_value=data_value,
-            timestamp=timestamp
         )
 
     def get_data(self):
@@ -528,6 +520,13 @@ class Value:
         return self.__call_callback('remove')
 
     def delete(self):
+        """
+        Delete this object.
+
+        Sends delete request for this object and removes its reference
+        from parent.
+
+        """
         message = message_data.MessageData(
             message_data.SEND_DELETE,
             network_id=self.parent.parent.uuid,
@@ -536,6 +535,7 @@ class Value:
         )
         self.parent.parent.conn.sending_queue.put(message)
         self.parent.values.remove(self)
+        self.wapp_log.info("Value removed")
 
     def __call_callback(self, event):
         if self.callback is not None:

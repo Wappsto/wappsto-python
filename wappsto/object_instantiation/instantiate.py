@@ -107,6 +107,13 @@ class Instantiator:
         self.build_network()
 
     def build_network(self):
+        """
+        Create network instance.
+
+        Builds a Network and the underlying classes by setting the attributes
+        from the decoded JSON file.
+
+        """
         try:
             decoded_data = self.decoded.get('data')
             decoded_meta = decoded_data.get('meta')

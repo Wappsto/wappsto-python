@@ -166,6 +166,13 @@ class Device:
         return self.__call_callback('remove')
 
     def delete(self):
+        """
+        Delete this object.
+
+        Sends delete request for this object and removes its reference
+        from parent.
+
+        """
         message = message_data.MessageData(
             message_data.SEND_DELETE,
             network_id=self.parent.uuid,
@@ -173,6 +180,7 @@ class Device:
         )
         self.parent.conn.sending_queue.put(message)
         self.parent.devices.remove(self)
+        self.wapp_log.info("Device removed")
 
     def __call_callback(self, event):
         if self.callback is not None:

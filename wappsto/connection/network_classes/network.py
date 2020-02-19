@@ -25,6 +25,8 @@ class Network:
             uuid: Unique identifier of a network
             version: Version of a network
             name: Name of a network
+            devices: list of devices in network
+            instance: Instance of Instantiator
 
         """
         self.wapp_log = logging.getLogger(__name__)
@@ -79,12 +81,20 @@ class Network:
         return self.__call_callback('remove')
 
     def delete(self):
+        """
+        Delete this object.
+
+        Sends delete request for this object and removes its reference
+        from parent.
+
+        """
         message = message_data.MessageData(
             message_data.SEND_DELETE,
             network_id=self.uuid,
         )
         self.conn.sending_queue.put(message)
         self.instance.network_cl = None
+        self.wapp_log.info("Network removed")
 
     def __callback_not_set(self, network, event):
         """

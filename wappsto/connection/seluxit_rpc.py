@@ -196,7 +196,7 @@ class SeluxitRpc:
         update = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
         device_state = {
             'meta': {},
-            'type': '',
+            'type': set_type,
             'status': 'Send',
             'data': data,
             'timestamp': update
@@ -206,13 +206,6 @@ class SeluxitRpc:
 
         if state_obj is not None:
             state_obj.timestamp = update
-
-        if set_type == 'report':
-            set_type = 'Report'
-        else:
-            set_type = 'Control'
-
-        device_state['type'] = set_type
 
         if get is True and put is False:
             put = True
@@ -294,6 +287,22 @@ class SeluxitRpc:
                        device_id,
                        value_id,
                        state_id):
+        """
+        Creates delete request.
+
+        The method is used to create message that could allow to
+        delete network or its elements.
+
+        Args:
+            network_id: id of the network to delete/modify
+            device_id: id of the device to delete/modify
+            value_id: id of the value to delete/modify
+            state_id: id of the state to delete
+
+        Returns:
+            JSON formatted data of delete message
+
+        """
         if network_id:
             url = '/network/{}'.format(network_id)
             if device_id:

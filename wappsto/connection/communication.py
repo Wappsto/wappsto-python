@@ -90,15 +90,24 @@ class ClientSocket:
         self.bulk_send_list = []
         self.lock_await = threading.Lock()
         self.set_sockets()
-        self.set_report_states()
 
-    def set_report_states(self):
-        #rename
         self.network.rpc = self.rpc
         self.network.conn = self
 
-    def send_logic(self, state, type, data_value=None, timestamp=None):
-        #rename
+    def send_state(self, state, data_value=None):
+        """
+        Send control or report to a server.
+
+        Sends a control or report message with a new value to the server.
+
+        Args:
+            state: Reference to an instance of a State class.
+            data_value: A new incoming value.
+
+        Raises:
+            Exception: If one occurs while sending control message.
+
+        """
         try:
             json_data = self.rpc.get_rpc_state(
                 str(data_value),
@@ -106,7 +115,7 @@ class ClientSocket:
                 state.parent.parent.uuid,
                 state.parent.uuid,
                 state.uuid,
-                type,
+                state.state_type,
                 state_obj=state
             )
             return self.rpc.send_init_json(self, json_data)
@@ -560,6 +569,15 @@ class ClientSocket:
             self.sending_queue.task_done()
 
     def send_delete(self, package):
+        """
+        Send data delete request.
+
+        Sends the data to be deleted.
+
+        Args:
+            package: Sending queue item.
+
+        """
         self.wapp_log.info("Sending delete message")
         try:
             local_data = self.rpc.get_rpc_delete(
@@ -623,7 +641,7 @@ class ClientSocket:
                 package.device_id,
                 package.value_id,
                 package.state_id,
-                'control',
+                'Control',
                 trace_id=package.trace_id
             )
             self.add_id_to_confirm_list(local_data)
@@ -731,7 +749,7 @@ class ClientSocket:
                 package.device_id,
                 package.value_id,
                 package.state_id,
-                'report',
+                'Report',
                 trace_id=package.trace_id
             )
             self.add_id_to_confirm_list(local_data)

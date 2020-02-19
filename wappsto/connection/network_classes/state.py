@@ -95,6 +95,13 @@ class State:
         return self.__call_callback('remove')
 
     def delete(self):
+        """
+        Delete this object.
+
+        Sends delete request for this object and removes its reference
+        from parent.
+
+        """
         message = message_data.MessageData(
             message_data.SEND_DELETE,
             network_id=self.parent.parent.parent.uuid,
@@ -105,8 +112,10 @@ class State:
         self.parent.parent.parent.conn.sending_queue.put(message)
         if self == self.parent.report_state:
             self.parent.report_state = None
+            self.wapp_log.info("Report state removed")
         elif self == self.parent.control_state:
             self.parent.control_state = None
+            self.wapp_log.info("Control state removed")
 
     def __call_callback(self, event):
         if self.callback is not None:
