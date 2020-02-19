@@ -4,6 +4,7 @@ The state module.
 Stores attributes for the state instance and handles device-related
 """
 import logging
+from .. import message_data
 from .errors import wappsto_errors
 
 
@@ -94,6 +95,14 @@ class State:
         return self.__call_callback('remove')
 
     def delete(self):
+        message = message_data.MessageData(
+            message_data.SEND_DELETE,
+            network_id=self.parent.parent.parent.uuid,
+            device_id=self.parent.parent.uuid,
+            value_id=self.parent.uuid,
+            state_id=self.uuid
+        )
+        self.parent.parent.parent.conn.sending_queue.put(message)
         if self == self.parent.report_state:
             self.parent.report_state = None
         elif self == self.parent.control_state:

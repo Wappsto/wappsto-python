@@ -303,7 +303,7 @@ class SeluxitRpc:
                     if state_id:
                         url += '/state/{}'.format(state_id)
 
-        data_json_rpc = requests.Request('Delete',
+        data_json_rpc = requests.Request('DELETE',
                                          url=url)
 
         return data_json_rpc

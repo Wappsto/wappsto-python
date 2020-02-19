@@ -4,6 +4,7 @@ The network module.
 Stores attributes for the network instance.
 """
 import logging
+from .. import message_data
 from .errors import wappsto_errors
 
 
@@ -33,6 +34,8 @@ class Network:
         self.name = name
         self.devices = devices
         self.instance = instance
+        self.rpc = None
+        self.conn = None
         self.callback = self.__callback_not_set
         msg = "Network {} Debug \n{}".format(name, str(self.__dict__))
         self.wapp_log.debug(msg)
@@ -76,6 +79,11 @@ class Network:
         return self.__call_callback('remove')
 
     def delete(self):
+        message = message_data.MessageData(
+            message_data.SEND_DELETE,
+            network_id=self.uuid,
+        )
+        self.conn.sending_queue.put(message)
         self.instance.network_cl = None
 
     def __callback_not_set(self, network, event):

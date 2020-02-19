@@ -5,6 +5,8 @@ Stores attributes for the device instance and handles device-related
 methods.
 """
 import logging
+import warnings
+from .. import message_data
 from .errors import wappsto_errors
 
 
@@ -164,6 +166,12 @@ class Device:
         return self.__call_callback('remove')
 
     def delete(self):
+        message = message_data.MessageData(
+            message_data.SEND_DELETE,
+            network_id=self.parent.uuid,
+            device_id=self.uuid
+        )
+        self.parent.conn.sending_queue.put(message)
         self.parent.devices.remove(self)
 
     def __call_callback(self, event):

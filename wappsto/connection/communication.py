@@ -93,16 +93,28 @@ class ClientSocket:
         self.set_report_states()
 
     def set_report_states(self):
-        """
-        Set the reference to the queue and connection.
+        #rename
+        self.network.rpc = self.rpc
+        self.network.conn = self
 
-        Provides value classes with a referece to the queue and socket
-        instances to enable report sending.
-        """
-        for device in self.network.devices:
-            for value in device.values:
-                value.rpc = self.rpc
-                value.conn = self
+    def send_logic(self, state, type, data_value=None, timestamp=None):
+        #rename
+        try:
+            json_data = self.rpc.get_rpc_state(
+                str(data_value),
+                state.parent.parent.parent.uuid,
+                state.parent.parent.uuid,
+                state.parent.uuid,
+                state.uuid,
+                type,
+                state_obj=state
+            )
+            return self.rpc.send_init_json(self, json_data)
+
+        except Exception as e:
+            msg = "Error reporting state: {}".format(e)
+            self.wapp_log.error(msg)
+            return False
 
     def set_sockets(self):
         """
