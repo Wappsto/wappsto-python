@@ -479,6 +479,7 @@ class ClientSocket:
 
         Args:
             data: JSON communication message data.
+
         """
         if self.connected:
             for data_element in data:
@@ -801,6 +802,7 @@ class ClientSocket:
 
         Args:
             decoded: the received message
+
         """
         if decoded:
             decoded_id = decoded.get('id')
