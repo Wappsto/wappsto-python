@@ -235,14 +235,14 @@ class Instantiator:
             decoded_data = json.loads(decoded.get('data'))
             decoded_meta = decoded_data.get('meta')
 
-        self.uuid = decoded_meta.get('id')
-        self.version = decoded_meta.get('version')
-        self.name = decoded_data.get('name')
+        uuid = decoded_meta.get('id')
+        version = decoded_meta.get('version')
+        name = decoded_data.get('name')
 
         network_cl = network.Network(
-            uuid=self.uuid,
-            version=self.version,
-            name=self.name
+            uuid=uuid,
+            version=version,
+            name=name
         )
 
         self.wapp_log.debug("Network {} built.".format(network_cl))

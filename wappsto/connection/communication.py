@@ -495,14 +495,14 @@ class ClientSocket:
         """
         Get object without None values.
 
-        Gets objects and removes any keys where value is None or empty.
+        Gets objects and removes any keys where value is None.
 
         Args:
             encoded_object: dictionary object.
 
         """
         for key, val in list(encoded_object.items()):
-            if val is None or val == []:
+            if val is None:
                 del encoded_object[key]
             elif isinstance(val, dict):
                 self.get_object_without_none_values(val)
