@@ -146,6 +146,7 @@ def create_response(self, verb, trace_id, bulk, id, url, data):
 
     return message
 
+
 def validate_json(json_schema, arg):
     """
     Validates json.
@@ -160,11 +161,13 @@ def validate_json(json_schema, arg):
         Boolean value indicating if message is valid
 
     """
-    schema_location = os.path.join(os.path.dirname(__file__),"schema/"+json_schema+".json")
+    schema_location = os.path.join(
+        os.path.dirname(__file__),
+        "schema/" + json_schema + ".json")
     with open(schema_location, "r") as json_file:
         schema = json.load(json_file)
-    base_uri = os.path.join(os.path.dirname(__file__),"schema")
-    base_uri = base_uri.replace("\\","/")
+    base_uri = os.path.join(os.path.dirname(__file__), "schema")
+    base_uri = base_uri.replace("\\", "/")
     base_uri = "file:///" + base_uri + "/"
     resolver = jsonschema.RefResolver(base_uri, schema)
     try:
@@ -301,11 +304,11 @@ class TestConnClass:
                 pass
 
         # Assert
-        if sent_json != None:
-            assert validate_json("request",arg) == valid_json
-            assert not 'None' in str(sent_json)
-            assert (upgradable and 'upgradable' in str(sent_json['meta']) or
-                    not upgradable and not 'upgradable' in str(sent_json['meta']))
+        if sent_json is not None:
+            assert validate_json("request", arg) == valid_json
+            assert 'None' not in str(sent_json)
+            assert (upgradable and 'upgradable' in str(sent_json['meta'])
+                    or not upgradable and 'upgradable' not in str(sent_json['meta']))
         assert self.service.status.get_status() == expected_status
 
 
@@ -397,7 +400,7 @@ class TestValueSendClass:
             arg = []
 
         # Assert
-        assert validate_json("request", arg) == True
+        assert validate_json("request", arg) is True
         assert result == expected
 
     @pytest.mark.parametrize("input,max,expected", [
@@ -738,8 +741,8 @@ class TestSendThreadClass:
         # Arrange
         self.service.socket.message_received = True
         if valid_message:
-            state_id =self.service.get_network().uuid
-            rpc_id=1
+            state_id = self.service.get_network().uuid
+            rpc_id = 1
             value = "test_info"
         else:
             self.service.get_network().uuid = 1
@@ -775,24 +778,24 @@ class TestSendThreadClass:
         for request in arg:
             if type == message_data.SEND_SUCCESS:
                 assert request.get('id', None) == rpc_id
-                assert validate_json("successResponse",arg) == valid_message
+                assert validate_json("successResponse", arg) == valid_message
                 assert bool(request['result']) is True
             elif type == message_data.SEND_FAILED:
                 assert request.get('id', None) == rpc_id
-                assert validate_json("errorResponse",arg) == valid_message
+                assert validate_json("errorResponse", arg) == valid_message
                 assert request['error'] == {"code": -32020}
             elif type == message_data.SEND_REPORT:
-                assert validate_json("request",arg) == valid_message
+                assert validate_json("request", arg) == valid_message
                 assert request['params']['data'].get('data', None) == value
                 assert request['params']['data']['type'] == "Report"
                 assert request['method'] == "PUT"
             elif type == message_data.SEND_RECONNECT:
-                assert validate_json("request",arg) == valid_message
+                assert validate_json("request", arg) == valid_message
                 assert request['params']['data'].get('name', None) == value
                 assert request['params']['data']['meta']['type'] == "network"
                 assert request['method'] == "POST"
             elif type == message_data.SEND_CONTROL:
-                assert validate_json("request",arg) == valid_message
+                assert validate_json("request", arg) == valid_message
                 assert request['params']['data'].get('data', None) == value
                 assert request['params']['data']['type'] == "Control"
                 assert request['method'] == "PUT"
