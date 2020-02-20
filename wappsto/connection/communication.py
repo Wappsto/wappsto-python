@@ -26,6 +26,7 @@ try:
 except ImportError:
     JSONDecodeError = ValueError
 
+MESSAGE_SIZE = 1024
 t_url = 'https://tracer.iot.seluxit.com/trace?id={}&parent={}&name={}&status={}'  # noqa: E501
 
 
@@ -618,19 +619,24 @@ class ClientSocket:
         decoded = None
         while True:
             if self.connected:
-                data = self.my_socket.recv(2000)
+                data = self.my_socket.recv(MESSAGE_SIZE)
                 decoded_data = data.decode('utf-8')
                 total_decoded.append(decoded_data)
-            else:
-                break
-
-            try:
-                decoded = json.loads(''.join(total_decoded))
-            except JSONDecodeError:
-                if data == b'':
-                    self.reconnect()
+                message = ''.join(total_decoded)
+                try:
+                    decoded = json.loads(message)
+                except JSONDecodeError:
+                    if len(decoded_data) < MESSAGE_SIZE:
+                        total_decoded = []
+                        if data == b'':
+                            self.reconnect()
+                        else:
+                            error = "Value error: {}".format(message)
+                            self.wapp_log.error(error)
+                    else:
+                        pass
                 else:
-                    self.wapp_log.error("Value error: {}".format(data))
+                    break
             else:
                 break
         return decoded

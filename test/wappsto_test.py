@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import math
 import json
 import pytest
 import wappsto
@@ -52,22 +53,36 @@ def get_object(self, object_name):
     return actual_object
 
 
-def create_response(self, verb, trace_id, bulk, id, url, data):
+def create_response(self, verb, trace_id, bulk, id, url, data, split_message):
     trace = ''
 
     if verb == "DELETE" or verb == "PUT" or verb == "GET":
         if trace_id is not None:
             trace = {"trace": str(trace_id)}
 
-        message = {"jsonrpc": "2.0", "id": "1", "params": {"url": str(url), "meta": trace, "data": {"meta": {"id": id}, "data": data}}, "method": verb}
+        message = {"jsonrpc": "2.00", "id": "1", "params": {"url": str(url), "meta": trace, "data": {"meta": {"id": id}, "data": data}}, "method": verb}
     else:
-        message = {"jsonrpc": "2.0", "id": "1", "params": {"url": "/network/b03f246d-63ef-446d-be58-ef1d1e83b338/device/a0e087c1-9678-491c-ac47-5b065dea3ac0/value/7ce2afdd-3be3-4945-862e-c73a800eb209/state/a7b4f66b-2558-4559-9fcc-c60768083164", "data": {"meta": {"id": "a7b4f66b-2558-4559-9fcc-c60768083164", "type": "state", "version": "2.0"}, "type": "Report", "status": "Send", "data": "44", "timestamp": "2020-01-22T08:22:57.216500Z"}}, "method": "??????"}
+        if verb == "error" or verb == "result":
+            message = {"jsonrpc": "2.0", "id": str(id), verb: {"value": "True", "meta": {"server_send_time": "2020-01-22T08:22:55.315Z"}}}
+            self.service.socket.packet_awaiting_confirm[str(id)] = message
+        else:
+            message = {"jsonrpc": "2.0", "id": "1", "params": {"url": "/network/b03f246d-63ef-446d-be58-ef1d1e83b338/device/a0e087c1-9678-491c-ac47-5b065dea3ac0/value/7ce2afdd-3be3-4945-862e-c73a800eb209/state/a7b4f66b-2558-4559-9fcc-c60768083164", "data": {"meta": {"id": "a7b4f66b-2558-4559-9fcc-c60768083164", "type": "state", "version": "2.0"}, "type": "Report", "status": "Send", "data": "44", "timestamp": "2020-01-22T08:22:57.216500Z"}}, "method": "??????"}
 
     if bulk:
         message = [message, message]
     message = json.dumps(message)
 
-    return message
+    if split_message:
+        message_size = math.ceil(len(message)/2)
+        message1 = message[:message_size]
+        message2 = message[message_size:]
+        wappsto.connection.communication.MESSAGE_SIZE = message_size
+        self.service.socket.my_socket.recv = Mock(side_effect=[message1.encode('utf-8'),
+                                                               message2.encode('utf-8'),
+                                                               KeyboardInterrupt])
+    else:
+        self.service.socket.my_socket.recv = Mock(side_effect=[message.encode('utf-8'),
+                                                               KeyboardInterrupt])
 
 
 def validate_json(json_schema, arg):
@@ -285,10 +300,11 @@ class TestReceiveThreadClass:
     @pytest.mark.parametrize("trace_id", [None, '321'])
     @pytest.mark.parametrize("expected_msg_id", [message_data.SEND_FAILED])
     @pytest.mark.parametrize("bulk", [False, True])
-    def test_receive_thread_wrong_verb(self, trace_id, expected_msg_id, bulk):
+    @pytest.mark.parametrize("split_message", [False, True])
+    def test_receive_thread_wrong_verb(self, trace_id, expected_msg_id, bulk,
+                                       split_message):
         # Arrange
-        response = create_response(self, "wrong_verb", trace_id, bulk, "1", "1", "1")
-        self.service.socket.my_socket.recv = Mock(side_effect=[response.encode('utf-8'), KeyboardInterrupt])
+        response = create_response(self, "wrong_verb", trace_id, bulk, None, None, None,split_message)
 
         # Act
         try:
@@ -301,7 +317,7 @@ class TestReceiveThreadClass:
         # Assert
         while self.service.socket.sending_queue.qsize() > 0:
             message = self.service.socket.sending_queue.get()
-            assert message.msg_id == message_data.SEND_FAILED
+            assert message.msg_id == expected_msg_id
 
 
     @pytest.mark.parametrize("callback_exists", [False, True])
@@ -310,8 +326,10 @@ class TestReceiveThreadClass:
     @pytest.mark.parametrize("object_name", ["value", "wrong"])
     @pytest.mark.parametrize("bulk", [False, True])
     @pytest.mark.parametrize("data", ["1"])
+    @pytest.mark.parametrize("split_message", [False, True])
     def test_receive_thread_Put(self, callback_exists, trace_id,
-                                   expected_msg_id, object_name, bulk, data):
+                                   expected_msg_id, object_name, bulk, data,
+                                   split_message):
         # Arrange
         actual_object = get_object(self, object_name)
         if actual_object:
@@ -323,8 +341,7 @@ class TestReceiveThreadClass:
             expected_msg_id = message_data.SEND_FAILED
             id = url = '1'
 
-        response = create_response(self, 'PUT', trace_id, bulk, id, url, data)
-        self.service.socket.my_socket.recv = Mock(side_effect=[response.encode('utf-8'), KeyboardInterrupt])
+        response = create_response(self, 'PUT', trace_id, bulk, id, url, data, split_message)
 
         # Act
         try:
@@ -353,8 +370,10 @@ class TestReceiveThreadClass:
     @pytest.mark.parametrize("expected_msg_id", [message_data.SEND_SUCCESS])
     @pytest.mark.parametrize("object_name", ["value", "wrong"])
     @pytest.mark.parametrize("bulk", [False, True])
+    @pytest.mark.parametrize("split_message", [False, True])
     def test_receive_thread_Get(self, callback_exists, trace_id,
-                                   expected_msg_id, object_name, bulk):
+                                   expected_msg_id, object_name, bulk,
+                                   split_message):
         # Arrange
         actual_object = get_object(self, object_name)
         if actual_object:
@@ -365,8 +384,7 @@ class TestReceiveThreadClass:
             expected_msg_id = message_data.SEND_FAILED
             id = url = '1'
 
-        response = create_response(self, 'GET', trace_id, bulk, id, url, "1")
-        self.service.socket.my_socket.recv = Mock(side_effect=[response.encode('utf-8'), KeyboardInterrupt])
+        response = create_response(self, 'GET', trace_id, bulk, id, url, "1", split_message)
 
         # Act
         try:
@@ -393,8 +411,10 @@ class TestReceiveThreadClass:
     @pytest.mark.parametrize("expected_msg_id", [message_data.SEND_SUCCESS])
     @pytest.mark.parametrize("object_name", ["network", "device", "value", "state", "wrong"])
     @pytest.mark.parametrize("bulk", [False, True])
+    @pytest.mark.parametrize("split_message", [False, True])
     def test_receive_thread_Delete(self, callback_exists, trace_id,
-                                   expected_msg_id, object_name, bulk):
+                                   expected_msg_id, object_name, bulk,
+                                   split_message):
         # Arrange
         actual_object = get_object(self, object_name)
         if actual_object:
@@ -404,8 +424,7 @@ class TestReceiveThreadClass:
             expected_msg_id = message_data.SEND_FAILED
             id = url = '1'
 
-        response = create_response(self, 'DELETE', trace_id, bulk, id, url, "1")
-        self.service.socket.my_socket.recv = Mock(side_effect=[response.encode('utf-8'), KeyboardInterrupt])
+        response = create_response(self, 'DELETE', trace_id, bulk, id, url, "1", split_message)
 
         # Act
         try:
@@ -431,11 +450,11 @@ class TestReceiveThreadClass:
 
     @pytest.mark.parametrize("id,type", [(93043873, "error"),
                                          (93043873, "result")])
-    def test_receive_thread_other(self, id, type):
+    @pytest.mark.parametrize("bulk", [False, True])
+    @pytest.mark.parametrize("split_message", [False, True])
+    def test_receive_thread_other(self, id, type, bulk, split_message):
         # Arrange
-        response = '{"jsonrpc": "2.0", "id": "'+ str(id) +'", "'+type+'": {"value": "True", "meta": {"server_send_time": "2020-01-22T08:22:55.315Z"}}}'
-        self.service.socket.packet_awaiting_confirm[str(id)] = response
-        self.service.socket.my_socket.recv = Mock(side_effect=[response.encode('utf-8'), KeyboardInterrupt])
+        create_response(self, type, None, bulk, id, None, None, split_message)
 
         # Act
         try:
