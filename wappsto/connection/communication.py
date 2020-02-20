@@ -468,7 +468,7 @@ class ClientSocket:
         """
         self.bulk_send_list.append(data)
         if (self.sending_queue.qsize() < 1 and self.message_received
-            or len(self.bulk_send_list) >= MAX_BULK_SIZE):
+                or len(self.bulk_send_list) >= MAX_BULK_SIZE):
             self.send_data(self.bulk_send_list)
             self.bulk_send_list.clear()
             self.message_received = False
