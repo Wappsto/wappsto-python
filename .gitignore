@@ -1,3 +1,6 @@
+#directories
+test/saved_instances/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
