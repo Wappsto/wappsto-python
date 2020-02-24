@@ -6,6 +6,7 @@ sending and receiving threads.
 """
 
 import os
+import sys
 import socket
 import threading
 import time
@@ -26,7 +27,8 @@ try:
 except ImportError:
     JSONDecodeError = ValueError
 
-MESSAGE_SIZE = 1024
+RECEIVE_SIZE = 1024
+MESSAGE_SIZE_BYTES = 1000000
 t_url = 'https://tracer.iot.seluxit.com/trace?id={}&parent={}&name={}&status={}'  # noqa: E501
 
 
@@ -624,26 +626,29 @@ class ClientSocket:
             The decoded message from the socket.
 
         """
-        total_decoded = []
+        total_decoded = ''
         decoded = None
         while True:
             if self.connected:
-                data = self.my_socket.recv(MESSAGE_SIZE)
-                decoded_data = data.decode('utf-8')
-                total_decoded.append(decoded_data)
-                message = ''.join(total_decoded)
+                data = self.my_socket.recv(RECEIVE_SIZE)
+                if data == b'':
+                    self.reconnect()
                 try:
-                    decoded = json.loads(message)
+                    decoded_data = data.decode('utf-8')
+                except:
+                    continue
+                total_decoded += decoded_data
+                if sys.getsizeof(total_decoded) > MESSAGE_SIZE_BYTES:
+                    error = "Received message exeeds size limit: {}".format(total_decoded)
+                    self.wapp_log.error(error)
+                    return None
+                try:
+                    decoded = json.loads(total_decoded)
                 except JSONDecodeError:
-                    if len(decoded_data) < MESSAGE_SIZE:
-                        total_decoded = []
-                        if data == b'':
-                            self.reconnect()
-                        else:
-                            error = "Value error: {}".format(message)
-                            self.wapp_log.error(error)
-                    else:
-                        pass
+                    if len(decoded_data) < RECEIVE_SIZE:
+                        error = "Json decoding error: {}".format(total_decoded)
+                        self.wapp_log.error(error)
+                        return None
                 else:
                     break
             else:

@@ -104,11 +104,11 @@ def get_object(self, object_name):
     return actual_object
 
 
-def create_response(self, verb, trace_id, bulk, id, url, data, split_message):
+def send_response(self, verb, trace_id, bulk, id, url, data, split_message):
     """
-    Creates response.
+    Sends response.
 
-    Creates responses to be used in receive tests based on the parameters provided.
+    Sends responses to be used in receive tests based on the parameters provided.
 
     Args:
         verb: specifies if request is DELETE/PUT/POST/GET
@@ -493,7 +493,6 @@ class TestReceiveThreadClass:
     @pytest.mark.parametrize("split_message", [False, True])
     def test_receive_thread_wrong_verb(self, trace_id, expected_msg_id, bulk,
                                        split_message):
-    def test_receive_thread_wrong_verb(self, trace_id, expected_msg_id, bulk):
         """
         Tests receiving message with wrong verb.
 
@@ -507,7 +506,7 @@ class TestReceiveThreadClass:
 
         """
         # Arrange
-        response = create_response(self, "wrong_verb", trace_id, bulk, None, None, None,split_message)
+        send_response(self, "wrong_verb", trace_id, bulk, None, None, None, split_message)
 
         # Act
         try:
@@ -558,7 +557,7 @@ class TestReceiveThreadClass:
             expected_msg_id = message_data.SEND_FAILED
             id = url = '1'
 
-        response = create_response(self, 'PUT', trace_id, bulk, id, url, data, split_message)
+        send_response(self, 'PUT', trace_id, bulk, id, url, data, split_message)
 
         # Act
         try:
@@ -614,7 +613,7 @@ class TestReceiveThreadClass:
             expected_msg_id = message_data.SEND_FAILED
             id = url = '1'
 
-        response = create_response(self, 'GET', trace_id, bulk, id, url, "1", split_message)
+        send_response(self, 'GET', trace_id, bulk, id, url, "1", split_message)
 
         # Act
         try:
@@ -667,7 +666,7 @@ class TestReceiveThreadClass:
             expected_msg_id = message_data.SEND_FAILED
             id = url = '1'
 
-        response = create_response(self, 'DELETE', trace_id, bulk, id, url, "1", split_message)
+        send_response(self, 'DELETE', trace_id, bulk, id, url, "1", split_message)
 
         # Act
         try:
@@ -708,7 +707,7 @@ class TestReceiveThreadClass:
 
         """
         # Arrange
-        create_response(self, type, None, bulk, id, None, None, split_message)
+        send_response(self, type, None, bulk, id, None, None, split_message)
 
         # Act
         try:
