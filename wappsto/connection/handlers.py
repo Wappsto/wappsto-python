@@ -111,7 +111,7 @@ class Handlers:
         self.wapp_log.warning(msg)
         return False
 
-    def handle_incoming_get(self, report_id, sending_queue, trace_id):
+    def handle_incoming_get(self, id, sending_queue, trace_id):
         """
         Process an incoming GET request.
 
@@ -119,7 +119,7 @@ class Handlers:
         server.
 
         Args:
-            report_id: UUID of the Report state.
+            id: UUID of the Report state.
             sending_queue: The queue requests are being added to.
             trace_id: Trace ID used to create a URL for debugging.
                 (default: {None})
@@ -133,7 +133,6 @@ class Handlers:
         if trace_id:
             random_id = self.__get_random_id()
 
-        id = report_id.rsplit('/', 1)[-1]
         object = self.get_by_id(id)
         try:
             if object.parent.report_state == object:
@@ -150,7 +149,7 @@ class Handlers:
         except AttributeError:
             pass
 
-        self.wapp_log.warning("Unhandled delete for {}".format(id))
+        self.wapp_log.warning("Unhandled get for {}".format(id))
         return False
 
     def handle_incoming_delete(self, id, sending_queue, trace_id):
