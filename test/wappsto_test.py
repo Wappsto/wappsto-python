@@ -156,7 +156,7 @@ def send_response(self, verb, trace_id, bulk, id, url, data, split_message):
     message = json.dumps(message)
 
     if split_message:
-        message_size = math.ceil(len(message)/2)
+        message_size = math.ceil(len(message) / 2)
         message1 = message[:message_size]
         message2 = message[message_size:]
         wappsto.connection.communication.RECEIVE_SIZE = message_size
