@@ -370,7 +370,7 @@ class TestValueSendClass:
         (2, 1.0e-07, "2"),
         (2, 123.456e-5, "1.9999872"),
         (1, 9.0e-20, "0.99999999999999999999"),
-        (0.02442002442002442001001, 0.00000000000002, "0.02442002442002")]])
+        (0.02442002442002442001001, 0.00000000000002, "0.02442002442002")])
     def test_send_value_update_number_type(self, input, step_size, expected):
         """
         Tests sending update for number value.
