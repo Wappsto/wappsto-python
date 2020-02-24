@@ -834,7 +834,7 @@ class TestSendThreadClass:
                     parsed_urlopen = urlparse.urlparse(urlopen_args[0])
                     urlopen_trace_id = parse_qs(parsed_urlopen.query)['id']
 
-                    parsed_sent_json = urlparse.urlparse(arg[messages_in_queue - 1]['params']['url'])
+                    parsed_sent_json = urlparse.urlparse(arg[-1]['params']['url'])
                     sent_json_trace_id = parse_qs(parsed_sent_json.query)['trace']
 
         # Assert
