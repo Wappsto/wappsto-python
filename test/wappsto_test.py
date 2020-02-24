@@ -774,7 +774,7 @@ class TestSendThreadClass:
         (None, None),
         ([], None)])
     @pytest.mark.parametrize("valid_message", [True, False])
-    @pytest.mark.parametrize("messages_in_queue", [1, 2])
+    @pytest.mark.parametrize("messages_in_queue", [1, 2, 20])
     def test_send_thread(self, type, messages_in_queue, valid_message, value, expected_value, send_trace):
         """
         Tests sending message.
@@ -816,6 +816,7 @@ class TestSendThreadClass:
         self.service.socket.add_id_to_confirm_list = Mock()
         self.service.socket.automatic_trace = send_trace
         urlopen_trace_id = sent_json_trace_id = ''
+        bulk_size = wappsto.connection.communication.MAX_BULK_SIZE
 
         # Act
         with patch('urllib.request.urlopen') as urlopen:
@@ -842,8 +843,8 @@ class TestSendThreadClass:
             assert urlopen_trace_id != ''
         else:
             assert urlopen_trace_id == ''
-        assert self.service.socket.sending_queue.qsize() == 0
-        assert messages_in_queue == len(arg)
+        assert len(arg) <= bulk_size
+        assert self.service.socket.sending_queue.qsize() == max(messages_in_queue - bulk_size, 0)
         for request in arg:
             if type == message_data.SEND_SUCCESS:
                 assert request.get('id', None) == rpc_id
