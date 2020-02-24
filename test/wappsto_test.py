@@ -141,7 +141,15 @@ def send_response(self, verb, trace_id, bulk, id, url, data, split_message):
                    "method": verb}
     else:
         if verb == "error" or verb == "result":
-            message = {"jsonrpc": "2.0", "id": str(id), verb: {"value": "True", "meta": {"server_send_time": "2020-01-22T08:22:55.315Z"}}}
+            message = {"jsonrpc": "2.0",
+                       "id": str(id),
+                       verb: {
+                           "value": "True",
+                           "meta": {
+                               "server_send_time": "2020-01-22T08:22:55.315Z"
+                               }
+                           }
+                       }
             self.service.socket.packet_awaiting_confirm[str(id)] = message
         else:
             message = {"jsonrpc": "2.0", "id": "1", "params": {}, "method": "??????"}
@@ -517,6 +525,7 @@ class TestReceiveThreadClass:
             pass
 
         # Assert
+        assert self.service.socket.sending_queue.qsize() > 0
         while self.service.socket.sending_queue.qsize() > 0:
             message = self.service.socket.sending_queue.get()
             assert message.msg_id == expected_msg_id
@@ -529,8 +538,8 @@ class TestReceiveThreadClass:
     @pytest.mark.parametrize("data", ["44"])
     @pytest.mark.parametrize("split_message", [False, True])
     def test_receive_thread_Put(self, callback_exists, trace_id,
-                                   expected_msg_id, object_name, bulk, data,
-                                   split_message):
+                                expected_msg_id, object_name, bulk, data,
+                                split_message):
         """
         Tests receiving message with PUT verb.
 
@@ -571,6 +580,7 @@ class TestReceiveThreadClass:
         if actual_object:
             if callback_exists:
                 assert actual_object.callback.call_args[0][1] == 'set'
+        assert self.service.socket.sending_queue.qsize() > 0
         while self.service.socket.sending_queue.qsize() > 0:
             message = self.service.socket.sending_queue.get()
             if message.msg_id == message_data.SEND_SUCCESS:
@@ -587,8 +597,8 @@ class TestReceiveThreadClass:
     @pytest.mark.parametrize("bulk", [False, True])
     @pytest.mark.parametrize("split_message", [False, True])
     def test_receive_thread_Get(self, callback_exists, trace_id,
-                                   expected_msg_id, object_name, bulk,
-                                   split_message):
+                                expected_msg_id, object_name, bulk,
+                                split_message):
         """
         Tests receiving message with GET verb.
 
@@ -627,6 +637,7 @@ class TestReceiveThreadClass:
         if actual_object:
             if callback_exists:
                 assert actual_object.callback.call_args[0][1] == 'refresh'
+        assert self.service.socket.sending_queue.qsize() > 0
         while self.service.socket.sending_queue.qsize() > 0:
             message = self.service.socket.sending_queue.get()
             assert (message.msg_id == message_data.SEND_TRACE
@@ -682,6 +693,7 @@ class TestReceiveThreadClass:
         if actual_object:
             if callback_exists:
                 assert actual_object.callback.call_args[0][1] == 'remove'
+        assert self.service.socket.sending_queue.qsize() > 0
         while self.service.socket.sending_queue.qsize() > 0:
             message = self.service.socket.sending_queue.get()
             assert (message.msg_id == message_data.SEND_TRACE
