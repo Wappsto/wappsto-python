@@ -482,14 +482,18 @@ class ClientSocket:
 
         Args:
             data: JSON communication message data.
+
         """
         if self.connected:
             for data_element in data:
                 self.get_object_without_none_values(data_element)
-            data = json.dumps(data)
-            data = data.encode('utf-8')
-            self.wapp_log.debug('Raw Send Json: {}'.format(data))
-            self.my_socket.send(data)
+                if len(data_element) == 0:
+                    data.remove(data_element)
+            if len(data) > 0:
+                data = json.dumps(data)
+                data = data.encode('utf-8')
+                self.wapp_log.debug('Raw Send Json: {}'.format(data))
+                self.my_socket.send(data)
         else:
             self.wapp_log.error('Sending while not connected')
 
@@ -497,20 +501,26 @@ class ClientSocket:
         """
         Get object without None values.
 
-        Gets objects and removes any keys where value is None or empty.
+        Gets objects and removes any keys where value is None.
 
         Args:
             encoded_object: dictionary object.
 
         """
         for key, val in list(encoded_object.items()):
-            if val is None or val == []:
+            if val is None:
                 del encoded_object[key]
             elif isinstance(val, dict):
                 self.get_object_without_none_values(val)
+                if len(val) == 0:
+                    del encoded_object[key]
             elif isinstance(val, list):
                 for val_element in val:
                     self.get_object_without_none_values(val_element)
+                    if len(val_element) == 0:
+                        val.remove(val_element)
+                if len(val) == 0:
+                    del encoded_object[key]
 
     def send_thread(self):
         """
@@ -848,6 +858,7 @@ class ClientSocket:
 
         Args:
             decoded: the received message
+
         """
         if decoded:
             decoded_id = decoded.get('id')

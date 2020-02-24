@@ -434,12 +434,12 @@ class Value:
         data_value = decimal.Decimal(str(data_value))
         number_step = abs(decimal.Decimal(str(self.number_step)))
 
-        result = (data_value % number_step)
+        result = data_value % number_step
         if result < 0:
             result += number_step
         data_value = data_value - result
 
-        data_value = str(data_value)
+        data_value = f'{data_value:f}'
         data_value = (data_value.rstrip('0').rstrip('.')
                       if '.' in data_value else data_value)
 
