@@ -482,13 +482,16 @@ class ClientSocket:
         if self.connected:
             for data_element in data:
                 self.get_object_without_none_values(data_element)
-
-                if data_element.get("method","") == "PUT":
-                    self.add_id_to_confirm_list(data_element)
-            data = json.dumps(data)
-            data = data.encode('utf-8')
-            self.wapp_log.debug('Raw Send Json: {}'.format(data))
-            self.my_socket.send(data)
+                if len(data_element) == 0:
+                    data.remove(data_element)
+                else:
+                    if data_element.get("method","") == "PUT":
+                        self.add_id_to_confirm_list(data_element)
+            if len(data) > 0:
+                data = json.dumps(data)
+                data = data.encode('utf-8')
+                self.wapp_log.debug('Raw Send Json: {}'.format(data))
+                self.my_socket.send(data)
         else:
             self.wapp_log.error('Sending while not connected')
 
@@ -507,9 +510,15 @@ class ClientSocket:
                 del encoded_object[key]
             elif isinstance(val, dict):
                 self.get_object_without_none_values(val)
+                if len(val) == 0:
+                    del encoded_object[key]
             elif isinstance(val, list):
                 for val_element in val:
                     self.get_object_without_none_values(val_element)
+                    if len(val_element) == 0:
+                        val.remove(val_element)
+                if len(val) == 0:
+                    del encoded_object[key]
 
     def send_thread(self):
         """
