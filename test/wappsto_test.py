@@ -146,10 +146,7 @@ def send_response(self, verb, trace_id, bulk, id, url, data, split_message):
                        verb: {
                            "value": "True",
                            "meta": {
-                               "server_send_time": "2020-01-22T08:22:55.315Z"
-                               }
-                           }
-                       }
+                               "server_send_time": "2020-01-22T08:22:55.315Z"}}}
             self.service.socket.packet_awaiting_confirm[str(id)] = message
         else:
             message = {"jsonrpc": "2.0", "id": "1", "params": {}, "method": "??????"}
