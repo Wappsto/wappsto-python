@@ -8,7 +8,6 @@ import json
 import pytest
 import wappsto
 import jsonschema
-import urllib.parse
 from mock import Mock
 from unittest.mock import patch
 import urllib.parse as urlparse
@@ -306,8 +305,8 @@ class TestConnClass:
             assert validate_json("request", arg) == valid_json
             assert 'None' not in str(sent_json)
             assert sent_json_trace_id == urlopen_trace_id
-            assert (send_trace and urlopen_trace_id != '' or
-                    not send_trace and urlopen_trace_id == '')
+            assert (send_trace and urlopen_trace_id != ''
+                    or not send_trace and urlopen_trace_id == '')
             assert (upgradable and 'upgradable' in str(sent_json['meta'])
                     or not upgradable and 'upgradable' not in str(sent_json['meta']))
         assert self.service.status.get_status() == expected_status
@@ -403,13 +402,13 @@ class TestValueSendClass:
                 args, kwargs = self.service.socket.my_socket.send.call_args
                 arg = json.loads(args[0].decode('utf-8'))
                 result = arg[0]['params']['data']['data']
-    
+
                 if send_trace:
                     urlopen_args, urlopen_kwargs = urlopen.call_args
-    
+
                     parsed_urlopen = urlparse.urlparse(urlopen_args[0])
                     urlopen_trace_id = parse_qs(parsed_urlopen.query)['id']
-    
+
                     parsed_sent_json = urlparse.urlparse(arg[0]['params']['url'])
                     sent_json_trace_id = parse_qs(parsed_sent_json.query)['trace']
             except TypeError:
@@ -464,20 +463,20 @@ class TestValueSendClass:
         value.string_max = max
         value.blob_max = max
 
-         # Act
+        # Act
         with patch('urllib.request.urlopen') as urlopen:
             try:
                 value.update(input)
                 args, kwargs = self.service.socket.my_socket.send.call_args
                 arg = json.loads(args[0].decode('utf-8'))
                 result = arg[0]['params']['data']['data']
-    
+
                 if send_trace:
                     urlopen_args, urlopen_kwargs = urlopen.call_args
-    
+
                     parsed_urlopen = urlparse.urlparse(urlopen_args[0])
                     urlopen_trace_id = parse_qs(parsed_urlopen.query)['id']
-    
+
                     parsed_sent_json = urlparse.urlparse(arg[0]['params']['url'])
                     sent_json_trace_id = parse_qs(parsed_sent_json.query)['trace']
             except TypeError:
@@ -770,10 +769,10 @@ class TestSendThreadClass:
         (message_data.SEND_RECONNECT, True),
         (message_data.SEND_CONTROL, True)])
     @pytest.mark.parametrize("value,expected_value", [
-        ('test_value','test_value'),
+        ('test_value', 'test_value'),
         ('', ''),
         (None, None),
-        ([],None)])
+        ([], None)])
     @pytest.mark.parametrize("valid_message", [True, False])
     @pytest.mark.parametrize("messages_in_queue", [1, 2])
     def test_send_thread(self, type, messages_in_queue, valid_message, value, expected_value, send_trace):
@@ -826,10 +825,6 @@ class TestSendThreadClass:
                 self.service.socket.send_thread()
             except KeyboardInterrupt:
                 args, kwargs = self.service.socket.my_socket.send.call_args
-                arg = args[0].decode('utf-8')
-                requests = json.loads(arg)
-
-                args, kwargs = self.service.socket.my_socket.send.call_args
                 arg = json.loads(args[0].decode('utf-8'))
 
                 if urlopen.called:
@@ -838,7 +833,7 @@ class TestSendThreadClass:
                     parsed_urlopen = urlparse.urlparse(urlopen_args[0])
                     urlopen_trace_id = parse_qs(parsed_urlopen.query)['id']
 
-                    parsed_sent_json = urlparse.urlparse(arg[messages_in_queue-1]['params']['url'])
+                    parsed_sent_json = urlparse.urlparse(arg[messages_in_queue - 1]['params']['url'])
                     sent_json_trace_id = parse_qs(parsed_sent_json.query)['trace']
 
         # Assert
@@ -888,7 +883,7 @@ class TestSendThreadClass:
         # Arrange
         reply = message_data.MessageData(
             message_data.SEND_TRACE,
-            trace_id=expected_trace_id,
+            trace_id=trace_id,
             rpc_id=93043873
         )
         self.service.socket.sending_queue.put(reply)
