@@ -485,7 +485,7 @@ class ClientSocket:
                 if len(data_element) == 0:
                     data.remove(data_element)
                 else:
-                    if data_element.get("method","") == "PUT":
+                    if data_element.get("method", "") == "PUT":
                         self.add_id_to_confirm_list(data_element)
             if len(data) > 0:
                 data = json.dumps(data)
