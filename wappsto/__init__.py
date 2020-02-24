@@ -123,21 +123,10 @@ class Wappsto:
             id: unique identifier used for searching
 
         Returns:
-            A reference to the network/device/value object instance.
+            A reference to the network/device/value/state object instance.
 
         """
-        if self.instance.network_cl.uuid == id:
-            return self.instance.network_cl
-
-        for device in self.get_devices():
-            if device.uuid == id:
-                return device
-
-            for value in device.values:
-                if value.uuid == id:
-                    return value
-
-        self.wapp_log.warning("Failed to find object with id: {}".format(id))
+        return self.socket.handlers.get_by_id(id)
 
     def get_device(self, name):
         """

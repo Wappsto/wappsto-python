@@ -90,21 +90,22 @@ class Handlers:
         if trace_id:
             random_id = self.__get_random_id()
 
-        for device in self.instance.network_cl.devices:
-            for value in device.values:
-                if value.control_state is not None:
-                    if value.control_state.uuid == control_id:
-                        if value.handle_control(data_value=incoming_value):
-                            send_trace(
-                                sending_queue,
-                                value.uuid,
-                                trace_id,
-                                incoming_value,
-                                control_value_id=random_id
-                            )
-                            return True
-                        else:
-                            return False
+        object = self.get_by_id(control_id)
+        try:
+            if object.parent.control_state == object:
+                if object.parent.handle_control(data_value=incoming_value):
+                    send_trace(
+                        sending_queue,
+                        object.parent.uuid,
+                        trace_id,
+                        incoming_value,
+                        control_value_id=random_id
+                    )
+                    return True
+                else:
+                    return False
+        except AttributeError:
+            pass
 
         msg = "Unhandled put {} : {}".format(control_id, incoming_value)
         self.wapp_log.warning(msg)
@@ -132,23 +133,24 @@ class Handlers:
         if trace_id:
             random_id = self.__get_random_id()
 
-        for device in self.instance.network_cl.devices:
-            for value in device.values:
-                if value.report_state is not None:
-                    if report_id.endswith(value.report_state.uuid):
-                        current_value = value.report_state.data
-                        send_trace(
-                            sending_queue,
-                            value.uuid,
-                            trace_id,
-                            current_value,
-                            control_value_id=random_id
-                        )
-                        # value.last_update_of_report = value.get_now()
-                        value.handle_refresh()
-                        return True
+        id = report_id.rsplit('/', 1)[-1]
+        object = self.get_by_id(id)
+        try:
+            if object.parent.report_state == object:
+                current_value = object.data
+                send_trace(
+                    sending_queue,
+                    object.parent.uuid,
+                    trace_id,
+                    current_value,
+                    control_value_id=random_id
+                )
+                object.parent.handle_refresh()
+                return True
+        except AttributeError:
+            pass
 
-        self.wapp_log.warning("Unhandled get {}".format(report_id))
+        self.wapp_log.warning("Unhandled delete for {}".format(id))
         return False
 
     def handle_incoming_delete(self, id, sending_queue, trace_id):
@@ -180,43 +182,47 @@ class Handlers:
                 control_value_id=random_id
             )
 
+        object = self.get_by_id(id)
+        try:
+            return object.handle_delete()
+        except AttributeError:
+            self.wapp_log.warning("Unhandled delete for {}".format(id))
+            return False
+
+    def get_by_id(self, id):
+        """
+        Wappsto get by id.
+
+        Retrieves the instance of a class if its id matches the provided one
+
+        Args:
+            id: unique identifier used for searching
+
+        Returns:
+            A reference to the network/device/value/state object instance.
+
+        """
+        message = "Found instance of {} object with id: {}"
         if self.instance.network_cl.uuid == id:
-            return self.instance.network_cl.handle_delete()
+            self.wapp_log.debug(message.format("network", id))
+            return self.instance.network_cl
 
         for device in self.instance.network_cl.devices:
             if device.uuid == id:
-                try:
-                    return device.handle_delete()
-                except AttributeError:
-                    self.wapp_log.warning("Unhandled device delete for {}"
-                                          .format(id))
-                    return False
+                self.wapp_log.debug(message.format("device", id))
+                return device
+
             for value in device.values:
                 if value.uuid == id:
-                    try:
-                        return value.handle_delete()
-                    except AttributeError:
-                        self.wapp_log.warning("Unhandled value delete for {}"
-                                              .format(id))
-                        return False
+                    self.wapp_log.debug(message.format("value", id))
+                    return value
 
-                states = []
-                state = value.get_report_state()
-                if state is not None:
-                    states.append(state)
+                if value.control_state.uuid == id:
+                    self.wapp_log.debug(message.format("control state", id))
+                    return value.control_state
 
-                state = value.get_control_state()
-                if state is not None:
-                    states.append(state)
+                if value.report_state.uuid == id:
+                    self.wapp_log.debug(message.format("report state", id))
+                    return value.report_state
 
-                for state in states:
-                    if state.uuid == id:
-                        try:
-                            return state.handle_delete()
-                        except AttributeError:
-                            msg = "Unhandled state delete for {}".format(id)
-                            self.wapp_log.warning(msg)
-                            return False
-
-        self.wapp_log.warning("Unhandled delete {}".format(id))
-        return False
+        self.wapp_log.warning("Failed to find object with id: {}".format(id))
