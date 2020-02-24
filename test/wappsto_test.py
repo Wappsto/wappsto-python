@@ -154,7 +154,7 @@ def send_response(self, verb, trace_id, bulk, id, url, data, split_message):
         message_size = math.ceil(len(message)/2)
         message1 = message[:message_size]
         message2 = message[message_size:]
-        wappsto.connection.communication.MESSAGE_SIZE = message_size
+        wappsto.connection.communication.RECEIVE_SIZE = message_size
         self.service.socket.my_socket.recv = Mock(side_effect=[message1.encode('utf-8'),
                                                                message2.encode('utf-8'),
                                                                KeyboardInterrupt])

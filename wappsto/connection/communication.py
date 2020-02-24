@@ -633,13 +633,14 @@ class ClientSocket:
                 data = self.my_socket.recv(RECEIVE_SIZE)
                 if data == b'':
                     self.reconnect()
+                    return None
                 try:
                     decoded_data = data.decode('utf-8')
-                except:
+                except Exception:
                     continue
                 total_decoded += decoded_data
                 if sys.getsizeof(total_decoded) > MESSAGE_SIZE_BYTES:
-                    error = "Received message exeeds size limit: {}".format(total_decoded)
+                    error = "Received message exeeds size limit."
                     self.wapp_log.error(error)
                     return None
                 try:
