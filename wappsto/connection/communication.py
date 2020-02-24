@@ -26,6 +26,7 @@ try:
 except ImportError:
     JSONDecodeError = ValueError
 
+MAX_BULK_SIZE = 10
 t_url = 'https://tracer.iot.seluxit.com/trace?id={}&parent={}&name={}&status={}'  # noqa: E501
 
 
@@ -457,15 +458,16 @@ class ClientSocket:
         """
         Creates bulk message.
 
-        Accomulates all messages in one and once sending_queue is empty it is
-        sent.
+        Accomulates all messages in one and once sending_queue is empty or
+        bulk limit is reached it is sent.
 
         Args:
             data: JSON communication message data.
 
         """
         self.bulk_send_list.append(data)
-        if self.sending_queue.qsize() == 0 and len(self.packet_awaiting_confirm) == 0:
+        if ((self.sending_queue.qsize() == 0 and len(self.packet_awaiting_confirm) == 0)
+                or len(self.bulk_send_list) >= MAX_BULK_SIZE):
             self.send_data(self.bulk_send_list)
             self.bulk_send_list.clear()
 
