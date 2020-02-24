@@ -777,7 +777,7 @@ class TestSendThreadClass:
 
         # Assert
         assert len(arg) <= bulk_size
-        assert self.service.socket.sending_queue.qsize() == max(messages_in_queue-bulk_size,0)
+        assert self.service.socket.sending_queue.qsize() == max(messages_in_queue - bulk_size, 0)
         for request in arg:
             if type == message_data.SEND_SUCCESS:
                 assert request.get('id', None) == rpc_id
