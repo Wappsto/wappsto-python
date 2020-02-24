@@ -11,7 +11,6 @@ from ..connection.network_classes import device
 from ..connection.network_classes import value
 from ..connection.network_classes import state
 from . import encoder
-from . import status
 
 
 class Instantiator:
@@ -26,7 +25,6 @@ class Instantiator:
             self,
             json_file_name,
             load_from_state_file,
-            status,
             path_to_calling_file):
         """
         Initialize the Instantiator class.
@@ -38,8 +36,6 @@ class Instantiator:
             json_file_name: The name of the JSON file to parse.
             load_from_state_files: A True/False flag to denote whether to load
                 from the saved files directory.
-            status: Reference to the Status instance to update the program's
-                status flag.
 
         Raises:
             JSONDecodeError: Exception when trying to parse the JSON file.
@@ -52,7 +48,6 @@ class Instantiator:
         self.path_to_calling_file = path_to_calling_file
         self.network_cl = None
         self.device_list = []
-        self.status = status
         self.load_from_state_file = load_from_state_file
         self.json_file_name = json_file_name
 
@@ -96,7 +91,6 @@ class Instantiator:
             self.json_container)
         )
         self.network_cl = self.build_network(self.decoded)
-        self.status.set_status(status.INSTANTIATING)
         self.device_list = self.build_device_list()
 
     def build_device_list(self):
@@ -241,14 +235,14 @@ class Instantiator:
             decoded_data = json.loads(decoded.get('data'))
             decoded_meta = decoded_data.get('meta')
 
-        self.uuid = decoded_meta.get('id')
-        self.version = decoded_meta.get('version')
-        self.name = decoded_data.get('name')
+        uuid = decoded_meta.get('id')
+        version = decoded_meta.get('version')
+        name = decoded_data.get('name')
 
         network_cl = network.Network(
-            uuid=self.uuid,
-            version=self.version,
-            name=self.name
+            uuid=uuid,
+            version=version,
+            name=name
         )
 
         self.wapp_log.debug("Network {} built.".format(network_cl))

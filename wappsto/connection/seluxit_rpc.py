@@ -95,6 +95,7 @@ class SeluxitRpc:
         Returns:
             True, if the system is upgradable,
             False, if it is not.
+
         """
         return True if os.getenv("UPGRADABLE") in ['true', 'True'] else False
 
