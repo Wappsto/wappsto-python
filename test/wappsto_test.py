@@ -727,7 +727,7 @@ class TestSendThreadClass:
         message_data.SEND_RECONNECT,
         message_data.SEND_CONTROL])
     @pytest.mark.parametrize("valid_message", [True, False])
-    @pytest.mark.parametrize("messages_in_queue", [1, 2])
+    @pytest.mark.parametrize("messages_in_queue", [1, 2, 20])
     def test_send_thread(self, type, messages_in_queue, valid_message):
         """
         Tests sending message.
@@ -764,6 +764,7 @@ class TestSendThreadClass:
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.add_id_to_confirm_list = Mock()
+        bulk_size = wappsto.connection.communication.MAX_BULK_SIZE
 
         # Act
         try:
@@ -775,8 +776,8 @@ class TestSendThreadClass:
             arg = json.loads(args[0].decode('utf-8'))
 
         # Assert
-        assert self.service.socket.sending_queue.qsize() == 0
-        assert messages_in_queue == len(arg)
+        assert len(arg) <= bulk_size
+        assert self.service.socket.sending_queue.qsize() == max(messages_in_queue - bulk_size, 0)
         for request in arg:
             if type == message_data.SEND_SUCCESS:
                 assert request.get('id', None) == rpc_id
