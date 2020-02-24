@@ -78,7 +78,6 @@ class ClientSocket:
         self.receiving_thread = threading.Thread(target=self.receive_thread)
         self.receiving_thread.setDaemon(True)
         self.connected = False
-        self.message_received = True
         self.sending_queue = queue.Queue(maxsize=0)
         self.sending_thread = threading.Thread(target=self.send_thread)
         self.sending_thread.setDaemon(True)
@@ -466,10 +465,9 @@ class ClientSocket:
 
         """
         self.bulk_send_list.append(data)
-        if self.sending_queue.qsize() < 1 and self.message_received:
+        if self.sending_queue.qsize() == 0 and len(self.packet_awaiting_confirm) == 0:
             self.send_data(self.bulk_send_list)
             self.bulk_send_list.clear()
-            self.message_received = False
 
     def send_data(self, data):
         """
@@ -484,6 +482,9 @@ class ClientSocket:
         if self.connected:
             for data_element in data:
                 self.get_object_without_none_values(data_element)
+
+                if data_element.get("method","") == "PUT":
+                    self.add_id_to_confirm_list(data_element)
             data = json.dumps(data)
             data = data.encode('utf-8')
             self.wapp_log.debug('Raw Send Json: {}'.format(data))
@@ -596,7 +597,6 @@ class ClientSocket:
                 'control',
                 trace_id=package.trace_id
             )
-            self.add_id_to_confirm_list(local_data)
             self.create_bulk(local_data)
         except OSError as e:
             self.connected = False
@@ -704,7 +704,6 @@ class ClientSocket:
                 'report',
                 trace_id=package.trace_id
             )
-            self.add_id_to_confirm_list(local_data)
             self.create_bulk(local_data)
             data_decoded = local_data.get('params').get('data').get('data')
             self.wapp_log.info('Sending report value: {}'.format(data_decoded))
@@ -775,9 +774,6 @@ class ClientSocket:
                     self.receive(decoded_data)
             else:
                 self.receive(decoded)
-
-            if len(self.packet_awaiting_confirm) == 0:
-                self.message_received = True
 
         except JSONDecodeError:
             self.wapp_log.error("Json error: {}".format(decoded))

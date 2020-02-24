@@ -221,7 +221,6 @@ class TestValueSendClass:
                                                      (1, 9.0e-20, "0.99999999999999999999")])
     def test_send_value_update_number_type(self, input, step_size, expected):
         # Arrange
-        self.service.socket.message_received = True
         self.service.socket.my_socket.send = Mock()
         device = self.service.get_devices()[0]
         value = device.value_list[0]
@@ -255,7 +254,6 @@ class TestValueSendClass:
     @pytest.mark.parametrize("type", ["string", "blob"])
     def test_send_value_update_text_type(self, input, max, expected, type):
         # Arrange
-        self.service.socket.message_received = True
         self.service.socket.my_socket.send = Mock()
         device = self.service.get_devices()[0]
         value = device.value_list[0]
@@ -466,7 +464,6 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("messages_in_queue", [1, 2])
     def test_send_thread(self, type, messages_in_queue, valid_message):
         # Arrange
-        self.service.socket.message_received = True
         if valid_message:
             state_id =self.service.get_network().uuid
             rpc_id=1
