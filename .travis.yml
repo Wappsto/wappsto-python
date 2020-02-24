@@ -1,17 +1,7 @@
 language: python
-matrix:
-  fast_finish: true
-  include:
-    - python: "3.6"
-      env: TOXENV=flake8
-    - python: "3.6"
-      env: TOXENV=pydoc
-    - python: "3.6"
-      env: TOXENV=py36
-    - python: "3.7"
-      env: TOXENV=py37
-      dist: xenial
-      sudo: true
-install: pip install -U setuptools tox coveralls
+python:
+    - "3.6"
+    - "3.7"
+install: pip install -U setuptools tox-travis coveralls
 script: tox
 after_success: coveralls

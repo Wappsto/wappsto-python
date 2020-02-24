@@ -11,7 +11,7 @@
     "status"        : {"type": "string", "enum": ["Send", "Pending", "Failed"]},
     "meta"        : {
       "properties": {
-        "id": { "$ref": "../../../core/validation/2.0/util/types.json#/id" }
+        "id": { "$ref": "types.json#/definitions/id" }
       },
       "type": "object",
       "required": ["id"]
