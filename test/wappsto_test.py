@@ -143,10 +143,26 @@ def send_response(self, verb, trace_id, bulk, id, url, data, split_message):
                    "method": verb}
     else:
         if verb == "error" or verb == "result":
+            if data:
+                message_value = {'data': data,
+                                 'type': 'Control',
+                                 'timestamp': '2020-01-20T09:20:21.092Z',
+                                 'meta': {
+                                     'type': 'state',
+                                     'version': '2.0',
+                                     'id': id,
+                                     'manufacturer': '31439b87-040b-4b41-b5b8-f3774b2a1c19',
+                                     'updated': '2020-02-18T09:14:12.880+00:00',
+                                     'created': '2020-01-20T09:20:21.290+00:00',
+                                     'revision': 1035,
+                                     'contract': [],
+                                     'owner': 'bb10f0f1-390f-478e-81c2-a67f58de88be'}}
+            else:
+                message_value = "True"
             message = {"jsonrpc": "2.0",
                        "id": str(id),
                        verb: {
-                           "value": "True",
+                           "value": message_value,
                            "meta": {
                                "server_send_time": "2020-01-22T08:22:55.315Z"}}}
             self.service.socket.packet_awaiting_confirm[str(id)] = message
@@ -718,7 +734,7 @@ class TestReceiveThreadClass:
         # Arrange
         state = self.service.instance.network_cl.devices[0].values[0].control_state
         state.data = 1
-        send_response(self, 'result', None, bulk, id, None, None, split_message)
+        send_response(self, 'result', None, bulk, state.uuid, None, data, split_message)
 
         # Act
         try:
@@ -732,10 +748,9 @@ class TestReceiveThreadClass:
         assert state.data == data
         assert len(self.service.socket.packet_awaiting_confirm) == 0
 
-    @pytest.mark.parametrize("id", ["93043873"])
     @pytest.mark.parametrize("bulk", [False, True])
     @pytest.mark.parametrize("split_message", [False, True])
-    def test_receive_thread_error(self, id, bulk, split_message):
+    def test_receive_thread_error(self, bulk, split_message):
         """
         Tests receiving error message.
 
@@ -748,7 +763,7 @@ class TestReceiveThreadClass:
 
         """
         # Arrange
-        send_response(self, 'error', None, bulk, id, None, None, split_message)
+        send_response(self, 'error', None, bulk, "93043873", None, None, split_message)
 
         # Act
         try:
