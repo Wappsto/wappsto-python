@@ -488,8 +488,8 @@ class ClientSocket:
                     data.remove(data_element)
                 else:
                     if (data_element.get("method", "") == "PUT"
-                        or data_element.get("method", "") == "POST"
-                        or data_element.get("method", "") == "DELETE"):
+                            or data_element.get("method", "") == "POST"
+                            or data_element.get("method", "") == "DELETE"):
                         self.add_id_to_confirm_list(data_element)
             if len(data) > 0:
                 data = json.dumps(data)
