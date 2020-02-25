@@ -11,7 +11,7 @@ import os
 import logging
 from jsonrpcclient import requests, response
 
-JSONRPC = "2.0"
+JSONRPC = '2.0'
 
 
 class SeluxitRpc:
@@ -42,9 +42,9 @@ class SeluxitRpc:
 
         """
         return {
-            "id": network_id,
-            "type": "{}".format(network),
-            "version": "2.0"
+            'id': network_id,
+            'type': '{}'.format(network),
+            'version': '2.0'
         }
 
     @staticmethod
@@ -136,11 +136,11 @@ class SeluxitRpc:
             JSON formatted data of network
 
         """
-        meta = self.create_meta("network", network_id)
+        meta = self.create_meta('network', network_id)
         if SeluxitRpc.is_upgradable():
             meta.update({'upgradable': True})
         data_inside = {
-            "meta": meta,
+            'meta': meta,
             'name': network_name
         }
         url = '/network'
@@ -194,12 +194,8 @@ class SeluxitRpc:
 
         """
         update = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-        if set_type == 'report':
-            set_type = 'Report'
-        else:
-            set_type = 'Control'
         device_state = {
-            'meta': self.create_meta("state", state_id),
+            'meta': self.create_meta('state', state_id),
             'type': set_type,
             'status': 'Send',
             'data': data,
@@ -217,12 +213,12 @@ class SeluxitRpc:
                 device_state = None
             else:
                 verb = 'PUT'
-            url = "{}/{}".format(base_url, state_id)
+            url = '{}/{}'.format(base_url, state_id)
         else:
             verb = 'POST'
 
         if trace_id:
-            url = "{}?trace={}".format(url, trace_id)
+            url = '{}?trace={}'.format(url, trace_id)
 
         data_json_rpc = requests.Request(verb,
                                          url=url,
@@ -244,7 +240,7 @@ class SeluxitRpc:
 
         """
         data_json_rpc = requests.Request('POST',
-                                         url='/{}'.format("network"),
+                                         url='/{}'.format('network'),
                                          data=json_data)
         return data_json_rpc
 
@@ -262,4 +258,4 @@ class SeluxitRpc:
         connection.create_bulk(json_data)
         if self.save_init:
             with open(self.filename, 'a+') as file:
-                file.write(str(json_data) + "\n")
+                file.write(str(json_data) + '\n')

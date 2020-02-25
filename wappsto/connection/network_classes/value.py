@@ -264,7 +264,7 @@ class Value:
         try:
             result = int(self.difference) >= int(self.delta)
             if result and self.rpc is not None and self.delta_report == 1:
-                self.__send_logic(state, "report")
+                self.__send_logic(state, "Report")
                 self.wapp_log.info("Sent report [DELTA].")
                 self.delta_report = 0
                 return True
@@ -319,7 +319,7 @@ class Value:
                         the_time = last_update_timestamp + self.period
                         if the_time <= now_timestamp and self.rpc is not None:
                             self.wapp_log.info("Sending report [PERIOD].")
-                            self.__send_logic(state, 'report')
+                            self.__send_logic(state, 'Report')
                     except Exception as e:
                         self.reporting_thread.join()
                         self.wapp_log.error(e)
@@ -471,7 +471,7 @@ class Value:
 
         return self.__send_logic(
             state,
-            'report',
+            'Report',
             data_value=data_value,
             timestamp=timestamp
         )

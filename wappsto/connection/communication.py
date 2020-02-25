@@ -574,7 +574,7 @@ class ClientSocket:
         """
         Send get control state data.
 
-        Sends requests fot the data of control state.
+        Sends requests for the data of control state.
 
         Args:
             state: State object referece.
@@ -595,7 +595,8 @@ class ClientSocket:
             self.create_bulk(local_data)
         except OSError as e:
             self.connected = False
-            msg = "Error sending control: {}".format(e)
+            msg = "Failed to send a get request for the control value: {}"
+            msg = msg.format(e)
             self.wapp_log.error(msg, exc_info=True)
 
     def send_trace(self, package):
@@ -646,7 +647,7 @@ class ClientSocket:
                 package.device_id,
                 package.value_id,
                 package.state_id,
-                'control',
+                'Control',
                 trace_id=package.trace_id
             )
             self.add_id_to_confirm_list(local_data)
@@ -754,7 +755,7 @@ class ClientSocket:
                 package.device_id,
                 package.value_id,
                 package.state_id,
-                'report',
+                'Report',
                 trace_id=package.trace_id
             )
             self.add_id_to_confirm_list(local_data)
