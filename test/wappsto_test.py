@@ -4,6 +4,7 @@ The test module.
 Tests wappsto project functionality.
 """
 import os
+import math
 import json
 import pytest
 import wappsto
@@ -105,11 +106,11 @@ def get_object(self, object_name):
     return actual_object
 
 
-def create_response(self, verb, trace_id, bulk, id, url, data):
+def send_response(self, verb, trace_id, bulk, id, url, data, split_message):
     """
-    Creates response.
+    Sends response.
 
-    Creates responses to be used in receive tests based on the parameters provided.
+    Sends responses to be used in receive tests based on the parameters provided.
 
     Args:
         verb: specifies if request is DELETE/PUT/POST/GET
@@ -118,6 +119,7 @@ def create_response(self, verb, trace_id, bulk, id, url, data):
         id: specifies id used in message
         url: url sent in message parameters
         data: data to be sent
+        split_message: Boolean value indicating if message should be sent in parts
 
     Returns:
         the generated message
@@ -140,13 +142,32 @@ def create_response(self, verb, trace_id, bulk, id, url, data):
                            "data": data}},
                    "method": verb}
     else:
-        message = {"jsonrpc": "2.0", "id": "1", "params": {}, "method": "??????"}
+        if verb == "error" or verb == "result":
+            message = {"jsonrpc": "2.0",
+                       "id": str(id),
+                       verb: {
+                           "value": "True",
+                           "meta": {
+                               "server_send_time": "2020-01-22T08:22:55.315Z"}}}
+            self.service.socket.packet_awaiting_confirm[str(id)] = message
+        else:
+            message = {"jsonrpc": "2.0", "id": "1", "params": {}, "method": "??????"}
 
     if bulk:
         message = [message, message]
     message = json.dumps(message)
 
-    return message
+    if split_message:
+        message_size = math.ceil(len(message) / 2)
+        message1 = message[:message_size]
+        message2 = message[message_size:]
+        wappsto.connection.communication.RECEIVE_SIZE = message_size
+        self.service.socket.my_socket.recv = Mock(side_effect=[message1.encode('utf-8'),
+                                                               message2.encode('utf-8'),
+                                                               KeyboardInterrupt])
+    else:
+        self.service.socket.my_socket.recv = Mock(side_effect=[message.encode('utf-8'),
+                                                               KeyboardInterrupt])
 
 
 def validate_json(json_schema, arg):
@@ -474,7 +495,9 @@ class TestReceiveThreadClass:
     @pytest.mark.parametrize("trace_id", [None, '321'])
     @pytest.mark.parametrize("expected_msg_id", [message_data.SEND_FAILED])
     @pytest.mark.parametrize("bulk", [False, True])
-    def test_receive_thread_wrong_verb(self, trace_id, expected_msg_id, bulk):
+    @pytest.mark.parametrize("split_message", [False, True])
+    def test_receive_thread_wrong_verb(self, trace_id, expected_msg_id, bulk,
+                                       split_message):
         """
         Tests receiving message with wrong verb.
 
@@ -484,11 +507,11 @@ class TestReceiveThreadClass:
             trace_id: id used for tracing
             expected_msg_id: message id expected to be received
             bulk: Boolean value indicating if multiple messages should be sent at once
+            split_message: Boolean value indicating if message should be sent in parts
 
         """
         # Arrange
-        response = create_response(self, "wrong_verb", trace_id, bulk, "1", "1", "1")
-        self.service.socket.my_socket.recv = Mock(side_effect=[response.encode('utf-8'), KeyboardInterrupt])
+        send_response(self, "wrong_verb", trace_id, bulk, None, None, None, split_message)
 
         # Act
         try:
@@ -499,6 +522,7 @@ class TestReceiveThreadClass:
             pass
 
         # Assert
+        assert self.service.socket.sending_queue.qsize() > 0
         while self.service.socket.sending_queue.qsize() > 0:
             message = self.service.socket.sending_queue.get()
             assert message.msg_id == expected_msg_id
@@ -509,8 +533,10 @@ class TestReceiveThreadClass:
     @pytest.mark.parametrize("object_name", ["value", "wrong"])
     @pytest.mark.parametrize("bulk", [False, True])
     @pytest.mark.parametrize("data", ["44"])
+    @pytest.mark.parametrize("split_message", [False, True])
     def test_receive_thread_Put(self, callback_exists, trace_id,
-                                expected_msg_id, object_name, bulk, data):
+                                expected_msg_id, object_name, bulk, data,
+                                split_message):
         """
         Tests receiving message with PUT verb.
 
@@ -523,6 +549,7 @@ class TestReceiveThreadClass:
             object_name: name of the object to be updated
             bulk: Boolean value indicating if multiple messages should be sent at once
             data: data value provided in the message
+            split_message: Boolean value indicating if message should be sent in parts
 
         """
         # Arrange
@@ -536,8 +563,7 @@ class TestReceiveThreadClass:
             expected_msg_id = message_data.SEND_FAILED
             id = url = '1'
 
-        response = create_response(self, 'PUT', trace_id, bulk, id, url, data)
-        self.service.socket.my_socket.recv = Mock(side_effect=[response.encode('utf-8'), KeyboardInterrupt])
+        send_response(self, 'PUT', trace_id, bulk, id, url, data, split_message)
 
         # Act
         try:
@@ -551,6 +577,7 @@ class TestReceiveThreadClass:
         if actual_object:
             if callback_exists:
                 assert actual_object.callback.call_args[0][1] == 'set'
+        assert self.service.socket.sending_queue.qsize() > 0
         while self.service.socket.sending_queue.qsize() > 0:
             message = self.service.socket.sending_queue.get()
             if message.msg_id == message_data.SEND_SUCCESS:
@@ -565,8 +592,10 @@ class TestReceiveThreadClass:
     @pytest.mark.parametrize("expected_msg_id", [message_data.SEND_SUCCESS])
     @pytest.mark.parametrize("object_name", ["value", "wrong"])
     @pytest.mark.parametrize("bulk", [False, True])
+    @pytest.mark.parametrize("split_message", [False, True])
     def test_receive_thread_Get(self, callback_exists, trace_id,
-                                expected_msg_id, object_name, bulk):
+                                expected_msg_id, object_name, bulk,
+                                split_message):
         """
         Tests receiving message with GET verb.
 
@@ -578,6 +607,7 @@ class TestReceiveThreadClass:
             expected_msg_id: message id expected to be received
             object_name: name of the object to be updated
             bulk: Boolean value indicating if multiple messages should be sent at once
+            split_message: Boolean value indicating if message should be sent in parts
 
         """
         # Arrange
@@ -590,8 +620,7 @@ class TestReceiveThreadClass:
             expected_msg_id = message_data.SEND_FAILED
             id = url = '1'
 
-        response = create_response(self, 'GET', trace_id, bulk, id, url, "1")
-        self.service.socket.my_socket.recv = Mock(side_effect=[response.encode('utf-8'), KeyboardInterrupt])
+        send_response(self, 'GET', trace_id, bulk, id, url, "1", split_message)
 
         # Act
         try:
@@ -605,6 +634,7 @@ class TestReceiveThreadClass:
         if actual_object:
             if callback_exists:
                 assert actual_object.callback.call_args[0][1] == 'refresh'
+        assert self.service.socket.sending_queue.qsize() > 0
         while self.service.socket.sending_queue.qsize() > 0:
             message = self.service.socket.sending_queue.get()
             assert (message.msg_id == message_data.SEND_TRACE
@@ -617,8 +647,10 @@ class TestReceiveThreadClass:
     @pytest.mark.parametrize("expected_msg_id", [message_data.SEND_SUCCESS])
     @pytest.mark.parametrize("object_name", ["network", "device", "value", "control_state", "report_state", "wrong"])
     @pytest.mark.parametrize("bulk", [False, True])
+    @pytest.mark.parametrize("split_message", [False, True])
     def test_receive_thread_Delete(self, callback_exists, trace_id,
-                                   expected_msg_id, object_name, bulk):
+                                   expected_msg_id, object_name, bulk,
+                                   split_message):
         """
         Tests receiving message with DELETE verb.
 
@@ -630,6 +662,7 @@ class TestReceiveThreadClass:
             expected_msg_id: message id expected to be received
             object_name: name of the object to be updated
             bulk: Boolean value indicating if multiple messages should be sent at once
+            split_message: Boolean value indicating if message should be sent in parts
 
         """
         # Arrange
@@ -641,8 +674,7 @@ class TestReceiveThreadClass:
             expected_msg_id = message_data.SEND_FAILED
             id = url = '1'
 
-        response = create_response(self, 'DELETE', trace_id, bulk, id, url, "1")
-        self.service.socket.my_socket.recv = Mock(side_effect=[response.encode('utf-8'), KeyboardInterrupt])
+        send_response(self, 'DELETE', trace_id, bulk, id, url, "1", split_message)
 
         # Act
         try:
@@ -658,6 +690,7 @@ class TestReceiveThreadClass:
         if actual_object:
             if callback_exists:
                 assert actual_object.callback.call_args[0][1] == 'remove'
+        assert self.service.socket.sending_queue.qsize() > 0
         while self.service.socket.sending_queue.qsize() > 0:
             message = self.service.socket.sending_queue.get()
             assert (message.msg_id == message_data.SEND_TRACE
@@ -667,7 +700,9 @@ class TestReceiveThreadClass:
 
     @pytest.mark.parametrize("id,type", [(93043873, "error"),
                                          (93043873, "result")])
-    def test_receive_thread_other(self, id, type):
+    @pytest.mark.parametrize("bulk", [False, True])
+    @pytest.mark.parametrize("split_message", [False, True])
+    def test_receive_thread_other(self, id, type, bulk, split_message):
         """
         Tests receiving message with other data.
 
@@ -676,18 +711,12 @@ class TestReceiveThreadClass:
         Args:
             id: id of the message
             type: type of the message
+            bulk: Boolean value indicating if multiple messages should be sent at once
+            split_message: Boolean value indicating if message should be sent in parts
 
         """
         # Arrange
-        response = {"jsonrpc": "2.0",
-                    "id": str(id),
-                    type: {
-                        "value": "True",
-                        "meta": {
-                            "server_send_time": "2020-01-22T08:22:55.315Z"}}}
-        response = json.dumps(response)
-        self.service.socket.packet_awaiting_confirm[str(id)] = response
-        self.service.socket.my_socket.recv = Mock(side_effect=[response.encode('utf-8'), KeyboardInterrupt])
+        send_response(self, type, None, bulk, id, None, None, split_message)
 
         # Act
         try:
