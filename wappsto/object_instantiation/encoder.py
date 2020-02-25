@@ -43,7 +43,7 @@ class WappstoEncoder:
 
         """
         encoded_devices = []
-        for device in instance.device_list:
+        for device in instance.network_cl.devices:
             encoded_device = self.encode_device(device)
             encoded_devices.append(encoded_device)
 
@@ -79,7 +79,7 @@ class WappstoEncoder:
 
         """
         encoded_values = []
-        for value in device.value_list:
+        for value in device.values:
             encoded_value = self.encode_value(value)
             encoded_values.append(encoded_value)
 

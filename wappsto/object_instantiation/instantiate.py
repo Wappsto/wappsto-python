@@ -5,6 +5,7 @@ Represents raspberrypi components from JSON to class instances.
 """
 import json
 import logging
+import warnings
 from . import save_objects
 from ..connection.network_classes import network
 from ..connection.network_classes import device
@@ -46,8 +47,6 @@ class Instantiator:
         self.wapp_log = logging.getLogger(__name__)
         self.wapp_log.addHandler(logging.NullHandler())
         self.path_to_calling_file = path_to_calling_file
-        self.network_cl = None
-        self.device_list = []
         self.load_from_state_file = load_from_state_file
         self.json_file_name = json_file_name
 
@@ -63,6 +62,21 @@ class Instantiator:
         except FileNotFoundError as fnfe:
             self.wapp_log.error("Error finding file: {}".format(fnfe))
             raise fnfe
+
+    def __getattr__(self, attr):
+        """
+        Get attribute value.
+
+        When trying to get value from device_list warning is raised about
+        it being deprecated and calls network_cl.devices instead.
+
+        Returns:
+            value of get_data
+
+        """
+        if attr in ["device_list"]:
+            warnings.warn("Property %s is deprecated" % attr)
+            return self.network_cl.devices
 
     def parse_json_file(self):
         """
@@ -90,22 +104,37 @@ class Instantiator:
         self.wapp_log.debug("RAW JSON DATA:\n\n{}\n\n".format(
             self.json_container)
         )
-        self.network_cl = self.build_network(self.decoded)
-        self.device_list = self.build_device_list()
+        self.build_network()
 
-    def build_device_list(self):
-        # TODO(Dimitar): Fill in exception
+    def build_network(self):
         """
-        Build list of device instances.
+        Create network instance.
 
-        Builds a list of instances of devices that contain instances of values.
-        The instances of values also contain instances of states. All are built
+        Builds a Network and the underlying classes by setting the attributes
         from the decoded JSON file.
 
-        Returns:
-            A list of devices instances.
-
         """
+        try:
+            decoded_data = self.decoded.get('data')
+            decoded_meta = decoded_data.get('meta')
+        except Exception:
+            decoded_data = json.loads(self.decoded.get('data'))
+            decoded_meta = decoded_data.get('meta')
+
+        self.uuid = decoded_meta.get('id')
+        self.version = decoded_meta.get('version')
+        self.name = decoded_data.get('name')
+
+        self.network_cl = network.Network(
+            uuid=self.uuid,
+            version=self.version,
+            name=self.name,
+            devices=[],
+            instance=self
+        )
+
+        self.wapp_log.debug("Network {} built.".format(self.network_cl))
+
         for device_iterator in self.json_container.get('device', []):
             uuid = device_iterator.get('meta').get('id')
             name = device_iterator.get('name')
@@ -119,7 +148,7 @@ class Instantiator:
 
             # CHANGE THIS LATER
             device_cl = device.Device(
-                parent_network=self.network_cl,
+                parent=self.network_cl,
                 uuid=uuid,
                 name=name,
                 product=product,
@@ -130,9 +159,9 @@ class Instantiator:
                 communication=communication,
                 description=description
             )
-            self.device_list.append(device_cl)
+            self.network_cl.devices.append(device_cl)
             self.wapp_log.debug("Device {} appended to {}"
-                                .format(device_cl, self.device_list)
+                                .format(device_cl, self.network_cl.devices)
                                 )
 
             for value_iterator in device_iterator.get('value', []):
@@ -170,7 +199,7 @@ class Instantiator:
 
                 # CHANGE THIS LATER
                 value_cl = value.Value(
-                    parent_device=device_cl,
+                    parent=device_cl,
                     uuid=uuid,
                     name=name,
                     type_of_value=type_of_value,
@@ -188,7 +217,7 @@ class Instantiator:
 
                 device_cl.add_value(value_cl)
                 self.wapp_log.debug("Value {} appended to {}"
-                                    .format(value_cl, device_cl.value_list)
+                                    .format(value_cl, device_cl.values)
                                     )
 
                 for state_iterator in value_iterator.get('state', []):
@@ -197,7 +226,7 @@ class Instantiator:
                     init_value = state_iterator.get('data')
                     timestamp = state_iterator.get('timestamp')
                     state_cl = state.State(
-                        parent_value=value_cl,
+                        parent=value_cl,
                         uuid=uuid,
                         state_type=state_type,
                         timestamp=timestamp,
@@ -211,43 +240,6 @@ class Instantiator:
                         value_cl.add_control_state(state_cl)
                         msg = "Control state {} appended to {}"
                         self.wapp_log.debug(msg.format(state_cl, value_cl))
-
-        return self.device_list
-
-    def build_network(self, decoded):
-        """
-        Create network instance.
-
-        Builds a Network class instance by setting the attributes from the
-        decoded JSON file.
-
-        Args:
-            decoded: Decoded JSON message data.
-
-        Returns:
-            A Network class instance.
-
-        """
-        try:
-            decoded_data = decoded.get('data')
-            decoded_meta = decoded_data.get('meta')
-        except Exception:
-            decoded_data = json.loads(decoded.get('data'))
-            decoded_meta = decoded_data.get('meta')
-
-        uuid = decoded_meta.get('id')
-        version = decoded_meta.get('version')
-        name = decoded_data.get('name')
-
-        network_cl = network.Network(
-            uuid=uuid,
-            version=version,
-            name=name
-        )
-
-        self.wapp_log.debug("Network {} built.".format(network_cl))
-
-        return network_cl
 
     def build_json(self):
         """
