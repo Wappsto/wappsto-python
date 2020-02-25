@@ -10,7 +10,6 @@ import time
 import datetime
 import decimal
 import re
-from math import fabs
 from .. import message_data
 from .errors import wappsto_errors
 
@@ -38,9 +37,7 @@ class Value:
         string_encoding,
         string_max,
         blob_encoding,
-        blob_max,
-        period=None,
-        delta=None
+        blob_max
     ):
         """
         Initialize the Value class.
@@ -88,16 +85,13 @@ class Value:
         self.string_max = string_max
         self.blob_encoding = blob_encoding
         self.blob_max = blob_max
-        self.period = period
-        self.delta = delta
+        self.period = None
+        self.delta = None
         self.report_state = None
         self.control_state = None
         self.callback = self.__callback_not_set
-        self.last_update_of_report = self.get_now()
         self.reporting_thread = None
         self.last_update_of_control = None
-        self.difference = 0
-        self.delta_report = 0
 
         msg = "Value {} debug: {}".format(name, str(self.__dict__))
         self.wapp_log.debug(msg)
@@ -121,17 +115,16 @@ class Value:
         """
         Set the value reporting period.
 
-        Sets the period to report a value to the server and starts a thread to
-        do so.
+        Sets the time defined in second to report a value to the server.
 
         Args:
             period: Reporting period.
 
         """
         try:
-            if self.get_report_state() is not None and int(period) > 0:
+            period = int(period)
+            if self.get_report_state() is not None and period > 0:
                 self.period = period
-
             else:
                 self.wapp_log.warning("Cannot set the period for this value.")
         except ValueError:
@@ -244,29 +237,6 @@ class Value:
             msg = "Value {}  has no control state.".format(self.name)
             self.wapp_log.warning(msg)
 
-    def __send_report_delta(self, state):
-        """
-        Send report message when delta range reached.
-
-        Sends a report message with the current value when the delta range is
-        reached.
-
-        Args:
-            state: Reference to the report state
-
-        """
-        try:
-            result = int(self.difference) >= int(self.delta)
-            if result and self.delta_report == 1:
-                state.timestamp = self.get_now()
-                self.last_update_of_report = state.timestamp
-                self.parent.parent.conn.send_state(state)
-                self.wapp_log.info("Sent report [DELTA].")
-                self.delta_report = 0
-                return True
-        except AttributeError:
-            pass
-
     def get_now(self):
         """
         Retrieve current time.
@@ -278,50 +248,6 @@ class Value:
 
         """
         return datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-
-    def __send_report_thread(self):
-        """
-        Send report message.
-
-        Sends a report message with the current value to the server.
-        Unless state exists, runs a while loop. It is determined whether or
-        not set flag allowing send report because of delta attribute. If delta
-        exists: __send_report_delta method is called. If period exists it is
-        checked if the sum of period value and last time the value was
-        updated is greater than current time. If it does then a report is sent.
-        Method is running on separate thread which after each loop sleeps for
-        one second.
-        """
-        state = self.get_report_state()
-        if state is not None:
-            value = state.data
-            while True:
-                if (state.data is not None
-                        and self.__is_number_type()):
-                    value_check = state.data
-                    if value != value_check:
-                        self.difference = fabs(int(value) - int(value_check))
-                        value = value_check
-                        self.delta_report = 1
-                if self.delta is not None:
-                    self.__send_report_delta(state)
-                if self.period is not None:
-                    try:
-                        last_update_timestamp = self.__date_converter(
-                            self.last_update_of_report
-                        )
-                        now = self.get_now()
-                        now_timestamp = self.__date_converter(now)
-                        the_time = last_update_timestamp + self.period
-                        if the_time <= now_timestamp:
-                            self.wapp_log.info("Sending report [PERIOD].")
-                            state.timestamp = self.get_now()
-                            self.last_update_of_report = state.timestamp
-                            self.parent.parent.conn.send_state(state)
-                    except Exception as e:
-                        self.reporting_thread.join()
-                        self.wapp_log.error(e)
-                time.sleep(1)
 
     def set_callback(self, callback):
         """
@@ -348,27 +274,6 @@ class Value:
         except wappsto_errors.CallbackNotCallableException as e:
             self.wapp_log.error("Error setting callback: {}".format(e))
             raise
-
-    def __date_converter(self, date):
-        """
-        Convert date to timestamp.
-
-        Converts passed date to a timestamp, first removed Z and T charts
-        from the date, then using functionality of time and datetime
-        libraries, changes the date into timestamp and returns it.
-
-        Args:
-            date: string format date
-
-        Returns:
-            timestamp
-            integer
-
-        """
-        date_first = re.sub("Z", "", re.sub("T", " ", date))
-        date_format = '%Y-%m-%d %H:%M:%S.%f'
-        date_datetime = datetime.datetime.strptime(date_first, date_format)
-        return time.mktime(date_datetime.timetuple())
 
     def __validate_value_data(self, data_value):
         if self.__is_number_type():
@@ -471,7 +376,6 @@ class Value:
             state.timestamp = timestamp
         else:
             state.timestamp = self.get_now()
-        self.last_update_of_report = state.timestamp
 
         return self.parent.parent.conn.send_state(
             state,
