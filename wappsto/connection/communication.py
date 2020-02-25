@@ -6,6 +6,7 @@ sending and receiving threads.
 """
 
 import os
+import sys
 import socket
 import threading
 import time
@@ -25,6 +26,8 @@ try:
 except ImportError:
     JSONDecodeError = ValueError
 
+RECEIVE_SIZE = 1024
+MESSAGE_SIZE_BYTES = 1000000
 MAX_BULK_SIZE = 10
 t_url = 'https://tracer.iot.seluxit.com/trace?id={}&parent={}&name={}&status={}'  # noqa: E501
 
@@ -718,23 +721,32 @@ class ClientSocket:
             The decoded message from the socket.
 
         """
-        total_decoded = []
+        total_decoded = ''
         decoded = None
         while True:
             if self.connected:
-                data = self.my_socket.recv(2000)
-                decoded_data = data.decode('utf-8')
-                total_decoded.append(decoded_data)
-            else:
-                break
-
-            try:
-                decoded = json.loads(''.join(total_decoded))
-            except JSONDecodeError:
+                data = self.my_socket.recv(RECEIVE_SIZE)
                 if data == b'':
                     self.reconnect()
+                    return None
+                try:
+                    decoded_data = data.decode('utf-8')
+                except Exception:
+                    continue
+                total_decoded += decoded_data
+                if sys.getsizeof(total_decoded) > MESSAGE_SIZE_BYTES:
+                    error = "Received message exeeds size limit."
+                    self.wapp_log.error(error)
+                    return None
+                try:
+                    decoded = json.loads(total_decoded)
+                except JSONDecodeError:
+                    if len(decoded_data) < RECEIVE_SIZE:
+                        error = "Json decoding error: {}".format(total_decoded)
+                        self.wapp_log.error(error)
+                        return None
                 else:
-                    self.wapp_log.error("Value error: {}".format(data))
+                    break
             else:
                 break
         return decoded
