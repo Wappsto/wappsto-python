@@ -91,19 +91,40 @@ class ClientSocket:
         self.bulk_send_list = []
         self.lock_await = threading.Lock()
         self.set_sockets()
-        self.set_report_states()
 
-    def set_report_states(self):
-        """
-        Set the reference to the queue and connection.
+        self.network.rpc = self.rpc
+        self.network.conn = self
 
-        Provides value classes with a referece to the queue and socket
-        instances to enable report sending.
+    def send_state(self, state, data_value=None):
         """
-        for device in self.instance.device_list:
-            for value in device.value_list:
-                value.rpc = self.rpc
-                value.conn = self
+        Send control or report to a server.
+
+        Sends a control or report message with a new value to the server.
+
+        Args:
+            state: Reference to an instance of a State class.
+            data_value: A new incoming value.
+
+        Raises:
+            Exception: If one occurs while sending control message.
+
+        """
+        try:
+            json_data = self.rpc.get_rpc_state(
+                str(data_value),
+                state.parent.parent.parent.uuid,
+                state.parent.parent.uuid,
+                state.parent.uuid,
+                state.uuid,
+                state.state_type,
+                state_obj=state
+            )
+            return self.rpc.send_init_json(self, json_data)
+
+        except Exception as e:
+            msg = "Error reporting state: {}".format(e)
+            self.wapp_log.error(msg)
+            return False
 
     def set_sockets(self):
         """
@@ -551,10 +572,38 @@ class ClientSocket:
                 elif package.msg_id == message_data.SEND_TRACE:
                     self.send_trace(package)
 
+                elif package.msg_id == message_data.SEND_DELETE:
+                    self.send_delete(package)
+
                 else:
                     self.wapp_log.warning("Unhandled send")
 
             self.sending_queue.task_done()
+
+    def send_delete(self, package):
+        """
+        Send data delete request.
+
+        Sends the data to be deleted.
+
+        Args:
+            package: Sending queue item.
+
+        """
+        self.wapp_log.info("Sending delete message")
+        try:
+            local_data = self.rpc.get_rpc_delete(
+                package.network_id,
+                package.device_id,
+                package.value_id,
+                package.state_id
+            )
+            self.add_id_to_confirm_list(local_data)
+            self.create_bulk(local_data)
+        except OSError as e:
+            self.connected = False
+            msg = "Error sending delete: {}".format(e)
+            self.wapp_log.error(msg, exc_info=True)
 
     def send_trace(self, package):
         """
@@ -604,7 +653,7 @@ class ClientSocket:
                 package.device_id,
                 package.value_id,
                 package.state_id,
-                'control',
+                'Control',
                 trace_id=package.trace_id
             )
             self.add_id_to_confirm_list(local_data)
@@ -712,7 +761,7 @@ class ClientSocket:
                 package.device_id,
                 package.value_id,
                 package.state_id,
-                'report',
+                'Report',
                 trace_id=package.trace_id
             )
             self.add_id_to_confirm_list(local_data)

@@ -95,11 +95,13 @@ def get_object(self, object_name):
     if object_name == "network":
         actual_object = self.service.instance.network_cl
     elif object_name == "device":
-        actual_object = self.service.instance.device_list[0]
+        actual_object = self.service.instance.network_cl.devices[0]
     elif object_name == "value":
-        actual_object = self.service.instance.device_list[0].value_list[0]
-    elif object_name == "state":
-        actual_object = self.service.instance.device_list[0].value_list[0].state_list[0]
+        actual_object = self.service.instance.network_cl.devices[0].values[0]
+    elif object_name == "control_state":
+        actual_object = self.service.instance.network_cl.devices[0].values[0].get_control_state()
+    elif object_name == "report_state":
+        actual_object = self.service.instance.network_cl.devices[0].values[0].get_report_state()
     return actual_object
 
 
@@ -387,7 +389,7 @@ class TestValueSendClass:
         self.service.socket.message_received = True
         self.service.socket.my_socket.send = Mock()
         device = self.service.get_devices()[0]
-        value = device.value_list[0]
+        value = device.values[0]
         value.data_type == "number"
         value.number_step = step_size
 
@@ -434,7 +436,7 @@ class TestValueSendClass:
         self.service.socket.message_received = True
         self.service.socket.my_socket.send = Mock()
         device = self.service.get_devices()[0]
-        value = device.value_list[0]
+        value = device.values[0]
         value.data_type = type
         value.string_max = max
         value.blob_max = max
@@ -615,7 +617,7 @@ class TestReceiveThreadClass:
     @pytest.mark.parametrize("callback_exists", [False, True])
     @pytest.mark.parametrize("trace_id", [None, '321'])
     @pytest.mark.parametrize("expected_msg_id", [message_data.SEND_SUCCESS])
-    @pytest.mark.parametrize("object_name", ["network", "device", "value", "state", "wrong"])
+    @pytest.mark.parametrize("object_name", ["network", "device", "value", "control_state", "report_state", "wrong"])
     @pytest.mark.parametrize("bulk", [False, True])
     def test_receive_thread_Delete(self, callback_exists, trace_id,
                                    expected_msg_id, object_name, bulk):
@@ -802,6 +804,62 @@ class TestSendThreadClass:
                 assert request['params']['data'].get('data', None) == value
                 assert request['params']['data']['type'] == "Control"
                 assert request['method'] == "PUT"
+
+    @pytest.mark.parametrize("object_name", ["network", "device", "value", "control_state", "report_state"])
+    @pytest.mark.parametrize("messages_in_queue", [1, 2])
+    def test_send_thread_send_delete(self, object_name, messages_in_queue):
+        """
+        Tests sending DELETE message.
+
+        Tests what would happen when sending DELETE message.
+
+        Args:
+            object_name: name of the object to be updated
+            messages_in_queue: value indicating how many messages should be sent at once
+
+        """
+        # Arrange
+        actual_object = get_object(self, object_name)
+
+        if object_name == "control_state" or object_name == "report_state":
+            url = '/network/{}/device/{}/value/{}/state/{}'.format(
+                actual_object.parent.parent.parent.uuid,
+                actual_object.parent.parent.uuid,
+                actual_object.parent.uuid,
+                actual_object.uuid)
+        if object_name == "value":
+            url = '/network/{}/device/{}/value/{}'.format(
+                actual_object.parent.parent.uuid,
+                actual_object.parent.uuid,
+                actual_object.uuid)
+        if object_name == "device":
+            url = '/network/{}/device/{}'.format(
+                actual_object.parent.uuid,
+                actual_object.uuid)
+        if object_name == "network":
+            url = '/network/{}'.format(
+                actual_object.uuid)
+
+        actual_object.delete()
+
+        self.service.socket.message_received = True
+        self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
+        self.service.socket.add_id_to_confirm_list = Mock()
+
+        # Act
+        try:
+            # runs until mock object is run and its side_effect raises
+            # exception
+            self.service.socket.send_thread()
+        except KeyboardInterrupt:
+            args, kwargs = self.service.socket.my_socket.send.call_args
+            arg = args[0].decode('utf-8')
+            requests = json.loads(arg)
+
+        # Assert
+        for request in requests:
+            assert request['params']['url'] == url
+        assert self.service.socket.sending_queue.qsize() == 0
 
     @pytest.mark.parametrize("expected_trace_id", [
         (332)])
