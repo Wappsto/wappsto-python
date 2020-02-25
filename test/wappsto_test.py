@@ -925,9 +925,9 @@ class TestSendThreadClass:
             assert request['params']['url'] == url
         assert self.service.socket.sending_queue.qsize() == 0
 
-    @pytest.mark.parametrize("expected_trace_id", [
+    @pytest.mark.parametrize("trace_id", [
         (332)])
-    def test_send_thread_send_trace(self, expected_trace_id):
+    def test_send_thread_send_trace(self, trace_id):
         """
         Tests sending trace message.
 

@@ -112,6 +112,8 @@ class ClientSocket:
 
         """
         try:
+            trace_id = self.create_trace(state.uuid)
+
             json_data = self.rpc.get_rpc_state(
                 str(data_value),
                 state.parent.parent.parent.uuid,
@@ -119,7 +121,8 @@ class ClientSocket:
                 state.parent.uuid,
                 state.uuid,
                 state.state_type,
-                state_obj=state
+                state_obj=state,
+                trace_id=trace_id
             )
             return self.rpc.send_init_json(self, json_data)
 
