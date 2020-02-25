@@ -229,7 +229,8 @@ class ClientSocket:
                 if state is not None:
                     self.get_control(state)
 
-        message = self.rpc.get_rpc_whole_json(self.instance.build_json())
+        trace_id = self.create_trace(self.instance.network_cl.uuid)
+        message = self.rpc.get_rpc_whole_json(self.instance.build_json(), trace_id)
         self.rpc.send_init_json(self, message)
         self.add_id_to_confirm_list(message)
 

@@ -149,14 +149,12 @@ class SeluxitRpc:
 
         if put:
             verb = 'PUT'
-            url = '/{}/{}'.format(network, network_id)
+            url = '/{}'.format(network_id)
         else:
             verb = 'POST'
-            url = '/{}'.format(network)
 
         if trace_id:
             url = "{}?trace={}".format(url, trace_id)
-
 
         data_json_rpc = requests.Request(verb,
                                          url=url,
@@ -293,26 +291,6 @@ class SeluxitRpc:
                                          url=url,
                                          data=json_data)
         return data_json_rpc
-
-    def add_whole_json(
-            self,
-            connection,
-            json_data,
-            trace_id=None
-    ):
-        """Add an instance of the whole json file.
-
-        While initializing adds network/device/value/state to send and
-        receive queue.
-
-        Args:
-            connection: A reference to the socket instance.
-            json_data: Data read from json file.
-            trace_id:  ID of the debug trace {default: None}.
-
-        """
-        message = self.get_rpc_whole_json(json_data, trace_id)
-        self.send_init_json(connection, message)
 
     def send_init_json(self, connection, json_data):
         """Send initial JSON data.

@@ -323,8 +323,7 @@ class TestConnClass:
                 fake_connect(self, address, port, send_trace)
                 args, kwargs = self.service.socket.my_socket.send.call_args
                 arg = json.loads(args[0].decode('utf-8'))
-                sent_json = arg[0]['params']['data']
-
+                sent_json = arg[-1]['params']['data']
                 if send_trace:
                     urlopen_args, urlopen_kwargs = urlopen.call_args
 
