@@ -354,7 +354,6 @@ class SeluxitRpc:
         """
         message = self.get_rpc_whole_json(json_data)
         self.send_init_json(connection, message)
-        connection.add_id_to_confirm_list(message)
 
     def send_init_json(self, connection, json_data):
         """Send initial JSON data.

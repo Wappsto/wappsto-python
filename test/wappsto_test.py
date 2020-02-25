@@ -386,7 +386,6 @@ class TestValueSendClass:
 
         """
         # Arrange
-        self.service.socket.message_received = True
         self.service.socket.my_socket.send = Mock()
         device = self.service.get_devices()[0]
         value = device.values[0]
@@ -433,7 +432,6 @@ class TestValueSendClass:
 
         """
         # Arrange
-        self.service.socket.message_received = True
         self.service.socket.my_socket.send = Mock()
         device = self.service.get_devices()[0]
         value = device.values[0]
@@ -743,7 +741,6 @@ class TestSendThreadClass:
 
         """
         # Arrange
-        self.service.socket.message_received = True
         if valid_message:
             state_id = self.service.get_network().uuid
             rpc_id = 1
