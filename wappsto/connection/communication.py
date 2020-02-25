@@ -214,13 +214,12 @@ class ClientSocket:
 
         Initializes the object instances on the sending/receiving queue.
         """
-        for device in self.instance.device_list:
-            for value in device.value_list:
+        for device in self.instance.network_cl.devices:
+            for value in device.values:
                 state = value.get_control_state()
                 if state is not None:
                     self.get_control(state)
 
-        self.message_received = True
         message = self.rpc.get_rpc_whole_json(self.instance.build_json())
         self.rpc.send_init_json(self, message)
         self.add_id_to_confirm_list(message)
@@ -597,6 +596,31 @@ class ClientSocket:
 
             self.sending_queue.task_done()
 
+    def send_delete(self, package):
+        """
+        Send data delete request.
+
+        Sends the data to be deleted.
+
+        Args:
+            package: Sending queue item.
+
+        """
+        self.wapp_log.info("Sending delete message")
+        try:
+            local_data = self.rpc.get_rpc_delete(
+                package.network_id,
+                package.device_id,
+                package.value_id,
+                package.state_id
+            )
+            self.add_id_to_confirm_list(local_data)
+            self.create_bulk(local_data)
+        except OSError as e:
+            self.connected = False
+            msg = "Error sending delete: {}".format(e)
+            self.wapp_log.error(msg, exc_info=True)
+
     def get_control(self, state):
         """
         Send get control state data.
@@ -611,11 +635,11 @@ class ClientSocket:
         try:
             local_data = self.rpc.get_rpc_state(
                 None,
-                state.parent_value.parent_network_id,
-                state.parent_value.parent_device_id,
-                state.parent_value.uuid,
+                state.parent.parent.parent.uuid,
+                state.parent.parent.uuid,
+                state.parent.uuid,
                 state.uuid,
-                'control',
+                state.state_type,
                 get=True
             )
             self.add_id_to_confirm_list(local_data)
@@ -901,15 +925,13 @@ class ClientSocket:
                     self.remove_id_from_confirm_list(decoded_id)
 
                 elif decoded.get('result', False):
-                    value = decoded['result'].get('value', True)
-                    if value is not True:
-                        uuid = value['meta']['id']
-                        data = value['data']
-                        for device in self.instance.device_list:
-                            for value in device.value_list:
-                                state = value.get_control_state()
-                                if state is not None and state.uuid == uuid:
-                                    value.handle_control(data_value=data)
+                    result_value = decoded['result'].get('value', True)
+                    if result_value is not True:
+                        uuid = result_value['meta']['id']
+                        data = result_value['data']
+                        object = self.handlers.get_by_id(uuid)
+                        if object.parent.control_state == object:
+                            object.parent.handle_control(data_value=data)
                     self.remove_id_from_confirm_list(decoded_id)
 
                 else:

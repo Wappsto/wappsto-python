@@ -679,7 +679,7 @@ class TestReceiveThreadClass:
 
         """
         # Arrange
-        state = self.service.instance.device_list[0].value_list[0].control_state
+        state = self.service.instance.network_cl.devices[0].values[0].control_state
         state.data = 1
         response = {'jsonrpc': '2.0',
                     'id': id,
@@ -882,7 +882,6 @@ class TestSendThreadClass:
 
         actual_object.delete()
 
-        self.service.socket.message_received = True
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.add_id_to_confirm_list = Mock()
 

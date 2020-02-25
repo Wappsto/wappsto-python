@@ -205,8 +205,8 @@ class SeluxitRpc:
         if state_obj is not None:
             state_obj.timestamp = update
 
-        base_url = '/network/{}/device/{}/value/{}/state'
-        base_url = base_url.format(network_id, device_id, value_id)
+        url = '/network/{}/device/{}/value/{}/state'
+        url = url.format(network_id, device_id, value_id)
 
         if put:
             if get:
@@ -214,15 +214,15 @@ class SeluxitRpc:
                 device_state = None
             else:
                 verb = 'PUT'
-            base_url = '{}/{}'.format(base_url, state_id)
+            url = '{}/{}'.format(url, state_id)
         else:
             verb = 'POST'
 
         if trace_id:
-            base_url = '{}?trace={}'.format(base_url, trace_id)
+            url = '{}?trace={}'.format(url, trace_id)
 
         data_json_rpc = requests.Request(verb,
-                                         base_url=base_url,
+                                         url=url,
                                          data=device_state)
         return data_json_rpc
 
@@ -279,7 +279,6 @@ class SeluxitRpc:
                                          url='/{}'.format('network'),
                                          data=json_data)
         return data_json_rpc
-
 
     def add_whole_json(
             self,
