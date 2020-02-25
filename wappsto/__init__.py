@@ -111,7 +111,7 @@ class Wappsto:
             A list of devices.
 
         """
-        return self.instance.device_list
+        return self.instance.network_cl.devices
 
     def get_by_id(self, id):
         """
@@ -123,21 +123,10 @@ class Wappsto:
             id: unique identifier used for searching
 
         Returns:
-            A reference to the network/device/value object instance.
+            A reference to the network/device/value/state object instance.
 
         """
-        if self.instance.network_cl.uuid == id:
-            return self.instance.network_cl
-
-        for device in self.get_devices():
-            if device.uuid == id:
-                return device
-
-            for value in device.value_list:
-                if value.uuid == id:
-                    return value
-
-        self.wapp_log.warning("Failed to find object with id: {}".format(id))
+        return self.socket.handlers.get_by_id(id)
 
     def get_device(self, name):
         """
@@ -156,7 +145,7 @@ class Wappsto:
             DeviceNotFoundException: Device {name} not found in {instance}.
 
         """
-        for device in self.instance.device_list:
+        for device in self.instance.network_cl.devices:
             if name == device.name:
                 return device
         else:

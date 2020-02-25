@@ -207,22 +207,58 @@ class SeluxitRpc:
 
         base_url = '/network/{}/device/{}/value/{}/state'
         base_url = base_url.format(network_id, device_id, value_id)
+
         if put:
             if get:
                 verb = 'GET'
                 device_state = None
             else:
                 verb = 'PUT'
-            url = '{}/{}'.format(base_url, state_id)
+            base_url = '{}/{}'.format(base_url, state_id)
         else:
             verb = 'POST'
 
         if trace_id:
-            url = '{}?trace={}'.format(url, trace_id)
+            base_url = '{}?trace={}'.format(base_url, trace_id)
 
         data_json_rpc = requests.Request(verb,
-                                         url=url,
+                                         base_url=base_url,
                                          data=device_state)
+        return data_json_rpc
+
+    def get_rpc_delete(self,
+                       network_id,
+                       device_id,
+                       value_id,
+                       state_id):
+        """
+        Creates delete request.
+
+        The method is used to create message that could allow to
+        delete network or its elements.
+
+        Args:
+            network_id: id of the network to delete/modify
+            device_id: id of the device to delete/modify
+            value_id: id of the value to delete/modify
+            state_id: id of the state to delete
+
+        Returns:
+            JSON formatted data of delete message
+
+        """
+        if network_id:
+            url = '/network/{}'.format(network_id)
+            if device_id:
+                url += '/device/{}'.format(device_id)
+                if value_id:
+                    url += '/value/{}'.format(value_id)
+                    if state_id:
+                        url += '/state/{}'.format(state_id)
+
+        data_json_rpc = requests.Request('DELETE',
+                                         url=url)
+
         return data_json_rpc
 
     def get_rpc_whole_json(self, json_data):
@@ -243,6 +279,25 @@ class SeluxitRpc:
                                          url='/{}'.format('network'),
                                          data=json_data)
         return data_json_rpc
+
+
+    def add_whole_json(
+            self,
+            connection,
+            json_data
+    ):
+        """Add an instance of the whole json file.
+
+        While initializing adds network/device/value/state to send and
+        receive queue.
+
+        Args:
+            connection: A reference to the socket instance.
+            json_data: Data read from json file.
+
+        """
+        message = self.get_rpc_whole_json(json_data)
+        self.send_init_json(connection, message)
 
     def send_init_json(self, connection, json_data):
         """Send initial JSON data.

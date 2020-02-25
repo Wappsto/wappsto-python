@@ -78,7 +78,6 @@ class ClientSocket:
         self.receiving_thread = threading.Thread(target=self.receive_thread)
         self.receiving_thread.setDaemon(True)
         self.connected = False
-        self.message_received = False
         self.sending_queue = queue.Queue(maxsize=0)
         self.sending_thread = threading.Thread(target=self.send_thread)
         self.sending_thread.setDaemon(True)
@@ -89,19 +88,40 @@ class ClientSocket:
         self.bulk_send_list = []
         self.lock_await = threading.Lock()
         self.set_sockets()
-        self.set_report_states()
 
-    def set_report_states(self):
-        """
-        Set the reference to the queue and connection.
+        self.network.rpc = self.rpc
+        self.network.conn = self
 
-        Provides value classes with a referece to the queue and socket
-        instances to enable report sending.
+    def send_state(self, state, data_value=None):
         """
-        for device in self.instance.device_list:
-            for value in device.value_list:
-                value.rpc = self.rpc
-                value.conn = self
+        Send control or report to a server.
+
+        Sends a control or report message with a new value to the server.
+
+        Args:
+            state: Reference to an instance of a State class.
+            data_value: A new incoming value.
+
+        Raises:
+            Exception: If one occurs while sending control message.
+
+        """
+        try:
+            json_data = self.rpc.get_rpc_state(
+                str(data_value),
+                state.parent.parent.parent.uuid,
+                state.parent.parent.uuid,
+                state.parent.uuid,
+                state.uuid,
+                state.state_type,
+                state_obj=state
+            )
+            return self.rpc.send_init_json(self, json_data)
+
+        except Exception as e:
+            msg = "Error reporting state: {}".format(e)
+            self.wapp_log.error(msg)
+            return False
 
     def set_sockets(self):
         """
@@ -481,11 +501,10 @@ class ClientSocket:
 
         """
         self.bulk_send_list.append(data)
-        if ((self.sending_queue.qsize() < 1 and self.message_received)
+        if ((self.sending_queue.qsize() == 0 and len(self.packet_awaiting_confirm) == 0)
                 or len(self.bulk_send_list) >= MAX_BULK_SIZE):
             self.send_data(self.bulk_send_list)
             self.bulk_send_list.clear()
-            self.message_received = False
 
     def send_data(self, data):
         """
@@ -502,6 +521,11 @@ class ClientSocket:
                 self.get_object_without_none_values(data_element)
                 if len(data_element) == 0:
                     data.remove(data_element)
+                else:
+                    if (data_element.get("method", "") == "PUT"
+                            or data_element.get("method", "") == "POST"
+                            or data_element.get("method", "") == "DELETE"):
+                        self.add_id_to_confirm_list(data_element)
             if len(data) > 0:
                 data = json.dumps(data)
                 data = data.encode('utf-8')
@@ -564,6 +588,9 @@ class ClientSocket:
 
                 elif package.msg_id == message_data.SEND_TRACE:
                     self.send_trace(package)
+
+                elif package.msg_id == message_data.SEND_DELETE:
+                    self.send_delete(package)
 
                 else:
                     self.wapp_log.warning("Unhandled send")
@@ -650,7 +677,6 @@ class ClientSocket:
                 'Control',
                 trace_id=package.trace_id
             )
-            self.add_id_to_confirm_list(local_data)
             self.create_bulk(local_data)
         except OSError as e:
             self.connected = False
@@ -758,7 +784,6 @@ class ClientSocket:
                 'Report',
                 trace_id=package.trace_id
             )
-            self.add_id_to_confirm_list(local_data)
             self.create_bulk(local_data)
             data_decoded = local_data.get('params').get('data').get('data')
             self.wapp_log.info('Sending report value: {}'.format(data_decoded))
@@ -829,9 +854,6 @@ class ClientSocket:
                     self.receive(decoded_data)
             else:
                 self.receive(decoded)
-
-            if len(self.packet_awaiting_confirm) == 0:
-                self.message_received = True
 
         except JSONDecodeError:
             self.wapp_log.error("Json error: {}".format(decoded))

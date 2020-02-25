@@ -11,6 +11,7 @@ import datetime
 import decimal
 import re
 from math import fabs
+from .. import message_data
 from .errors import wappsto_errors
 
 
@@ -24,7 +25,7 @@ class Value:
 
     def __init__(
         self,
-        parent_device,
+        parent,
         uuid,
         name,
         type_of_value,
@@ -47,7 +48,7 @@ class Value:
         Initializes an object of value class by passing required parameters.
 
         Args:
-            parent_device: Reference to a device object
+            parent: Reference to a device object
             uuid: An unique identifier of a device
             name: A name of a device
             type_of_value: Determines a type of value [e.g temperature, CO2]
@@ -72,7 +73,7 @@ class Value:
         """
         self.wapp_log = logging.getLogger(__name__)
         self.wapp_log.addHandler(logging.NullHandler())
-        self.parent_device = parent_device
+        self.parent = parent
         self.uuid = uuid
         self.name = name
         self.type_of_value = type_of_value
@@ -93,15 +94,10 @@ class Value:
         self.control_state = None
         self.callback = self.__callback_not_set
         self.last_update_of_report = self.get_now()
-        self.rpc = None
-        self.conn = None
         self.reporting_thread = None
         self.last_update_of_control = None
         self.difference = 0
         self.delta_report = 0
-        self.parent_network_id = parent_device.get_parent_network().uuid
-        self.parent_device_id = parent_device.uuid
-        self.state_list = []
 
         msg = "Value {} debug: {}".format(name, str(self.__dict__))
         self.wapp_log.debug(msg)
@@ -186,7 +182,7 @@ class Value:
             Reference to instance of Device class that owns this Value.
 
         """
-        return self.parent_device
+        return self.parent
 
     def add_report_state(self, state):
         """
@@ -199,7 +195,6 @@ class Value:
 
         """
         self.report_state = state
-        self.state_list.append(state)
         msg = "Report state {} has been added.".format(state)
         self.wapp_log.debug(msg)
 
@@ -214,7 +209,6 @@ class Value:
 
         """
         self.control_state = state
-        self.state_list.append(state)
         msg = "Control state {} has been added".format(state)
         self.wapp_log.debug(msg)
 
@@ -263,8 +257,10 @@ class Value:
         """
         try:
             result = int(self.difference) >= int(self.delta)
-            if result and self.rpc is not None and self.delta_report == 1:
-                self.__send_logic(state, "Report")
+            if result and self.delta_report == 1:
+                state.timestamp = self.get_now()
+                self.last_update_of_report = state.timestamp
+                self.parent.parent.conn.send_state(state)
                 self.wapp_log.info("Sent report [DELTA].")
                 self.delta_report = 0
                 return True
@@ -317,9 +313,11 @@ class Value:
                         now = self.get_now()
                         now_timestamp = self.__date_converter(now)
                         the_time = last_update_timestamp + self.period
-                        if the_time <= now_timestamp and self.rpc is not None:
+                        if the_time <= now_timestamp:
                             self.wapp_log.info("Sending report [PERIOD].")
-                            self.__send_logic(state, 'Report')
+                            state.timestamp = self.get_now()
+                            self.last_update_of_report = state.timestamp
+                            self.parent.parent.conn.send_state(state)
                     except Exception as e:
                         self.reporting_thread.join()
                         self.wapp_log.error(e)
@@ -469,11 +467,15 @@ class Value:
         if data_value is None:
             return False
 
-        return self.__send_logic(
+        if timestamp:
+            state.timestamp = timestamp
+        else:
+            state.timestamp = self.get_now()
+        self.last_update_of_report = state.timestamp
+
+        return self.parent.parent.conn.send_state(
             state,
-            'Report',
             data_value=data_value,
-            timestamp=timestamp
         )
 
     def get_data(self):
@@ -517,6 +519,24 @@ class Value:
         """
         return self.__call_callback('remove')
 
+    def delete(self):
+        """
+        Delete this object.
+
+        Sends delete request for this object and removes its reference
+        from parent.
+
+        """
+        message = message_data.MessageData(
+            message_data.SEND_DELETE,
+            network_id=self.parent.parent.uuid,
+            device_id=self.parent.uuid,
+            value_id=self.uuid
+        )
+        self.parent.parent.conn.sending_queue.put(message)
+        self.parent.values.remove(self)
+        self.wapp_log.info("Value removed")
+
     def __call_callback(self, event):
         if self.callback is not None:
             return self.callback(self, event)
@@ -539,51 +559,6 @@ class Value:
         self.control_state.data = data_value
 
         return self.__call_callback('set')
-
-    def __send_logic(self, state, type, data_value=None, timestamp=None):
-        """
-        Send control or report to a server.
-
-        Sends a control or report message with a new value to the server.
-        Updates the time of lasted sent control and sets a new updated value.
-        Then invokes callback in order to inform a user about the result of the
-        operation.
-
-        Args:
-            state: Reference to an instance of a State class.
-            type: Determines if the message is report or control
-            data_value: A new incoming value.
-
-
-        Returns:
-            True if successfully, False if error occurs.
-            boolean
-
-        Raises:
-            Exception: If one occurs while sending control message.
-
-        """
-        try:
-            json_data = self.rpc.get_rpc_state(
-                str(data_value),
-                self.parent_network_id,
-                self.parent_device_id,
-                self.uuid,
-                state.uuid,
-                type,
-                state_obj=state
-            )
-            if timestamp:
-                state.timestamp = timestamp
-            else:
-                state.timestamp = self.get_now()
-            self.last_update_of_report = state.timestamp
-            return self.rpc.send_init_json(self.conn, json_data)
-
-        except Exception as e:
-            msg = "Error reporting state: {}".format(e)
-            self.wapp_log.error(msg)
-            return False
 
     def __is_number_type(self):
         """
