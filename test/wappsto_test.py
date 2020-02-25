@@ -94,15 +94,15 @@ def get_object(self, object_name):
     """
     actual_object = None
     if object_name == "network":
-        actual_object = self.service.instance.network_cl
+        actual_object = self.service.instance.network
     elif object_name == "device":
-        actual_object = self.service.instance.network_cl.devices[0]
+        actual_object = self.service.instance.network.devices[0]
     elif object_name == "value":
-        actual_object = self.service.instance.network_cl.devices[0].values[0]
+        actual_object = self.service.instance.network.devices[0].values[0]
     elif object_name == "control_state":
-        actual_object = self.service.instance.network_cl.devices[0].values[0].get_control_state()
+        actual_object = self.service.instance.network.devices[0].values[0].get_control_state()
     elif object_name == "report_state":
-        actual_object = self.service.instance.network_cl.devices[0].values[0].get_report_state()
+        actual_object = self.service.instance.network.devices[0].values[0].get_report_state()
     return actual_object
 
 
@@ -326,9 +326,9 @@ class TestConnClass:
         status_service = self.service.get_status()
         fix_object(callback_exists, status_service)
         if value_changed_to_none:
-            self.service.instance.network_cl.name = None
+            self.service.instance.network.name = None
         if not valid_json:
-            self.service.instance.network_cl.uuid = None
+            self.service.instance.network.uuid = None
 
         # Act
         with patch('os.getenv', return_value=str(upgradable)):
@@ -732,7 +732,7 @@ class TestReceiveThreadClass:
 
         """
         # Arrange
-        state = self.service.instance.network_cl.devices[0].values[0].control_state
+        state = self.service.instance.network.devices[0].values[0].control_state
         state.data = 1
         send_response(self, 'result', None, bulk, state.uuid, None, data, split_message)
 

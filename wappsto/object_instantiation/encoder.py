@@ -43,15 +43,15 @@ class WappstoEncoder:
 
         """
         encoded_devices = []
-        for device in instance.network_cl.devices:
+        for device in instance.network.devices:
             encoded_device = self.encode_device(device)
             encoded_devices.append(encoded_device)
 
         encoded_network = {
-            'name': instance.network_cl.name,
+            'name': instance.network.name,
             'device': encoded_devices,
             'meta': {
-                'id': instance.network_cl.uuid,
+                'id': instance.network.uuid,
                 'version': '2.0',
                 'type': 'network'
             }

@@ -99,7 +99,7 @@ class Wappsto:
             A reference to the network object instance.
 
         """
-        return self.instance.network_cl
+        return self.instance.network
 
     def get_devices(self):
         """
@@ -111,7 +111,7 @@ class Wappsto:
             A list of devices.
 
         """
-        return self.instance.network_cl.devices
+        return self.instance.network.devices
 
     def get_by_id(self, id):
         """
@@ -145,7 +145,7 @@ class Wappsto:
             DeviceNotFoundException: Device {name} not found in {instance}.
 
         """
-        for device in self.instance.network_cl.devices:
+        for device in self.instance.network.devices:
             if name == device.name:
                 return device
         else:

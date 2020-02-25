@@ -53,7 +53,7 @@ class SaveObjects:
         encoded_string = str(encoded_string).replace("\'", "\\\"")
         encoded_string = '{"data":"' + encoded_string + '"}'
 
-        network_id = instance.network_cl.uuid
+        network_id = instance.network.uuid
 
         path_open = os.path.join(path, '{}.json'.format(network_id))
 
