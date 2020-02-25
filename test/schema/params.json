@@ -7,6 +7,6 @@
     "url"					: {"type": "string"},
     "data"					: {"oneOf":[{"$ref": "state.json"}, {"$ref": "network.json"}]}
   },
-  "required": ["url", "data"],
+  "required": ["url"],
   "additionalProperties": false
 }

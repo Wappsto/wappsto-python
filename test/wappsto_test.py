@@ -143,10 +143,26 @@ def send_response(self, verb, trace_id, bulk, id, url, data, split_message):
                    "method": verb}
     else:
         if verb == "error" or verb == "result":
+            if data:
+                message_value = {'data': data,
+                                 'type': 'Control',
+                                 'timestamp': '2020-01-20T09:20:21.092Z',
+                                 'meta': {
+                                     'type': 'state',
+                                     'version': '2.0',
+                                     'id': id,
+                                     'manufacturer': '31439b87-040b-4b41-b5b8-f3774b2a1c19',
+                                     'updated': '2020-02-18T09:14:12.880+00:00',
+                                     'created': '2020-01-20T09:20:21.290+00:00',
+                                     'revision': 1035,
+                                     'contract': [],
+                                     'owner': 'bb10f0f1-390f-478e-81c2-a67f58de88be'}}
+            else:
+                message_value = "True"
             message = {"jsonrpc": "2.0",
                        "id": str(id),
                        verb: {
-                           "value": "True",
+                           "value": message_value,
                            "meta": {
                                "server_send_time": "2020-01-22T08:22:55.315Z"}}}
             self.service.socket.packet_awaiting_confirm[str(id)] = message
@@ -320,7 +336,7 @@ class TestConnClass:
                 fake_connect(self, address, port)
                 args, kwargs = self.service.socket.my_socket.send.call_args
                 arg = json.loads(args[0].decode('utf-8'))
-                sent_json = arg[0]['params']['data']
+                sent_json = arg[-1]['params']['data']
             except wappsto_errors.ServerConnectionException:
                 sent_json = None
                 arg = []
@@ -698,25 +714,56 @@ class TestReceiveThreadClass:
             if message.msg_id == message_data.SEND_TRACE:
                 assert message.trace_id == trace_id
 
-    @pytest.mark.parametrize("id,type", [(93043873, "error"),
-                                         (93043873, "result")])
+    @pytest.mark.parametrize("id", ["93043873"])
+    @pytest.mark.parametrize("data", ["55"])
     @pytest.mark.parametrize("bulk", [False, True])
     @pytest.mark.parametrize("split_message", [False, True])
-    def test_receive_thread_other(self, id, type, bulk, split_message):
+    def test_receive_thread_result(self, id, data, bulk, split_message):
         """
-        Tests receiving message with other data.
+        Tests receiving success message.
 
-        Tests what would happen if error/result response would be provided in incoming message.
+        Tests what would happen if result response would be provided in incoming message.
 
         Args:
             id: id of the message
-            type: type of the message
+            data: value state should be in
             bulk: Boolean value indicating if multiple messages should be sent at once
             split_message: Boolean value indicating if message should be sent in parts
 
         """
         # Arrange
-        send_response(self, type, None, bulk, id, None, None, split_message)
+        state = self.service.instance.network_cl.devices[0].values[0].control_state
+        state.data = 1
+        send_response(self, 'result', None, bulk, state.uuid, None, data, split_message)
+
+        # Act
+        try:
+            # runs until mock object is run and its side_effect raises
+            # exception
+            self.service.socket.receive_thread()
+        except KeyboardInterrupt:
+            pass
+
+        # Assert
+        assert state.data == data
+        assert len(self.service.socket.packet_awaiting_confirm) == 0
+
+    @pytest.mark.parametrize("bulk", [False, True])
+    @pytest.mark.parametrize("split_message", [False, True])
+    def test_receive_thread_error(self, bulk, split_message):
+        """
+        Tests receiving error message.
+
+        Tests what would happen if error response would be provided in incoming message.
+
+        Args:
+            id: id of the message
+            bulk: Boolean value indicating if multiple messages should be sent at once
+            split_message: Boolean value indicating if message should be sent in parts
+
+        """
+        # Arrange
+        send_response(self, 'error', None, bulk, "93043873", None, None, split_message)
 
         # Act
         try:
@@ -868,7 +915,6 @@ class TestSendThreadClass:
 
         actual_object.delete()
 
-        self.service.socket.message_received = True
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.add_id_to_confirm_list = Mock()
 

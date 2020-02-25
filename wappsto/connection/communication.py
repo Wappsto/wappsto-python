@@ -17,7 +17,6 @@ import ssl
 import urllib.request as request
 import logging
 from . import message_data
-from . import initialize
 from . import handlers
 from .. import status
 from .network_classes.errors import wappsto_errors
@@ -87,7 +86,6 @@ class ClientSocket:
         self.sending_thread.setDaemon(True)
         self.rpc = rpc
         self.handlers = handlers.Handlers(self.instance)
-        self.initialize_code = initialize.Initialize(self.rpc)
         self.packet_awaiting_confirm = {}
         self.add_trace_to_report_list = {}
         self.bulk_send_list = []
@@ -219,7 +217,22 @@ class ClientSocket:
 
         Initializes the object instances on the sending/receiving queue.
         """
-        self.initialize_code.initialize_all(self, self.instance)
+        for device in self.instance.network_cl.devices:
+            for value in device.values:
+                state = value.get_control_state()
+                if state is not None:
+                    self.get_control(state)
+
+        message = self.rpc.get_rpc_whole_json(self.instance.build_json())
+        self.rpc.send_init_json(self, message)
+        self.add_id_to_confirm_list(message)
+
+        msg = "The whole network {} added to Sending queue {}.".format(
+            self.instance.network_cl.name,
+            self.rpc
+        )
+        self.wapp_log.debug(msg)
+
         self.confirm_initialize_all()
 
     def add_id_to_confirm_list(self, data):
@@ -611,6 +624,35 @@ class ClientSocket:
             msg = "Error sending delete: {}".format(e)
             self.wapp_log.error(msg, exc_info=True)
 
+    def get_control(self, state):
+        """
+        Send get control state data.
+
+        Sends requests for the data of control state.
+
+        Args:
+            state: State object referece.
+
+        """
+        self.wapp_log.info("Getting control value")
+        try:
+            local_data = self.rpc.get_rpc_state(
+                None,
+                state.parent.parent.parent.uuid,
+                state.parent.parent.uuid,
+                state.parent.uuid,
+                state.uuid,
+                state.state_type,
+                get=True
+            )
+            self.add_id_to_confirm_list(local_data)
+            self.create_bulk(local_data)
+        except OSError as e:
+            self.connected = False
+            msg = "Failed to send a get request for the control value: {}"
+            msg = msg.format(e)
+            self.wapp_log.error(msg, exc_info=True)
+
     def send_trace(self, package):
         """
         Send data trace.
@@ -895,6 +937,13 @@ class ClientSocket:
                     self.remove_id_from_confirm_list(decoded_id)
 
                 elif decoded.get('result', False):
+                    result_value = decoded['result'].get('value', True)
+                    if result_value is not True:
+                        uuid = result_value['meta']['id']
+                        data = result_value['data']
+                        object = self.handlers.get_by_id(uuid)
+                        if object.parent.control_state == object:
+                            object.parent.handle_control(data_value=data)
                     self.remove_id_from_confirm_list(decoded_id)
 
                 else:
