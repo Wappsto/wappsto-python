@@ -62,7 +62,7 @@ class ClientSocket:
         """
         self.wapp_log = logging.getLogger(__name__)
         self.wapp_log.addHandler(logging.NullHandler())
-        self.network = instance.network_cl
+        self.network = instance.network
         self.instance = instance
         self.path_to_calling_file = path_to_calling_file
         self.ssl_server_cert = os.path.join(path_to_calling_file,
@@ -217,7 +217,7 @@ class ClientSocket:
 
         Initializes the object instances on the sending/receiving queue.
         """
-        for device in self.instance.network_cl.devices:
+        for device in self.instance.network.devices:
             for value in device.values:
                 state = value.get_control_state()
                 if state is not None:
@@ -228,7 +228,7 @@ class ClientSocket:
         self.add_id_to_confirm_list(message)
 
         msg = "The whole network {} added to Sending queue {}.".format(
-            self.instance.network_cl.name,
+            self.instance.network.name,
             self.rpc
         )
         self.wapp_log.debug(msg)

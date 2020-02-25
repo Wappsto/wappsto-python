@@ -7,10 +7,10 @@ import json
 import logging
 import warnings
 from . import save_objects
-from ..connection.network_classes import network
-from ..connection.network_classes import device
-from ..connection.network_classes import value
-from ..connection.network_classes import state
+from ..connection.network_classes import network as network_module
+from ..connection.network_classes import device as device_module
+from ..connection.network_classes import value as value_module
+from ..connection.network_classes import state as state_module
 from . import encoder
 
 
@@ -68,7 +68,7 @@ class Instantiator:
         Get attribute value.
 
         When trying to get value from device_list warning is raised about
-        it being deprecated and calls network_cl.devices instead.
+        it being deprecated and calls network.devices instead.
 
         Returns:
             value of get_data
@@ -76,7 +76,10 @@ class Instantiator:
         """
         if attr in ["device_list"]:
             warnings.warn("Property %s is deprecated" % attr)
-            return self.network_cl.devices
+            return self.network.devices
+        if attr in ["network_cl"]:
+            warnings.warn("Property %s is deprecated" % attr)
+            return self.network
 
     def parse_json_file(self):
         """
@@ -125,7 +128,7 @@ class Instantiator:
         self.version = decoded_meta.get('version')
         self.name = decoded_data.get('name')
 
-        self.network_cl = network.Network(
+        self.network = network_module.Network(
             uuid=self.uuid,
             version=self.version,
             name=self.name,
@@ -133,7 +136,7 @@ class Instantiator:
             instance=self
         )
 
-        self.wapp_log.debug("Network {} built.".format(self.network_cl))
+        self.wapp_log.debug("Network {} built.".format(self.network))
 
         for device_iterator in self.json_container.get('device', []):
             uuid = device_iterator.get('meta').get('id')
@@ -147,8 +150,8 @@ class Instantiator:
             description = device_iterator.get('description')
 
             # CHANGE THIS LATER
-            device_cl = device.Device(
-                parent=self.network_cl,
+            device = device_module.Device(
+                parent=self.network,
                 uuid=uuid,
                 name=name,
                 product=product,
@@ -159,9 +162,9 @@ class Instantiator:
                 communication=communication,
                 description=description
             )
-            self.network_cl.devices.append(device_cl)
+            self.network.devices.append(device)
             self.wapp_log.debug("Device {} appended to {}"
-                                .format(device_cl, self.network_cl.devices)
+                                .format(device, self.network.devices)
                                 )
 
             for value_iterator in device_iterator.get('value', []):
@@ -198,8 +201,8 @@ class Instantiator:
                     number_unit = get_number.get('unit')
 
                 # CHANGE THIS LATER
-                value_cl = value.Value(
-                    parent=device_cl,
+                value = value_module.Value(
+                    parent=device,
                     uuid=uuid,
                     name=name,
                     type_of_value=type_of_value,
@@ -215,9 +218,9 @@ class Instantiator:
                     blob_max=blob_max
                 )
 
-                device_cl.add_value(value_cl)
+                device.add_value(value)
                 self.wapp_log.debug("Value {} appended to {}"
-                                    .format(value_cl, device_cl.values)
+                                    .format(value, device.values)
                                     )
 
                 for state_iterator in value_iterator.get('state', []):
@@ -225,21 +228,21 @@ class Instantiator:
                     state_type = state_iterator.get('type')
                     init_value = state_iterator.get('data')
                     timestamp = state_iterator.get('timestamp')
-                    state_cl = state.State(
-                        parent=value_cl,
+                    state = state_module.State(
+                        parent=value,
                         uuid=uuid,
                         state_type=state_type,
                         timestamp=timestamp,
                         init_value=init_value
                     )
                     if state_type == 'Report':
-                        value_cl.add_report_state(state_cl)
+                        value.add_report_state(state)
                         msg = "Report state {} appended to {}"
-                        self.wapp_log.debug(msg.format(state_cl, value_cl))
+                        self.wapp_log.debug(msg.format(state, value))
                     elif state_type == 'Control':
-                        value_cl.add_control_state(state_cl)
+                        value.add_control_state(state)
                         msg = "Control state {} appended to {}"
-                        self.wapp_log.debug(msg.format(state_cl, value_cl))
+                        self.wapp_log.debug(msg.format(state, value))
 
     def build_json(self):
         """

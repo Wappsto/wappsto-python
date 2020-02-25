@@ -58,7 +58,7 @@ class Handlers:
         self.instance = instance
 
     def __get_random_id(self):
-        network_n = self.instance.network_cl.name
+        network_n = self.instance.network.name
         random_int = random.randint(1, 25000)
         return "{}{}".format(network_n, random_int)
 
@@ -202,11 +202,11 @@ class Handlers:
 
         """
         message = "Found instance of {} object with id: {}"
-        if self.instance.network_cl.uuid == id:
+        if self.instance.network.uuid == id:
             self.wapp_log.debug(message.format("network", id))
-            return self.instance.network_cl
+            return self.instance.network
 
-        for device in self.instance.network_cl.devices:
+        for device in self.instance.network.devices:
             if device.uuid == id:
                 self.wapp_log.debug(message.format("device", id))
                 return device
