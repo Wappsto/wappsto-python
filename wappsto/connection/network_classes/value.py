@@ -6,10 +6,8 @@ methods.
 """
 import logging
 import warnings
-import time
 import datetime
 import decimal
-import re
 from .. import message_data
 from .errors import wappsto_errors
 
@@ -142,9 +140,10 @@ class Value:
 
         """
         try:
+            delta = float(delta)
             if (self.__is_number_type()
                     and self.get_report_state()
-                    and float(delta) > 0):
+                    and delta > 0):
                 self.delta = delta
             else:
                 self.wapp_log.warning("Cannot set the delta for this value.")
@@ -363,6 +362,16 @@ class Value:
             True/False indicating the result of operation.
 
         """
+        if (self.delta is not None
+                and self.get_report_state() is not None
+                and self.__is_number_type()):
+
+            if (self.last_update_of_control is None
+                    or abs(data_value - self.last_update_of_control) >= self.delta):
+                self.last_update_of_control = data_value
+            else:
+                return False
+
         state = self.get_report_state()
         if state is None:
             self.wapp_log.warning("Value is write only.")

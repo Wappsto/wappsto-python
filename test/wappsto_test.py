@@ -410,7 +410,8 @@ class TestValueSendClass:
         (2, 123.456e-5, "1.9999872"),
         (1, 9.0e-20, "0.99999999999999999999"),
         (0.02442002442002442001001, 0.00000000000002, "0.02442002442002")])
-    def test_send_value_update_number_type(self, input, step_size, expected):
+    @pytest.mark.parametrize("delta", [None, 0.1, 1, 100])
+    def test_send_value_update_number_type(self, input, step_size, expected, delta):
         """
         Tests sending update for number value.
 
@@ -420,6 +421,7 @@ class TestValueSendClass:
             input: value to be updated
             step_size: step size value should follow
             expected: value expected to be sent
+            delta: delta of value (determines if change was significant enough to be sent)
 
         """
         # Arrange
@@ -428,6 +430,12 @@ class TestValueSendClass:
         value = device.values[0]
         value.data_type == "number"
         value.number_step = step_size
+        if delta:
+            value.last_update_of_control = 0
+            value.set_delta(delta)
+            if not abs(input - value.last_update_of_control) >= value.delta:
+                # if change is less then delta then no message would be sent
+                expected = None
 
         # Act
         try:
@@ -455,7 +463,8 @@ class TestValueSendClass:
         (None, None, None),
         ("test", 1, None)])  # value over max
     @pytest.mark.parametrize("type", ["string", "blob"])
-    def test_send_value_update_text_type(self, input, max, expected, type):
+    @pytest.mark.parametrize("delta", [None, 0.1, 1, 100])
+    def test_send_value_update_text_type(self, input, max, expected, type, delta):
         """
         Tests sending update for text/blob value.
 
@@ -466,6 +475,7 @@ class TestValueSendClass:
             max: maximum length of the message
             expected: value expected to be sent
             type: indicates if it is string or blob types of value
+            delta: delta of value (determines if change was significant enough to be sent)
 
         """
         # Arrange
@@ -475,6 +485,10 @@ class TestValueSendClass:
         value.data_type = type
         value.string_max = max
         value.blob_max = max
+        if delta:
+            value.last_update_of_control = 0
+            value.set_delta(delta)
+            # delta should not have eny effect
 
         # Act
         try:
