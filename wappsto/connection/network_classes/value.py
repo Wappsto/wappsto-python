@@ -132,14 +132,11 @@ class Value:
             self.wapp_log.error("Period value must be a number.")
 
     def set_timer(self):
-        try:
-            self.timer.cancel()
-            if (self.get_report_state() is not None
-                and self.period is not None):
-                self.timer = threading.Timer(self.period, self.period_update)
-                self.timer.start()
-        except:
-            self.wapp_log.error("Periodic value sending stopped.")
+        self.timer.cancel()
+        if (self.get_report_state() is not None
+            and self.period is not None):
+            self.timer = threading.Timer(self.period, self.period_update)
+            self.timer.start()
 
     def set_delta(self, delta):
         """
@@ -388,9 +385,15 @@ class Value:
         return self.update_value(data_value, timestamp=None)
 
     def period_update(self):
-        state = self.get_report_state()
-        if (state is not None):
-            return self.update_value(state.data)
+        if self.parent.parent.conn.connected == False:
+            msg = "Value: {} is no longer periodically sending updates."
+            msg = msg.format(self.uuid)
+            self.wapp_log.info(msg)
+        else:
+            state = self.get_report_state()
+            if (state is not None):
+                #self.set_timer()
+                self.update_value(state.data)
 
     def update_value(self, data_value, timestamp=None):
         state = self.get_report_state()
@@ -406,8 +409,6 @@ class Value:
             state.timestamp = timestamp
         else:
             state.timestamp = self.get_now()
-
-        self.set_timer()
 
         return self.parent.parent.conn.send_state(
             state,

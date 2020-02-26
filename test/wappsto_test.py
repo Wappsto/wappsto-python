@@ -54,7 +54,8 @@ def fake_connect(self, address, port):
     wappsto.RETRY_LIMIT = 2
     with patch('ssl.SSLContext.wrap_socket') as context:
         context.connect = Mock(side_effect=check_for_correct_conn)
-        with patch('time.sleep', return_value=None), patch('threading.Thread'), \
+        with patch('time.sleep', return_value=None), \
+            patch('threading.Thread'), \
             patch('wappsto.communication.ClientSocket.add_id_to_confirm_list'), \
                 patch('socket.socket'), \
                 patch('ssl.SSLContext.wrap_socket', return_value=context):
@@ -411,7 +412,8 @@ class TestValueSendClass:
         (1, 9.0e-20, "0.99999999999999999999"),
         (0.02442002442002442001001, 0.00000000000002, "0.02442002442002")])
     @pytest.mark.parametrize("delta", [None, 0.1, 1, 100])
-    def test_send_value_update_number_type(self, input, step_size, expected, delta):
+    @pytest.mark.parametrize("period", [True, False])
+    def test_send_value_update_number_type(self, input, step_size, expected, delta, period):
         """
         Tests sending update for number value.
 
@@ -439,7 +441,12 @@ class TestValueSendClass:
 
         # Act
         try:
-            value.update(input)
+            if period is True and delta is None:
+                value.get_report_state().data = input
+                with patch('threading.Timer.start', side_effect=value.period_update):
+                    value.set_period(1)
+            else:
+                value.update(input)
             args, kwargs = self.service.socket.my_socket.send.call_args
             arg = json.loads(args[0].decode('utf-8'))
             result = arg[0]['params']['data']['data']
@@ -464,7 +471,8 @@ class TestValueSendClass:
         ("test", 1, None)])  # value over max
     @pytest.mark.parametrize("type", ["string", "blob"])
     @pytest.mark.parametrize("delta", [None, 0.1, 1, 100])
-    def test_send_value_update_text_type(self, input, max, expected, type, delta):
+    @pytest.mark.parametrize("period", [True, False])
+    def test_send_value_update_text_type(self, input, max, expected, type, delta, period):
         """
         Tests sending update for text/blob value.
 
@@ -492,7 +500,12 @@ class TestValueSendClass:
 
         # Act
         try:
-            value.update(input)
+            if period is True:
+                value.get_report_state().data = input
+                with patch('threading.Timer.start', side_effect=value.period_update):
+                    value.set_period(1)
+            else:
+                value.update(input)
             args, kwargs = self.service.socket.my_socket.send.call_args
             arg = json.loads(args[0].decode('utf-8'))
             result = arg[0]['params']['data']['data']
