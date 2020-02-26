@@ -225,7 +225,6 @@ class ClientSocket:
 
         message = self.rpc.get_rpc_whole_json(self.instance.build_json())
         self.rpc.send_init_json(self, message)
-        self.add_id_to_confirm_list(message)
 
         msg = "The whole network {} added to Sending queue {}.".format(
             self.instance.network.name,
@@ -617,7 +616,6 @@ class ClientSocket:
                 package.value_id,
                 package.state_id
             )
-            self.add_id_to_confirm_list(local_data)
             self.create_bulk(local_data)
         except OSError as e:
             self.connected = False
@@ -645,7 +643,6 @@ class ClientSocket:
                 state.state_type,
                 get=True
             )
-            self.add_id_to_confirm_list(local_data)
             self.create_bulk(local_data)
         except OSError as e:
             self.connected = False
