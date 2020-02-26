@@ -391,7 +391,11 @@ class Value:
                 return False
         elif (self.period is not None and self.get_report_state() is not None):
             # data has period
-            return False
+            if self.timer.is_alive() is True:
+                return False
+            else:
+                self.set_timer()
+                return self.__update_value(data_value, timestamp=None)
         else:
             # data has no delta or period
             return self.__update_value(data_value, timestamp=None)
