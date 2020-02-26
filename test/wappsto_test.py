@@ -56,6 +56,7 @@ def fake_connect(self, address, port):
         context.connect = Mock(side_effect=check_for_correct_conn)
         with patch('time.sleep', return_value=None), \
             patch('threading.Thread'), \
+            patch('threading.Timer'), \
             patch('wappsto.communication.ClientSocket.add_id_to_confirm_list'), \
                 patch('socket.socket'), \
                 patch('ssl.SSLContext.wrap_socket', return_value=context):
@@ -424,6 +425,7 @@ class TestValueSendClass:
             step_size: step size value should follow
             expected: value expected to be sent
             delta: delta of value (determines if change was significant enough to be sent)
+            period: parameter indicating whether value should be updated periodically
 
         """
         # Arrange
@@ -443,8 +445,7 @@ class TestValueSendClass:
         try:
             if period is True and delta is None:
                 value.get_report_state().data = input
-                with patch('threading.Timer.start', side_effect=value.period_update):
-                    value.set_period(1)
+                value.periodic_update()
             else:
                 value.update(input)
             args, kwargs = self.service.socket.my_socket.send.call_args
@@ -484,6 +485,7 @@ class TestValueSendClass:
             expected: value expected to be sent
             type: indicates if it is string or blob types of value
             delta: delta of value (determines if change was significant enough to be sent)
+            period: parameter indicating whether value should be updated periodically
 
         """
         # Arrange
@@ -502,8 +504,7 @@ class TestValueSendClass:
         try:
             if period is True:
                 value.get_report_state().data = input
-                with patch('threading.Timer.start', side_effect=value.period_update):
-                    value.set_period(1)
+                value.periodic_update()
             else:
                 value.update(input)
             args, kwargs = self.service.socket.my_socket.send.call_args

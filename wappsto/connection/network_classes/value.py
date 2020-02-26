@@ -115,7 +115,8 @@ class Value:
         """
         Set the value reporting period.
 
-        Sets the time defined in second to report a value to the server.
+        Sets the time defined in second to report a value to
+        the server and starts timer.
 
         Args:
             period: Reporting period.
@@ -132,10 +133,15 @@ class Value:
             self.wapp_log.error("Period value must be a number.")
 
     def set_timer(self):
+        """
+        Set timer.
+
+        Stop previous timer and sets new one if period value is not None.
+
+        """
         self.timer.cancel()
-        if (self.get_report_state() is not None
-            and self.period is not None):
-            self.timer = threading.Timer(self.period, self.period_update)
+        if (self.period is not None):
+            self.timer = threading.Timer(self.period, self.periodic_update)
             self.timer.start()
 
     def set_delta(self, delta):
@@ -361,8 +367,7 @@ class Value:
         """
         Update value.
 
-        Check if value has a state and validates the information in data_value
-        if both of these checks pass then method __send_logic is called.
+        Check if value has a delta or period, if it has then according actions are taken, otherwise __update_value is called.
 
         Args:
             data_value: the new value.
@@ -372,30 +377,57 @@ class Value:
             True/False indicating the result of operation.
 
         """
-        if (self.delta is not None
-                and self.get_report_state() is not None
-                and self.__is_number_type()):
-
-            if (self.last_update_of_control is None
-                    or abs(data_value - self.last_update_of_control) >= self.delta):
+        if (self.delta is not None and self.get_report_state() is not None and self.__is_number_type()):
+            # data has delta
+            if (self.last_update_of_control is None or abs(data_value - self.last_update_of_control) >= self.delta):
                 self.last_update_of_control = data_value
+                # data change exeeds delta
+                if self.timer.is_alive() is True:
+                    # reset timer
+                    self.set_timer()
+                return self.__update_value(data_value, timestamp=None)
             else:
+                # data change doesnt exeed delta
                 return False
+        elif (self.period is not None and self.get_report_state() is not None):
+            # data has period
+            return False
+        else:
+            # data has no delta or period
+            return self.__update_value(data_value, timestamp=None)
 
-        return self.update_value(data_value, timestamp=None)
+    def periodic_update(self):
+        """
+        Period update value.
 
-    def period_update(self):
-        if self.parent.parent.conn.connected == False:
+        When timer thread is done running this method is called and if it has 
+        the required info __update_value is called, otherwise timer stops running.
+
+        """
+        state = self.get_report_state()
+        if self.parent.parent.conn.connected is True and state is not None:
+            self.__update_value(state.data)
+            self.set_timer()
+        else:
             msg = "Value: {} is no longer periodically sending updates."
             msg = msg.format(self.uuid)
             self.wapp_log.info(msg)
-        else:
-            state = self.get_report_state()
-            if (state is not None):
-                #self.set_timer()
-                self.update_value(state.data)
 
-    def update_value(self, data_value, timestamp=None):
+    def __update_value(self, data_value, timestamp=None):
+        """
+        Update value.
+
+        Check if value has a state and validates the information in data_value
+        if both of these checks pass then method send_state is called.
+
+        Args:
+            data_value: the new value.
+            timestamp: time of action.
+
+        Returns:
+            True/False indicating the result of operation.
+
+        """
         state = self.get_report_state()
         if state is None:
             self.wapp_log.warning("Value is write only.")
