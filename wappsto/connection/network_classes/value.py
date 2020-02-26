@@ -8,6 +8,7 @@ import logging
 import warnings
 import datetime
 import decimal
+import threading
 from .. import message_data
 from .errors import wappsto_errors
 
@@ -88,7 +89,8 @@ class Value:
         self.report_state = None
         self.control_state = None
         self.callback = self.__callback_not_set
-        self.reporting_thread = None
+
+        self.timer = threading.Timer(None, None)
         self.last_update_of_control = None
 
         msg = "Value {} debug: {}".format(name, str(self.__dict__))
@@ -123,10 +125,21 @@ class Value:
             period = int(period)
             if self.get_report_state() is not None and period > 0:
                 self.period = period
+                self.set_timer()
             else:
                 self.wapp_log.warning("Cannot set the period for this value.")
         except ValueError:
             self.wapp_log.error("Period value must be a number.")
+
+    def set_timer(self):
+        try:
+            self.timer.cancel()
+            if (self.get_report_state() is not None
+                and self.period is not None):
+                self.timer = threading.Timer(self.period, self.period_update)
+                self.timer.start()
+        except:
+            self.wapp_log.error("Periodic value sending stopped.")
 
     def set_delta(self, delta):
         """
@@ -372,6 +385,14 @@ class Value:
             else:
                 return False
 
+        return self.update_value(data_value, timestamp=None)
+
+    def period_update(self):
+        state = self.get_report_state()
+        if (state is not None):
+            return self.update_value(state.data)
+
+    def update_value(self, data_value, timestamp=None):
         state = self.get_report_state()
         if state is None:
             self.wapp_log.warning("Value is write only.")
@@ -385,6 +406,8 @@ class Value:
             state.timestamp = timestamp
         else:
             state.timestamp = self.get_now()
+
+        self.set_timer()
 
         return self.parent.parent.conn.send_state(
             state,
