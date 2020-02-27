@@ -202,26 +202,27 @@ class Handlers:
 
         """
         message = "Found instance of {} object with id: {}"
-        if self.instance.network.uuid == id:
-            self.wapp_log.debug(message.format("network", id))
-            return self.instance.network
+        if self.instance.network is not None:
+            if self.instance.network.uuid == id:
+                self.wapp_log.debug(message.format("network", id))
+                return self.instance.network
 
-        for device in self.instance.network.devices:
-            if device.uuid == id:
-                self.wapp_log.debug(message.format("device", id))
-                return device
+            for device in self.instance.network.devices:
+                if device.uuid == id:
+                    self.wapp_log.debug(message.format("device", id))
+                    return device
 
-            for value in device.values:
-                if value.uuid == id:
-                    self.wapp_log.debug(message.format("value", id))
-                    return value
+                for value in device.values:
+                    if value.uuid == id:
+                        self.wapp_log.debug(message.format("value", id))
+                        return value
 
-                if value.control_state is not None and value.control_state.uuid == id:
-                    self.wapp_log.debug(message.format("control state", id))
-                    return value.control_state
+                    if value.control_state is not None and value.control_state.uuid == id:
+                        self.wapp_log.debug(message.format("control state", id))
+                        return value.control_state
 
-                if value.report_state is not None and value.report_state.uuid == id:
-                    self.wapp_log.debug(message.format("report state", id))
-                    return value.report_state
+                    if value.report_state is not None and value.report_state.uuid == id:
+                        self.wapp_log.debug(message.format("report state", id))
+                        return value.report_state
 
         self.wapp_log.warning("Failed to find object with id: {}".format(id))

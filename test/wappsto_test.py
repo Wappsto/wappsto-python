@@ -246,7 +246,8 @@ class TestJsonLoadClass:
         """
         Tests loading pretty print json.
 
-        Loads pretty print json file and checks if it is read the same way as normal json file.
+        Loads pretty print json file and checks if it is read the same way
+        as normal json file.
 
         """
         # Arrange
@@ -258,6 +259,33 @@ class TestJsonLoadClass:
 
         # Assert
         assert service.instance.decoded == decoded
+
+    @pytest.mark.parametrize("object_exists", [True, False])
+    @pytest.mark.parametrize("object_name", ["network", "device", "value", "control_state", "report_state"])
+    def test_get_by_id(self, object_exists, object_name):
+        """
+        Tests getting element  by id.
+
+        Gets id and checks if result is the expected one.
+
+        Args:
+            object_exists: indicates if element should exist
+            object_name: name of the object to be updated
+
+        """
+        # Arrange
+        self.service = wappsto.Wappsto(json_file_name=self.test_json_prettyprint_location)
+        get_object(self, "network").conn = Mock()
+        actual_object = get_object(self, object_name)
+        id = actual_object.uuid
+        if not object_exists:
+            actual_object.delete()
+
+        # Act
+        result = self.service.get_by_id(id)
+
+        # Assert
+        assert (object_exists and result is not None) or (not object_exists and result is None)
 
 
 class TestConnClass:
