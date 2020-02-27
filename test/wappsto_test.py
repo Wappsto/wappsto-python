@@ -444,8 +444,10 @@ class TestValueSendClass:
         # Act
         try:
             if period is True and delta is None:
-                value.get_report_state().data = input
-                value.periodic_update()
+                with patch('threading.Timer.start') as start:
+                    value.set_period(1)
+                    if start.called:
+                        value.update(input)
             else:
                 value.update(input)
             args, kwargs = self.service.socket.my_socket.send.call_args
@@ -503,8 +505,10 @@ class TestValueSendClass:
         # Act
         try:
             if period is True:
-                value.get_report_state().data = input
-                value.periodic_update()
+                with patch('threading.Timer.start') as start:
+                    value.set_period(1)
+                    if start.called:
+                        value.update(input)
             else:
                 value.update(input)
             args, kwargs = self.service.socket.my_socket.send.call_args
