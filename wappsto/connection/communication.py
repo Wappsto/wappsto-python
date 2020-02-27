@@ -939,7 +939,7 @@ class ClientSocket:
                         uuid = result_value['meta']['id']
                         data = result_value['data']
                         object = self.handler.get_by_id(uuid)
-                        if object.parent.control_state == object:
+                        if object is not None and object.parent.control_state == object:
                             object.parent.handle_control(data_value=data)
                     self.remove_id_from_confirm_list(decoded_id)
 
