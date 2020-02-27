@@ -17,7 +17,6 @@ import ssl
 import urllib.request as request
 import logging
 from . import message_data
-from . import handlers
 from .. import status
 from .network_classes.errors import wappsto_errors
 
@@ -42,7 +41,7 @@ class ClientSocket:
     """
 
     def __init__(self, rpc, instance, address, port, path_to_calling_file,
-                 wappsto_status):
+                 wappsto_status, handler):
         """
         Create a client socket.
 
@@ -58,6 +57,7 @@ class ClientSocket:
             port: Server port.
             path_to_calling_file: path to OS directory of calling file.
             wappsto_status: status object.
+            handler: instance of handlers.
 
         """
         self.wapp_log = logging.getLogger(__name__)
@@ -85,7 +85,7 @@ class ClientSocket:
         self.sending_thread = threading.Thread(target=self.send_thread)
         self.sending_thread.setDaemon(True)
         self.rpc = rpc
-        self.handlers = handlers.Handlers(self.instance)
+        self.handler = handler
         self.packet_awaiting_confirm = {}
         self.add_trace_to_report_list = {}
         self.bulk_send_list = []
@@ -301,7 +301,7 @@ class ClientSocket:
             # ignore
             trace_id = None
 
-        if self.handlers.handle_incoming_put(
+        if self.handler.handle_incoming_put(
                 control_id,
                 local_data,
                 self.sending_queue,
@@ -394,7 +394,7 @@ class ClientSocket:
         except AttributeError:
             trace_id = None
 
-        if self.handlers.handle_incoming_get(
+        if self.handler.handle_incoming_get(
                 get_url_id,
                 self.sending_queue,
                 trace_id
@@ -436,7 +436,7 @@ class ClientSocket:
         except AttributeError:
             trace_id = None
 
-        if self.handlers.handle_incoming_delete(
+        if self.handler.handle_incoming_delete(
                 get_url_id,
                 self.sending_queue,
                 trace_id
@@ -938,7 +938,7 @@ class ClientSocket:
                     if result_value is not True:
                         uuid = result_value['meta']['id']
                         data = result_value['data']
-                        object = self.handlers.get_by_id(uuid)
+                        object = self.handler.get_by_id(uuid)
                         if object.parent.control_state == object:
                             object.parent.handle_control(data_value=data)
                     self.remove_id_from_confirm_list(decoded_id)
