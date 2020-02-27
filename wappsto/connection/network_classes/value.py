@@ -138,7 +138,7 @@ class Value:
 
         Stop previous timer and sets new one if period value is not None.
 
-        """        
+        """
         self.timer.cancel()
         if self.period is not None:
             self.timer = threading.Timer(self.period, self.handle_refresh)
@@ -414,39 +414,45 @@ class Value:
             True/False indicating the result of operation.
 
         """
-        if (self.delta is not None and self.get_report_state() is not None and self.__is_number_type()):
+        if (self.delta is not None and self.__is_number_type()):
             # delta should work
+            data_value = float(data_value)
             if (self.last_update_of_control is None or abs(data_value - self.last_update_of_control) >= self.delta):
                 # delta exeeded
                 self.last_update_of_control = data_value
                 if self.period is not None:
-                    # timer should be reset
+                    # timer should be reset if period exists
                     self.__set_timer()
                 return True
             else:
                 # delta not exeeded
-                if (self.period is not None and self.get_report_state() is not None):
-                    # period should work
-                    if (threading.current_thread() == self.timer or not self.timer.is_alive()) and self.parent.parent.conn.my_socket != None:
-                        # this is timer thread
-                        self.__set_timer()
-                        return True
-                    else:
-                        # this is not timer thread
-                        return False
-                return False
-        elif (self.period is not None and self.get_report_state() is not None):
+                return self.check_period(False)
+        return self.check_period(True)
+
+    def check_period(self, return_value):
+        """
+        Check if period allows data to be sent.
+
+        Check if value has period, if it has then if it passes
+        checks then True is returned, otherwise False is returned.
+
+        Args:
+            return_value: default return value.
+
+        Returns:
+            True/False indicating the result of operation.
+
+        """
+        if self.period is not None:
             # period should work
-            if (threading.current_thread() == self.timer or not self.timer.is_alive()) and self.parent.parent.conn.my_socket != None:
-                # this is timer thread
+            if threading.current_thread() == self.timer or not self.timer.is_alive():
+                # this is timer thread or timer is not running
                 self.__set_timer()
                 return True
             else:
-                # this is not timer thread
+                # timer is working
                 return False
-        else:
-            # no delta or period
-            return True
+        return return_value
 
     def get_data(self):
         """
