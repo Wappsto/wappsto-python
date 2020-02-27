@@ -246,7 +246,8 @@ class TestJsonLoadClass:
         """
         Tests loading pretty print json.
 
-        Loads pretty print json file and checks if it is read the same way as normal json file.
+        Loads pretty print json file and checks if it is read the same way
+        as normal json file.
 
         """
         # Arrange
