@@ -216,11 +216,11 @@ class Handlers:
                     self.wapp_log.debug(message.format("value", id))
                     return value
 
-                if value.control_state.uuid == id:
+                if value.control_state is not None and value.control_state.uuid == id:
                     self.wapp_log.debug(message.format("control state", id))
                     return value.control_state
 
-                if value.report_state.uuid == id:
+                if value.report_state is not None and value.report_state.uuid == id:
                     self.wapp_log.debug(message.format("report state", id))
                     return value.report_state
 
