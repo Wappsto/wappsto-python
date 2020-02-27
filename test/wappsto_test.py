@@ -435,9 +435,9 @@ class TestValueSendClass:
         value.data_type == "number"
         value.number_step = step_size
         if delta:
-            value.last_update_of_control = 0
+            value.last_update_of_report = 0
             value.set_delta(delta)
-            if not abs(input - value.last_update_of_control) >= value.delta:
+            if abs(input - value.last_update_of_report) < value.delta:
                 # if change is less then delta then no message would be sent
                 expected = None
 

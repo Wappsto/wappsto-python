@@ -36,7 +36,9 @@ class Value:
         string_encoding,
         string_max,
         blob_encoding,
-        blob_max
+        blob_max,
+        period = None,
+        delta = None
     ):
         """
         Initialize the Value class.
@@ -84,8 +86,8 @@ class Value:
         self.string_max = string_max
         self.blob_encoding = blob_encoding
         self.blob_max = blob_max
-        self.period = None
-        self.delta = None
+        self.period = period
+        self.delta = delta
         self.report_state = None
         self.control_state = None
         self.callback = self.__callback_not_set
@@ -124,11 +126,15 @@ class Value:
         """
         try:
             period = int(period)
-            if self.get_report_state() is not None and period > 0:
-                self.period = period
-                self.__set_timer()
+            if period > 0:
+                if self.get_report_state() is not None:
+                    self.period = period
+                    self.__set_timer()
+                    self.wapp_log.debug("Period successfully set.")
+                else:
+                    self.wapp_log.warning("Cannot set the period for this value.")
             else:
-                self.wapp_log.warning("Cannot set the period for this value.")
+                self.wapp_log.warning("Period value must be greater then 0.")
         except ValueError:
             self.wapp_log.error("Period value must be a number.")
 
@@ -157,12 +163,14 @@ class Value:
         """
         try:
             delta = float(delta)
-            if (self.__is_number_type()
-                    and self.get_report_state()
-                    and delta > 0):
-                self.delta = delta
+            if delta > 0:
+                if self.__is_number_type() and self.get_report_state():
+                    self.delta = delta
+                    self.wapp_log.debug("Delta successfully set.")
+                else:
+                    self.wapp_log.warning("Cannot set the delta for this value.")
             else:
-                self.wapp_log.warning("Cannot set the delta for this value.")
+                self.wapp_log.warning("Delta value must be greater then 0.")
         except ValueError:
             self.wapp_log.error("Delta value must be a number")
 
@@ -417,9 +425,9 @@ class Value:
         if (self.delta is not None and self.__is_number_type()):
             # delta should work
             data_value = float(data_value)
-            if (self.last_update_of_control is None or abs(data_value - self.last_update_of_control) >= self.delta):
+            if (self.last_update_of_report is None or abs(data_value - self.last_update_of_report) >= self.delta):
                 # delta exeeded
-                self.last_update_of_control = data_value
+                self.last_update_of_report = data_value
                 if self.period is not None:
                     # timer should be reset if period exists
                     self.__set_timer()

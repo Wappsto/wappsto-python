@@ -859,7 +859,7 @@ class ClientSocket:
                 if value.timer.is_alive():
                     msg = "Value: {} is no longer periodically sending updates."
                     msg = msg.format(value.uuid)
-                    self.wapp_log.info(msg)
+                    self.wapp_log.debug(msg)
                 value.timer.cancel()
 
         self.connected = False
