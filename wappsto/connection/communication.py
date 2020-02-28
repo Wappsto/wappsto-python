@@ -94,8 +94,20 @@ class ClientSocket:
         self.lock_await = threading.Lock()
         self.set_sockets()
 
+        self.fix_log_location()
+
         self.network.rpc = self.rpc
         self.network.conn = self
+
+    def fix_log_location(self):
+        try:
+            file = open(self.log_location, "a")
+            msg = "Log file location set to: {}".format(self.log_location)
+            self.wapp_log.info(msg)
+        except FileNotFoundError:
+            self.log_location = "event_log.txt"
+            msg = "Bad log file location, using default: {}".format(self.log_location)
+            self.wapp_log.error(msg)
 
     def send_state(self, state, data_value=None):
         """
@@ -207,6 +219,7 @@ class ClientSocket:
             self.connected = True
             self.my_socket.settimeout(None)
             self.wappsto_status.set_status(status.CONNECTED)
+            self.send_log_data()
             return True
 
         except Exception as e:
@@ -534,13 +547,30 @@ class ClientSocket:
                 self.wapp_log.debug('Raw Send Json: {}'.format(data))
                 self.my_socket.send(data)
         elif self.log_offline:
-            data = json.dumps(data)
-            file = open(self.log_location,"a")
-            file.write(data + " \n")
-            file.close()
+            self.add_log_data(data)
             self.wapp_log.info('Saving data to log')
         else:
             self.wapp_log.error('Sending while not connected')
+
+    def add_log_data(self, data):
+        data = json.dumps(data)
+        file = open(self.log_location, "a")
+        file.write(data + " \n")
+        file.close()
+
+    def send_log_data(self):
+        #when connects should do something like this
+        try:
+            file = open(self.log_location, "r")
+            for line in file.readlines():
+                data = json.loads(line)
+                self.create_bulk(line)
+                #self.sending_queue.put(data)
+            file.close()
+            self.wapp_log.error("Log data sent.")
+        except FileNotFoundError:
+            msg = "No log file found: {}".format(self.log_location)
+            self.wapp_log.error(msg)
 
     def get_object_without_none_values(self, encoded_object):
         """
