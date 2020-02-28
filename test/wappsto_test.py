@@ -446,6 +446,7 @@ class TestValueSendClass:
             if period is True and delta is None:
                 with patch('threading.Timer.start') as start:
                     value.set_period(1)
+                    value.timer_elapsed = True
                     if start.called:
                         value.update(input)
             else:
@@ -507,6 +508,7 @@ class TestValueSendClass:
             if period is True:
                 with patch('threading.Timer.start') as start:
                     value.set_period(1)
+                    value.timer_elapsed = True
                     if start.called:
                         value.update(input)
             else:

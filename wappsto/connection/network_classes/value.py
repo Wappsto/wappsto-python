@@ -37,8 +37,8 @@ class Value:
         string_max,
         blob_encoding,
         blob_max,
-        period=None,
-        delta=None
+        period,
+        delta
     ):
         """
         Initialize the Value class.
@@ -86,14 +86,17 @@ class Value:
         self.string_max = string_max
         self.blob_encoding = blob_encoding
         self.blob_max = blob_max
-        self.period = period
-        self.delta = delta
         self.report_state = None
         self.control_state = None
         self.callback = self.__callback_not_set
 
         self.timer = threading.Timer(None, None)
         self.last_update_of_control = None
+
+        if period is not None:
+            self.set_period(period)
+        if delta is not None:
+            self.set_delta(delta)
 
         msg = "Value {} debug: {}".format(name, str(self.__dict__))
         self.wapp_log.debug(msg)
@@ -147,8 +150,13 @@ class Value:
         """
         self.timer.cancel()
         if self.period is not None:
-            self.timer = threading.Timer(self.period, self.handle_refresh)
+            self.timer = threading.Timer(self.period, self.__timer_done)
             self.timer.start()
+
+    def __timer_done(self):
+        self.__set_timer()
+        self.timer_elapsed = True
+        self.handle_refresh()
 
     def set_delta(self, delta):
         """
@@ -453,9 +461,9 @@ class Value:
         """
         if self.period is not None:
             # period should work
-            if threading.current_thread() == self.timer or not self.timer.is_alive():
+            if self.timer_elapsed:
                 # this is timer thread or timer is not running
-                self.__set_timer()
+                self.timer_elapsed = False
                 return True
             else:
                 # timer is working

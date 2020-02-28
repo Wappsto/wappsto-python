@@ -169,6 +169,8 @@ class Instantiator:
                 name = value_iterator.get('name')
                 type_of_value = value_iterator.get('type')
                 permission = value_iterator.get('permission')
+                period = value_iterator.get('period', None)
+                delta = value_iterator.get('delta', None)
                 data_type = None
                 number_min = None
                 number_max = None
@@ -212,7 +214,9 @@ class Instantiator:
                     string_encoding=string_encoding,
                     string_max=string_max,
                     blob_encoding=blob_encoding,
-                    blob_max=blob_max
+                    blob_max=blob_max,
+                    period=period,
+                    delta=delta
                 )
 
                 device_cl.add_value(value_cl)
