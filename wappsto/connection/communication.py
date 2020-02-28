@@ -60,7 +60,7 @@ class ClientSocket:
             wappsto_status: status object.
             handler: instance of handlers.
             log_offline: boolean indicating of data should be logged.
-            log_location: name and location of the file.
+            log_location: location of the file.
 
         """
         self.wapp_log = logging.getLogger(__name__)
@@ -108,7 +108,7 @@ class ClientSocket:
         Sets log location and creates log if necassary.
 
         Args:
-            log_location: name and location of the file.
+            log_location: location of the file.
 
         """
         self.log_location = log_location + LOG_FILE
