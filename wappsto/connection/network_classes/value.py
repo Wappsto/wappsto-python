@@ -37,8 +37,8 @@ class Value:
         string_max,
         blob_encoding,
         blob_max,
-        period = None,
-        delta = None
+        period=None,
+        delta=None
     ):
         """
         Initialize the Value class.
