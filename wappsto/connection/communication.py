@@ -41,7 +41,7 @@ class ClientSocket:
     """
 
     def __init__(self, rpc, instance, address, port, path_to_calling_file,
-                 wappsto_status, handler):
+                 wappsto_status, handler, log_offline, log_location):
         """
         Create a client socket.
 
@@ -86,6 +86,8 @@ class ClientSocket:
         self.sending_thread.setDaemon(True)
         self.rpc = rpc
         self.handler = handler
+        self.log_offline = log_offline
+        self.log_location = log_location
         self.packet_awaiting_confirm = {}
         self.add_trace_to_report_list = {}
         self.bulk_send_list = []
@@ -517,21 +519,26 @@ class ClientSocket:
             data: JSON communication message data.
 
         """
+        for data_element in data:
+            self.get_object_without_none_values(data_element)
+            if len(data_element) == 0:
+                data.remove(data_element)
+
         if self.connected:
             for data_element in data:
-                self.get_object_without_none_values(data_element)
-                if len(data_element) == 0:
-                    data.remove(data_element)
-                else:
-                    if (data_element.get("method", "") == "PUT"
-                            or data_element.get("method", "") == "POST"
-                            or data_element.get("method", "") == "DELETE"):
-                        self.add_id_to_confirm_list(data_element)
+                if data_element.get("method", "") in ["PUT", "POST", "DELETE"]:
+                    self.add_id_to_confirm_list(data_element)
             if len(data) > 0:
                 data = json.dumps(data)
                 data = data.encode('utf-8')
                 self.wapp_log.debug('Raw Send Json: {}'.format(data))
                 self.my_socket.send(data)
+        elif self.log_offline:
+            data = json.dumps(data)
+            file = open(self.log_location,"a")
+            file.write(data + " \n")
+            file.close()
+            self.wapp_log.info('Saving data to log')
         else:
             self.wapp_log.error('Sending while not connected')
 

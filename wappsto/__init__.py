@@ -60,7 +60,6 @@ class Wappsto:
         self.socket = None
         self.receive_thread = None
         self.send_thread = None
-        self.connected = False
         self.status = status.Status()
         self.object_saver = save_objects.SaveObjects(self.path_to_calling_file)
         # Instantiate the objects from JSON
@@ -156,7 +155,7 @@ class Wappsto:
             self.stop(False)
             raise wappsto_errors.DeviceNotFoundException(msg)
 
-    def start(self, address="wappsto.com", port=11006):
+    def start(self, address="wappsto.com", port=11006, log_offline=False, log_location="event_log.txt"):
         """
         Start the server connection.
 
@@ -180,7 +179,9 @@ class Wappsto:
             port=port,
             path_to_calling_file=self.path_to_calling_file,
             wappsto_status=self.status,
-            handler=self.handler
+            handler=self.handler,
+            log_offline=log_offline,
+            log_location=log_location
         )
 
         self.status.set_status(status.CONNECTING)
