@@ -28,7 +28,6 @@ except ImportError:
 RECEIVE_SIZE = 1024
 MESSAGE_SIZE_BYTES = 1000000
 MAX_BULK_SIZE = 10
-LOG_FILE = "event_log.txt"
 t_url = 'https://tracer.iot.seluxit.com/trace?id={}&parent={}&name={}&status={}'  # noqa: E501
 
 
@@ -42,7 +41,7 @@ class ClientSocket:
     """
 
     def __init__(self, rpc, instance, address, port, path_to_calling_file,
-                 wappsto_status, handler, log_offline, log_location):
+                 wappsto_status, handler, message_log):
         """
         Create a client socket.
 
@@ -59,8 +58,6 @@ class ClientSocket:
             path_to_calling_file: path to OS directory of calling file.
             wappsto_status: status object.
             handler: instance of handlers.
-            log_offline: boolean indicating of data should be logged.
-            log_location: location of the file.
 
         """
         self.wapp_log = logging.getLogger(__name__)
@@ -89,7 +86,7 @@ class ClientSocket:
         self.sending_thread.setDaemon(True)
         self.rpc = rpc
         self.handler = handler
-        self.log_offline = log_offline
+        self.message_log = message_log
         self.packet_awaiting_confirm = {}
         self.add_trace_to_report_list = {}
         self.bulk_send_list = []
@@ -98,32 +95,6 @@ class ClientSocket:
 
         self.network.rpc = self.rpc
         self.network.conn = self
-
-        self.set_log_location(log_location)
-
-    def set_log_location(self, log_location):
-        """
-        Set log location.
-
-        Sets log location and creates log if necassary.
-
-        Args:
-            log_location: location of the file.
-
-        """
-        self.log_location = log_location + LOG_FILE
-        if self.log_offline:
-            if os.path.isfile(self.log_location):
-                self.wapp_log.debug("Log file found.")
-            else:
-                try:
-                    open(self.log_location, 'w').close()
-                except FileNotFoundError:
-                    self.log_location = LOG_FILE
-                    msg = "Bad log file location has been changed to default: {}".format(self.log_location)
-                    self.wapp_log.error(msg)
-                    open(self.log_location, 'w').close()
-                self.wapp_log.debug("Log file created.")
 
     def send_state(self, state, data_value=None):
         """
@@ -235,7 +206,7 @@ class ClientSocket:
             self.connected = True
             self.my_socket.settimeout(None)
             self.wappsto_status.set_status(status.CONNECTED)
-            self.send_log_data()
+            self.message_log.send_log_data(self)
             return True
 
         except Exception as e:
@@ -563,53 +534,7 @@ class ClientSocket:
                 self.wapp_log.debug('Raw Send Json: {}'.format(data))
                 self.my_socket.send(data)
         else:
-            self.add_message_to_log(data)
-
-    def add_message_to_log(self, data):
-        """
-        Add message to log.
-
-        Adds message to log if logging is enabled otherwise writes error.
-
-        Args:
-            data: JSON communication message data.
-
-        """
-        if self.log_offline:
-            try:
-                data = json.dumps(data)
-                file = open(self.log_location, "a")
-                file.write(data + " \n")
-                file.close()
-                self.wapp_log.debug('Raw log Json: {}'.format(data))
-            except FileNotFoundError:
-                msg = "No log file could be created in: {}".format(self.log_location)
-                self.wapp_log.error(msg)
-        else:
-            self.wapp_log.error('Sending while not connected')
-
-    def send_log_data(self):
-        """
-        Sends log data.
-
-        If logging is enabled reads all saved messages from log and sends them, later emptying log.
-
-        """
-        if self.log_offline:
-            try:
-                file = open(self.log_location, "r")
-                lines = file.readlines()
-                file.close()
-            except FileNotFoundError:
-                msg = "No log file found: {}".format(self.log_location)
-                self.wapp_log.error(msg)
-            else:
-                for line in lines:
-                    data = json.loads(line)
-                    for data_element in data:
-                        self.create_bulk(data_element)
-                self.wapp_log.error("Log data sent.")
-                open(self.log_location, 'w').close()
+            self.message_log.add_message_to_log(data)
 
     def get_object_without_none_values(self, encoded_object):
         """

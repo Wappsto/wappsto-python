@@ -10,6 +10,7 @@ import inspect
 from .connection import handlers
 from .connection import seluxit_rpc
 from .connection import communication
+from .connection import message_log
 from .connection.network_classes.errors import wappsto_errors
 from . import status
 from .object_instantiation import instantiate
@@ -29,7 +30,7 @@ class Wappsto:
     __version__ = "1.1.0"
 
     def __init__(self, json_file_name=None, load_from_state_file=False,
-                 save_init=False):
+                 save_init=False, log_offline=False, log_location=""):
         # TODO(Dimitar): Come up with a better description.
         """
         Initialize wappsto class.
@@ -57,6 +58,7 @@ class Wappsto:
 
         self.connecting = True
         self.rpc = seluxit_rpc.SeluxitRpc(save_init)
+        self.message_log = message_log.MessageLog(log_offline, log_location)
         self.socket = None
         self.receive_thread = None
         self.send_thread = None
@@ -155,7 +157,7 @@ class Wappsto:
             self.stop(False)
             raise wappsto_errors.DeviceNotFoundException(msg)
 
-    def start(self, address="wappsto.com", port=11006, log_offline=False, log_location=""):
+    def start(self, address="wappsto.com", port=11006):
         """
         Start the server connection.
 
@@ -180,8 +182,7 @@ class Wappsto:
             path_to_calling_file=self.path_to_calling_file,
             wappsto_status=self.status,
             handler=self.handler,
-            log_offline=log_offline,
-            log_location=log_location
+            message_log=self.message_log
         )
 
         self.status.set_status(status.CONNECTING)
