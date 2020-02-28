@@ -9,6 +9,7 @@ Attributes:
 
 """
 import os
+import json
 import logging
 
 
@@ -17,14 +18,15 @@ REMOVE_RECENT = 2
 
 LOG_FILE = "event_log.txt"
 
-class MessageLog:
 
-    def __init__(self, 
-        log_offline,
-        log_location,
-        log_data_limit="Fix",
-        limit_action="Fix"
-        ):
+class MessageLog:
+    """
+    Message logger.
+
+    Saves data not being sent due to no connection.
+    """
+
+    def __init__(self, log_offline, log_location, log_data_limit="Fix", limit_action="Fix"):
         """
         Initialize MessageLog class.
 
@@ -43,7 +45,7 @@ class MessageLog:
         self.wapp_log.addHandler(logging.NullHandler())
 
         self.log_offline = log_offline
-        self.log_data_limit = log_data_limits
+        self.log_data_limit = log_data_limit
 
         self.set_log_location(log_location)
 

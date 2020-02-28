@@ -58,6 +58,7 @@ class ClientSocket:
             path_to_calling_file: path to OS directory of calling file.
             wappsto_status: status object.
             handler: instance of handlers.
+            message_log: instance of message log.
 
         """
         self.wapp_log = logging.getLogger(__name__)
