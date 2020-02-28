@@ -28,6 +28,7 @@ except ImportError:
 RECEIVE_SIZE = 1024
 MESSAGE_SIZE_BYTES = 1000000
 MAX_BULK_SIZE = 10
+LOG_FILE = "event_log.txt"
 t_url = 'https://tracer.iot.seluxit.com/trace?id={}&parent={}&name={}&status={}'  # noqa: E501
 
 
@@ -110,7 +111,7 @@ class ClientSocket:
             log_location: name and location of the file.
 
         """
-        self.log_location = log_location
+        self.log_location = log_location + LOG_FILE
         if self.log_offline:
             if os.path.isfile(self.log_location):
                 self.wapp_log.debug("Log file found.")
@@ -118,7 +119,7 @@ class ClientSocket:
                 try:
                     open(self.log_location, 'w').close()
                 except FileNotFoundError:
-                    self.log_location = "event_log.txt"
+                    self.log_location = LOG_FILE
                     msg = "Bad log file location has been changed to default: {}".format(self.log_location)
                     self.wapp_log.error(msg)
                     open(self.log_location, 'w').close()
@@ -605,9 +606,9 @@ class ClientSocket:
             else:
                 for line in lines:
                     data = json.loads(line)
-                    # self.create_bulk(line)
-                    self.sending_queue.put(data)
-                self.wapp_log.error("Log data added to send queue.")
+                    for data_element in data:
+                        self.create_bulk(data_element)
+                self.wapp_log.error("Log data sent.")
                 open(self.log_location, 'w').close()
 
     def get_object_without_none_values(self, encoded_object):

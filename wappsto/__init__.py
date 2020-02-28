@@ -155,7 +155,7 @@ class Wappsto:
             self.stop(False)
             raise wappsto_errors.DeviceNotFoundException(msg)
 
-    def start(self, address="wappsto.com", port=11006, log_offline=False, log_location="event_log.txt"):
+    def start(self, address="wappsto.com", port=11006, log_offline=False, log_location=""):
         """
         Start the server connection.
 
