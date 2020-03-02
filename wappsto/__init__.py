@@ -48,7 +48,7 @@ class Wappsto:
             save_init: Determines whether or not save json data
                 (default: {False})
             log_offline: boolean indicating of data should be logged.
-            log_location: location of the file.
+            log_location: location of the logs.
 
         """
         self.wapp_log = logging.getLogger(__name__)

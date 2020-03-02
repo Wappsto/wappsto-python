@@ -11,6 +11,7 @@ Attributes:
 import os
 import json
 import logging
+import datetime
 
 
 REMOVE_OLD = 1
@@ -26,7 +27,7 @@ class MessageLog:
     Saves data not being sent due to no connection.
     """
 
-    def __init__(self, log_offline, log_location, log_data_limit="Fix", limit_action="Fix"):
+    def __init__(self, log_offline, log_location, log_data_limit=1, limit_action=REMOVE_OLD):
         """
         Initialize MessageLog class.
 
@@ -34,8 +35,9 @@ class MessageLog:
 
         Args:
             log_offline: boolean indicating of data should be logged.
-            log_location: location of the file.
+            log_location: location of the logs.
             log_data_limit: limit of data to be saved in log (Megabytes)
+            limit_action: action to take when limit is reached
 
         Raises:
             ServerConnectionException: "Unable to connect to the server.
@@ -46,10 +48,11 @@ class MessageLog:
 
         self.log_offline = log_offline
         self.log_data_limit = log_data_limit
+        self.limit_action = limit_action
 
-        self.set_log_location(log_location)
+        self.set_location(log_location)
 
-    def set_log_location(self, log_location):
+    def set_location(self, log_location):
         """
         Set log location.
 
@@ -73,7 +76,11 @@ class MessageLog:
                     open(self.log_location, 'w').close()
                 self.wapp_log.debug("Log file created.")
 
-    def add_message_to_log(self, data):
+    def get_file_name(self):
+        now = datetime.datetime.now()
+        return str(now.year) + "-" + str(now.month) + "-" + str(now.day)
+
+    def add_message(self, data):
         """
         Add message to log.
 
@@ -96,7 +103,17 @@ class MessageLog:
         else:
             self.wapp_log.error('Sending while not connected')
 
-    def send_log_data(self, conn):
+    def check_limit(self):
+        """
+        Checks limit.
+
+        Checks if save limit is reached and returns True if it has not been reached.
+
+        Returns:
+            True if it has not been reached, otherwise False.
+        """
+
+    def send_log(self, conn):
         """
         Sends log data.
 

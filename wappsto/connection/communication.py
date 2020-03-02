@@ -207,7 +207,7 @@ class ClientSocket:
             self.connected = True
             self.my_socket.settimeout(None)
             self.wappsto_status.set_status(status.CONNECTED)
-            self.message_log.send_log_data(self)
+            self.message_log.send_log(self)
             return True
 
         except Exception as e:
@@ -535,7 +535,7 @@ class ClientSocket:
                 self.wapp_log.debug('Raw Send Json: {}'.format(data))
                 self.my_socket.send(data)
         else:
-            self.message_log.add_message_to_log(data)
+            self.message_log.add_message(data)
 
     def get_object_without_none_values(self, encoded_object):
         """
