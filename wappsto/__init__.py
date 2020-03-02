@@ -30,7 +30,8 @@ class Wappsto:
     __version__ = "1.1.0"
 
     def __init__(self, json_file_name=None, load_from_state_file=False,
-                 save_init=False, log_offline=False, log_location=""):
+                 save_init=False, log_offline=False, log_location="",
+                 log_data_limit=1000, limit_action=message_log.REMOVE_OLD):
         # TODO(Dimitar): Come up with a better description.
         """
         Initialize wappsto class.
@@ -60,7 +61,7 @@ class Wappsto:
 
         self.connecting = True
         self.rpc = seluxit_rpc.SeluxitRpc(save_init)
-        self.message_log = message_log.MessageLog(log_offline, log_location)
+        self.message_log = message_log.MessageLog(log_offline, log_location, log_data_limit, limit_action)
         self.socket = None
         self.receive_thread = None
         self.send_thread = None

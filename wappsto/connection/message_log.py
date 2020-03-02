@@ -28,7 +28,7 @@ class MessageLog:
     Saves data not being sent due to no connection.
     """
 
-    def __init__(self, log_offline, log_location, log_data_limit=1000, limit_action=REMOVE_OLD):
+    def __init__(self, log_offline, log_location, log_data_limit, limit_action):
         """
         Initialize MessageLog class.
 
@@ -86,16 +86,21 @@ class MessageLog:
         """
         if self.log_offline:
             try:
-                data = json.dumps(data)
-                if self.log_data_limit >= self.get_size(data):
-                    file = open(self.get_log_name(), "a")
-                    file.write(data + " \n")
+                string_data = json.dumps(data)
+                if self.log_data_limit >= self.get_size(string_data):
+                    file = open(self.get_log_name(), 'a')
+                    file.write(string_data + " \n")
                     file.close()
-                    self.wapp_log.debug('Raw log Json: {}'.format(data))
+                    self.wapp_log.debug('Raw log Json: {}'.format(string_data))
                 else:
                     self.wapp_log.debug('Log limit exeeded.')
                     if self.limit_action == REMOVE_OLD:
-                        self.wapp_log.debug('Removing old data')
+                        with open(self.get_log_name(), 'r') as file:
+                            lines = file.readlines()
+                        with open(self.get_log_name(), 'w') as file:
+                            file.writelines(lines[1:])
+                        self.wapp_log.debug('Removed old data')
+                        self.add_message(data)
                     elif self.limit_action == REMOVE_RECENT:
                         self.wapp_log.debug('Not adding data')
             except FileNotFoundError:
@@ -142,9 +147,8 @@ class MessageLog:
 
                 for element in log_list:
                     file_location = self.log_location + "/" + element
-                    file = open(file_location, "r")
-                    lines = file.readlines()
-                    file.close()
+                    with open(self.get_log_name(), 'r') as file:
+                        lines = file.readlines()
 
                     for line in lines:
                         data = json.loads(line)
