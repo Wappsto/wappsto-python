@@ -573,30 +573,29 @@ class ClientSocket:
 
         while True:
             package = self.sending_queue.get()
-            if self.connected:
-                if package.msg_id == message_data.SEND_SUCCESS:
-                    self.send_success(package)
+            if package.msg_id == message_data.SEND_SUCCESS:
+                self.send_success(package)
 
-                elif package.msg_id == message_data.SEND_REPORT:
-                    self.send_report(package)
+            elif package.msg_id == message_data.SEND_REPORT:
+                self.send_report(package)
 
-                elif package.msg_id == message_data.SEND_FAILED:
-                    self.send_failed(package)
+            elif package.msg_id == message_data.SEND_FAILED:
+                self.send_failed(package)
 
-                elif package.msg_id == message_data.SEND_RECONNECT:
-                    self.send_reconnect()
+            elif package.msg_id == message_data.SEND_RECONNECT:
+                self.send_reconnect()
 
-                elif package.msg_id == message_data.SEND_CONTROL:
-                    self.send_control(package)
+            elif package.msg_id == message_data.SEND_CONTROL:
+                self.send_control(package)
 
-                elif package.msg_id == message_data.SEND_TRACE:
-                    self.send_trace(package)
+            elif package.msg_id == message_data.SEND_TRACE:
+                self.send_trace(package)
 
-                elif package.msg_id == message_data.SEND_DELETE:
-                    self.send_delete(package)
+            elif package.msg_id == message_data.SEND_DELETE:
+                self.send_delete(package)
 
-                else:
-                    self.wapp_log.warning("Unhandled send")
+            else:
+                self.wapp_log.warning("Unhandled send")
 
             self.sending_queue.task_done()
 

@@ -137,7 +137,7 @@ class MessageLog:
         if self.log_offline:
             try:
                 dir_list = enumerate(os.listdir(self.log_location))
-                log_list = [ name for id, name in dir_list if re.search('((|1|2)[0-9]|3[0-1])-((0|)[0-9]|1[0-2])-\d{4}', name) ]
+                log_list = [ name for id, name in dir_list if re.search('((|1|2)[0-9]|3[0-1])-((0|)[0-9]|1[0-2])-[0-9][0-9][0-9][0-9]', name) ]
                 self.wapp_log.debug("Found log files: " + str(log_list))
 
                 for element in log_list:
