@@ -9,15 +9,16 @@ Attributes:
 
 """
 import os
+import re
+import sys
 import json
 import logging
 import datetime
+from json.decoder import JSONDecodeError
 
 
 REMOVE_OLD = 1
 REMOVE_RECENT = 2
-
-LOG_FILE = "event_log.txt"
 
 
 class MessageLog:
@@ -27,7 +28,7 @@ class MessageLog:
     Saves data not being sent due to no connection.
     """
 
-    def __init__(self, log_offline, log_location, log_data_limit=1, limit_action=REMOVE_OLD):
+    def __init__(self, log_offline, log_location, log_data_limit=1000, limit_action=REMOVE_OLD):
         """
         Initialize MessageLog class.
 
@@ -36,7 +37,7 @@ class MessageLog:
         Args:
             log_offline: boolean indicating of data should be logged.
             log_location: location of the logs.
-            log_data_limit: limit of data to be saved in log (Megabytes)
+            log_data_limit: limit of data to be saved in log (bytes)
             limit_action: action to take when limit is reached
 
         Raises:
@@ -56,29 +57,22 @@ class MessageLog:
         """
         Set log location.
 
-        Sets log location and creates log if necassary.
+        Sets log location and creates log folder if necassary.
 
         Args:
-            log_location: location of the file.
+            log_location: location of the logs.
 
         """
-        self.log_location = log_location + LOG_FILE
+        if log_location == "":
+            self.log_location = "logs"
+        else:
+            self.log_location = log_location
         if self.log_offline:
-            if os.path.isfile(self.log_location):
-                self.wapp_log.debug("Log file found.")
-            else:
-                try:
-                    open(self.log_location, 'w').close()
-                except FileNotFoundError:
-                    self.log_location = LOG_FILE
-                    msg = "Bad log file location has been changed to default: {}".format(self.log_location)
-                    self.wapp_log.error(msg)
-                    open(self.log_location, 'w').close()
-                self.wapp_log.debug("Log file created.")
+            os.makedirs(self.log_location, exist_ok=True)
 
-    def get_file_name(self):
+    def get_log_name(self):
         now = datetime.datetime.now()
-        return str(now.year) + "-" + str(now.month) + "-" + str(now.day)
+        return self.log_location + "/" + str(now.day) + "-" + str(now.month) + "-" + str(now.year) + ".txt"
 
     def add_message(self, data):
         """
@@ -93,25 +87,45 @@ class MessageLog:
         if self.log_offline:
             try:
                 data = json.dumps(data)
-                file = open(self.log_location, "a")
-                file.write(data + " \n")
-                file.close()
-                self.wapp_log.debug('Raw log Json: {}'.format(data))
+                if self.log_data_limit >= self.get_size(data):
+                    file = open(self.get_log_name(), "a")
+                    file.write(data + " \n")
+                    file.close()
+                    self.wapp_log.debug('Raw log Json: {}'.format(data))
+                else:
+                    self.wapp_log.debug('Log limit exeeded.')
+                    if self.limit_action == REMOVE_OLD:
+                        self.wapp_log.debug('Removing old data')
+                    elif self.limit_action == REMOVE_RECENT:
+                        self.wapp_log.debug('Not adding data')
             except FileNotFoundError:
                 msg = "No log file could be created in: {}".format(self.log_location)
                 self.wapp_log.error(msg)
         else:
             self.wapp_log.error('Sending while not connected')
 
-    def check_limit(self):
+    def get_size(self, data):
         """
-        Checks limit.
+        Gets size of log folder.
 
-        Checks if save limit is reached and returns True if it has not been reached.
+        Method loops through all file and gets their total size in the folder.
+
+        Args:
+            data: JSON communication message data.
 
         Returns:
-            True if it has not been reached, otherwise False.
+            Total size of the folder.
         """
+        total_size = 0
+        for dirpath, dirnames, filenames in os.walk(self.log_location):
+            for f in filenames:
+                fp = os.path.join(dirpath, f)
+                # skip if it is symbolic link
+                if not os.path.islink(fp):
+                    total_size += os.path.getsize(fp)
+
+        total_size += sys.getsizeof(data)
+        return total_size
 
     def send_log(self, conn):
         """
@@ -122,16 +136,25 @@ class MessageLog:
         """
         if self.log_offline:
             try:
-                file = open(self.log_location, "r")
-                lines = file.readlines()
-                file.close()
+                dir_list = enumerate(os.listdir(self.log_location))
+                log_list = [ name for id, name in dir_list if re.search('((|1|2)[0-9]|3[0-1])-((0|)[0-9]|1[0-2])-\d{4}', name) ]
+                self.wapp_log.debug("Found log files: " + str(log_list))
+
+                for element in log_list:
+                    file_location = self.log_location + "/" + element
+                    file = open(file_location, "r")
+                    lines = file.readlines()
+                    file.close()
+
+                    for line in lines:
+                        data = json.loads(line)
+                        for data_element in data:
+                            conn.create_bulk(data_element)
+                    self.wapp_log.debug("file: " + file_location + " data sent.")
+                    os.remove(file_location)
+            except JSONDecodeError:
+                error = "Json decoding error while reading file: {}".format(file_location)
+                self.wapp_log.error(error)
             except FileNotFoundError:
-                msg = "No log file found: {}".format(self.log_location)
-                self.wapp_log.error(msg)
-            else:
-                for line in lines:
-                    data = json.loads(line)
-                    for data_element in data:
-                        conn.create_bulk(data_element)
-                self.wapp_log.error("Log data sent.")
-                open(self.log_location, 'w').close()
+                error = "Log directory could not be found: {}".format(self.log_location)
+                self.wapp_log.error(error)
