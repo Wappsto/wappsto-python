@@ -12,6 +12,7 @@ import os
 import re
 import sys
 import json
+import zipfile
 import logging
 import datetime
 from json.decoder import JSONDecodeError
@@ -63,16 +64,52 @@ class MessageLog:
             log_location: location of the logs.
 
         """
-        if log_location == "":
-            self.log_location = "logs"
-        else:
-            self.log_location = log_location
+        self.log_location = log_location
         if self.log_offline:
             os.makedirs(self.log_location, exist_ok=True)
 
     def get_log_name(self):
         now = datetime.datetime.now()
-        return self.log_location + "/" + str(now.day) + "-" + str(now.month) + "-" + str(now.year) + ".txt"
+        return self.log_location + "/" + str(now.year) + "-" + str(now.month) + "-" + str(now.day) + ".txt"
+
+    def get_logs(self):
+        dir_list = enumerate(os.listdir(self.log_location))
+        return [name for id, name in dir_list if re.search('[0-9][0-9][0-9][0-9]-((0|)[0-9]|1[0-2])-((|1|2)[0-9]|3[0-1])', name)]
+
+    def compact_logs(self):
+        all_logs = self.get_logs()
+        text_logs = [word for i, word in enumerate(all_logs) if re.search('.txt$', word)]
+        for file_name in text_logs:
+            file_location = self.log_location+"/"+file_name
+            with zipfile.ZipFile(file_location.replace(".txt", ".zip"), 'w') as zip_file:
+                zip_file.write(file_location, file_name)
+            os.remove(file_location)
+
+    def get_oldest_log(self):
+        all_logs = self.get_logs()
+        all_logs.sort()
+        old_log = all_logs[0]
+        if re.search('.zip$', old_log):
+            old_log = self.unpack_log(old_log)
+        return old_log
+
+    def unpack_log(self, file_name):
+        file_location = self.log_location+"/"+file_name
+        with zipfile.ZipFile(file_location, 'r') as zip_file:
+            zip_file.extractall(self.log_location)
+        os.remove(file_location)
+        return file_name.replace(".zip", ".txt")
+
+    def remove_first_lines(self, file_name, number_of_lines):
+        file_location = self.log_location+"/"+file_name
+        with open(file_location, 'r') as file:
+            lines = file.readlines()
+        if number_of_lines < len(lines):
+            with open(file_location, 'w') as file:
+                file.writelines(lines[number_of_lines:])
+        else:
+            os.remove(file_location)
+        self.wapp_log.debug('Removed old data')
 
     def add_message(self, data):
         """
@@ -88,6 +125,9 @@ class MessageLog:
             try:
                 string_data = json.dumps(data)
                 if self.log_data_limit >= self.get_size(string_data):
+                    if not os.path.isfile(self.get_log_name()):
+                        # compact data if log for this day doesnt exist
+                        self.compact_logs()
                     file = open(self.get_log_name(), 'a')
                     file.write(string_data + " \n")
                     file.close()
@@ -95,14 +135,8 @@ class MessageLog:
                 else:
                     self.wapp_log.debug('Log limit exeeded.')
                     if self.limit_action == REMOVE_OLD:
-                        
-                        log_list = [ name for id, name in dir_list if re.search('[0-9][0-9][0-9][0-9]-((0|)[0-9]|1[0-2])-((|1|2)[0-9]|3[0-1])', name) ]
-                        
-                        with open(self.get_log_name(), 'r') as file:
-                            lines = file.readlines()
-                        with open(self.get_log_name(), 'w') as file:
-                            file.writelines(lines[1:])
-                        self.wapp_log.debug('Removed old data')
+                        old_log = self.get_oldest_log()
+                        self.remove_first_lines(old_log, 1)
                         self.add_message(data)
                     elif self.limit_action == REMOVE_RECENT:
                         self.wapp_log.debug('Not adding data')
@@ -111,8 +145,6 @@ class MessageLog:
                 self.wapp_log.error(msg)
         else:
             self.wapp_log.error('Sending while not connected')
-
-    def make_files_into_rar(self):
 
     def get_size(self, data):
         """
@@ -146,8 +178,7 @@ class MessageLog:
         """
         if self.log_offline:
             try:
-                dir_list = enumerate(os.listdir(self.log_location))
-                log_list = [ name for id, name in dir_list if re.search('[0-9][0-9][0-9][0-9]-((0|)[0-9]|1[0-2])-((|1|2)[0-9]|3[0-1])', name) ]
+                log_list = self.get_logs()
                 self.wapp_log.debug("Found log files: " + str(log_list))
 
                 for element in log_list:

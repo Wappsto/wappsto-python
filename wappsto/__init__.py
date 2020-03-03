@@ -30,7 +30,7 @@ class Wappsto:
     __version__ = "1.1.0"
 
     def __init__(self, json_file_name=None, load_from_state_file=False,
-                 save_init=False, log_offline=False, log_location="",
+                 save_init=False, log_offline=False, log_location="logs",
                  log_data_limit=1000, limit_action=message_log.REMOVE_OLD):
         # TODO(Dimitar): Come up with a better description.
         """

@@ -796,13 +796,14 @@ class TestSendThreadClass:
         self.service = wappsto.Wappsto(json_file_name=test_json_location)
         fake_connect(self, ADDRESS, PORT)
 
-    @pytest.mark.parametrize("valid_message", [True, False])
+    @pytest.mark.parametrize("value", [1, None])
     @pytest.mark.parametrize("messages_in_queue", [1, 2, 20])
     @pytest.mark.parametrize("log_offline", [True, False])
     @pytest.mark.parametrize("connected", [True, False])
-    @pytest.mark.parametrize("log_data_limit_exeeded", [True, False])
-    def test_send_thread_success(self, messages_in_queue, valid_message, log_offline,
-                                 connected, log_data_limit_exeeded):
+    @pytest.mark.parametrize("log_location", ["logs", "test_logs_2"])
+    @pytest.mark.parametrize("file_size", [[2, 0], [0], [1]])
+    def test_send_thread_success(self, messages_in_queue, value, log_offline,
+                                 connected, log_location, file_size):
         """
         Tests sending message.
 
@@ -817,28 +818,19 @@ class TestSendThreadClass:
         test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
         self.service = wappsto.Wappsto(json_file_name=test_json_location,
                                        log_offline=log_offline,
-                                       log_location="",
+                                       log_location=log_location,
                                        log_data_limit=1)
         fake_connect(self, ADDRESS, PORT)
-        if log_data_limit_exeeded:
-            file_size = [self.service.message_log.log_data_limit + 1, 0]
-        else:
-            file_size = [0]
-        if valid_message:
-            rpc_id = 1
-        else:
-            rpc_id = None
         i = 0
         while i < messages_in_queue:
             i += 1
             reply = message_data.MessageData(
                 message_data.SEND_SUCCESS,
-                rpc_id=rpc_id
+                rpc_id=value
             )
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.message_log.wapp_log.error = Mock(side_effect=KeyboardInterrupt)
-        bulk_size = wappsto.connection.communication.MAX_BULK_SIZE
         self.service.socket.connected = connected
 
         # Act
@@ -855,6 +847,7 @@ class TestSendThreadClass:
             pass
 
         # Assert
+        assert self.service.message_log.log_location == log_location
         if connected or log_offline:
             if connected:
                 args, kwargs = self.service.socket.my_socket.send.call_args
@@ -863,11 +856,12 @@ class TestSendThreadClass:
                 args, kwargs = opened_file.write.call_args
                 args = args[0]
             arg = json.loads(args)
-            assert len(arg) <= bulk_size
-            assert self.service.socket.sending_queue.qsize() == max(messages_in_queue - bulk_size, 0)
-            assert validate_json("successResponse", arg) == valid_message
+            assert len(arg) <= wappsto.connection.communication.MAX_BULK_SIZE
+            assert self.service.socket.sending_queue.qsize() == max(
+                messages_in_queue - wappsto.connection.communication.MAX_BULK_SIZE, 0)
+            assert validate_json("successResponse", arg) == bool(value)
             for request in arg:
-                assert request.get("id", None) == rpc_id
+                assert request.get("id", None) == value
                 assert bool(request["result"]) is True
         else:
             args, kwargs = self.service.message_log.wapp_log.error.call_args
