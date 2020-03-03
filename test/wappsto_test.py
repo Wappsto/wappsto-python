@@ -820,6 +820,10 @@ class TestSendThreadClass:
                                        log_location="",
                                        log_data_limit=1)
         fake_connect(self, ADDRESS, PORT)
+        if log_data_limit_exeeded:
+            file_size = [self.service.message_log.log_data_limit + 1, 0]
+        else:
+            file_size = [0]
         if valid_message:
             rpc_id = 1
         else:
@@ -836,20 +840,16 @@ class TestSendThreadClass:
         self.service.message_log.wapp_log.error = Mock(side_effect=KeyboardInterrupt)
         bulk_size = wappsto.connection.communication.MAX_BULK_SIZE
         self.service.socket.connected = connected
-        
-        if log_data_limit_exeeded:
-            self.service.message_log.get_size = Mock(side_effect=[100000, 0])
-        else:
-            self.service.message_log.get_size = Mock(side_effect=[0])
 
         # Act
         try:
             # runs until mock object is run and its side_effect raises
             # exception
-            with patch('builtins.open') as opened_file, \
-                patch('sys.getsizeof', return_value=0):
+            with patch("builtins.open") as opened_file, \
+                patch("sys.getsizeof", return_value=0), \
+                patch("os.path.getsize", side_effect=file_size):
                 opened_file.write = Mock(side_effect=KeyboardInterrupt)
-                with patch('builtins.open', return_value=opened_file):
+                with patch("builtins.open", return_value=opened_file):
                     self.service.socket.send_thread()
         except KeyboardInterrupt:
             pass
@@ -858,17 +858,17 @@ class TestSendThreadClass:
         if connected or log_offline:
             if connected:
                 args, kwargs = self.service.socket.my_socket.send.call_args
-                args = args[0].decode('utf-8')
+                args = args[0].decode("utf-8")
             else:
                 args, kwargs = opened_file.write.call_args
                 args = args[0]
             arg = json.loads(args)
             assert len(arg) <= bulk_size
             assert self.service.socket.sending_queue.qsize() == max(messages_in_queue - bulk_size, 0)
+            assert validate_json("successResponse", arg) == valid_message
             for request in arg:
-                assert request.get('id', None) == rpc_id
-                assert validate_json("successResponse", arg) == valid_message
-                assert bool(request['result']) is True
+                assert request.get("id", None) == rpc_id
+                assert bool(request["result"]) is True
         else:
             args, kwargs = self.service.message_log.wapp_log.error.call_args
             assert args[0] == "Sending while not connected"
@@ -889,18 +889,15 @@ class TestSendThreadClass:
         """
         # Arrange
         if valid_message:
-            state_id = self.service.get_network().uuid
             value = "test_info"
         else:
-            state_id = self.service.get_network().uuid = 1
             value = None
-        self.service.get_network().name = value
         i = 0
         while i < messages_in_queue:
             i += 1
             reply = message_data.MessageData(
                 message_data.SEND_REPORT,
-                state_id=state_id,
+                state_id=self.service.get_network().uuid,
                 data=value
             )
             self.service.socket.sending_queue.put(reply)
@@ -920,8 +917,8 @@ class TestSendThreadClass:
         # Assert
         assert len(arg) <= bulk_size
         assert self.service.socket.sending_queue.qsize() == max(messages_in_queue - bulk_size, 0)
+        assert validate_json("request", arg) == valid_message
         for request in arg:
-            assert validate_json("request", arg) == valid_message
             assert request['params']['data'].get('data', None) == value
             assert request['params']['data']['type'] == "Report"
             assert request['method'] == "PUT"
@@ -968,9 +965,9 @@ class TestSendThreadClass:
         # Assert
         assert len(arg) <= bulk_size
         assert self.service.socket.sending_queue.qsize() == max(messages_in_queue - bulk_size, 0)
+        assert validate_json("errorResponse", arg) == valid_message
         for request in arg:
             assert request.get('id', None) == rpc_id
-            assert validate_json("errorResponse", arg) == valid_message
             assert request['error'] == {"code": -32020}
 
     @pytest.mark.parametrize("valid_message", [True, False])
@@ -989,19 +986,14 @@ class TestSendThreadClass:
         """
         # Arrange
         if valid_message:
-            state_id = self.service.get_network().uuid
-            value = "test_info"
+            value = self.service.get_network().uuid
         else:
-            state_id = self.service.get_network().uuid = 1
-            value = None
-        self.service.get_network().name = value
+            value = self.service.get_network().uuid = 1
         i = 0
         while i < messages_in_queue:
             i += 1
             reply = message_data.MessageData(
-                message_data.SEND_RECONNECT,
-                state_id=state_id,
-                data=value
+                message_data.SEND_RECONNECT
             )
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
@@ -1020,9 +1012,9 @@ class TestSendThreadClass:
         # Assert
         assert len(arg) <= bulk_size
         assert self.service.socket.sending_queue.qsize() == max(messages_in_queue - bulk_size, 0)
+        assert validate_json("request", arg) == valid_message
         for request in arg:
-            assert validate_json("request", arg) == valid_message
-            assert request['params']['data'].get('name', None) == value
+            assert request['params']['data']['meta'].get('id', None) == value
             assert request['params']['data']['meta']['type'] == "network"
             assert request['method'] == "POST"
 
@@ -1042,18 +1034,16 @@ class TestSendThreadClass:
         """
         # Arrange
         if valid_message:
-            state_id = self.service.get_network().uuid
-            value = "test_info"
+            value = self.service.get_network().uuid
         else:
-            state_id = 1
-            value = None
+            value = 1
         i = 0
         while i < messages_in_queue:
             i += 1
             reply = message_data.MessageData(
                 message_data.SEND_CONTROL,
-                state_id=state_id,
-                data=value
+                state_id=value,
+                data=""
             )
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
@@ -1071,9 +1061,9 @@ class TestSendThreadClass:
         # Assert
         assert len(arg) <= bulk_size
         assert self.service.socket.sending_queue.qsize() == max(messages_in_queue - bulk_size, 0)
+        assert validate_json("request", arg) == valid_message
         for request in arg:
-            assert validate_json("request", arg) == valid_message
-            assert request['params']['data'].get('data', None) == value
+            assert request['params']['data']['meta'].get('id', None) == value
             assert request['params']['data']['type'] == "Control"
             assert request['method'] == "PUT"
 

@@ -482,7 +482,7 @@ class ClientSocket:
                 self.wapp_log.error(msg, exc_info=True)
 
         if self.connected is True:
-            self.wapp_log.info("Reconnected with " + attempt + " attempts")
+            self.wapp_log.info("Reconnected with " + str(attempt) + " attempts")
             if send_reconnect:
                 reconnect = message_data.MessageData(
                     message_data.SEND_RECONNECT)

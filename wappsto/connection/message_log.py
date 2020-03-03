@@ -95,6 +95,9 @@ class MessageLog:
                 else:
                     self.wapp_log.debug('Log limit exeeded.')
                     if self.limit_action == REMOVE_OLD:
+                        
+                        log_list = [ name for id, name in dir_list if re.search('[0-9][0-9][0-9][0-9]-((0|)[0-9]|1[0-2])-((|1|2)[0-9]|3[0-1])', name) ]
+                        
                         with open(self.get_log_name(), 'r') as file:
                             lines = file.readlines()
                         with open(self.get_log_name(), 'w') as file:
@@ -108,6 +111,8 @@ class MessageLog:
                 self.wapp_log.error(msg)
         else:
             self.wapp_log.error('Sending while not connected')
+
+    def make_files_into_rar(self):
 
     def get_size(self, data):
         """
@@ -142,7 +147,7 @@ class MessageLog:
         if self.log_offline:
             try:
                 dir_list = enumerate(os.listdir(self.log_location))
-                log_list = [ name for id, name in dir_list if re.search('((|1|2)[0-9]|3[0-1])-((0|)[0-9]|1[0-2])-[0-9][0-9][0-9][0-9]', name) ]
+                log_list = [ name for id, name in dir_list if re.search('[0-9][0-9][0-9][0-9]-((0|)[0-9]|1[0-2])-((|1|2)[0-9]|3[0-1])', name) ]
                 self.wapp_log.debug("Found log files: " + str(log_list))
 
                 for element in log_list:
