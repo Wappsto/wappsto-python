@@ -254,7 +254,8 @@ class TestJsonLoadClass:
             decoded = json.load(json_file)
 
         # Act
-        service = wappsto.Wappsto(json_file_name=self.test_json_prettyprint_location)
+        with patch('os.makedirs'):
+            service = wappsto.Wappsto(json_file_name=self.test_json_prettyprint_location)
 
         # Assert
         assert service.instance.decoded == decoded
@@ -276,7 +277,8 @@ class TestConnClass:
 
         """
         self.test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
-        self.service = wappsto.Wappsto(json_file_name=self.test_json_location)
+        with patch('os.makedirs'):
+            self.service = wappsto.Wappsto(json_file_name=self.test_json_location)
 
     @pytest.mark.parametrize("""address,port,callback_exists,expected_status,
                              value_changed_to_none,upgradable""", [
@@ -367,7 +369,8 @@ class TestValueSendClass:
 
         """
         test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
-        self.service = wappsto.Wappsto(json_file_name=test_json_location)
+        with patch('os.makedirs'):
+            self.service = wappsto.Wappsto(json_file_name=test_json_location)
         fake_connect(self, ADDRESS, PORT)
 
     @pytest.mark.parametrize("input,step_size,expected", [
@@ -505,7 +508,8 @@ class TestReceiveThreadClass:
 
         """
         test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
-        self.service = wappsto.Wappsto(json_file_name=test_json_location)
+        with patch('os.makedirs'):
+            self.service = wappsto.Wappsto(json_file_name=test_json_location)
         fake_connect(self, ADDRESS, PORT)
 
     @pytest.mark.parametrize("trace_id", [None, '321'])
@@ -793,7 +797,8 @@ class TestSendThreadClass:
 
         """
         test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
-        self.service = wappsto.Wappsto(json_file_name=test_json_location)
+        with patch('os.makedirs'):
+            self.service = wappsto.Wappsto(json_file_name=test_json_location)
         fake_connect(self, ADDRESS, PORT)
 
     @pytest.mark.parametrize("value", [1, None])
@@ -816,10 +821,11 @@ class TestSendThreadClass:
         """
         # Arrange
         test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
-        self.service = wappsto.Wappsto(json_file_name=test_json_location,
-                                       log_offline=log_offline,
-                                       log_location=log_location,
-                                       log_data_limit=1)
+        with patch('os.makedirs'):
+            self.service = wappsto.Wappsto(json_file_name=test_json_location,
+                                           log_offline=log_offline,
+                                           log_location=log_location,
+                                           log_data_limit=1)
         fake_connect(self, ADDRESS, PORT)
         i = 0
         while i < messages_in_queue:

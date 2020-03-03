@@ -68,9 +68,12 @@ class MessageLog:
         if self.log_offline:
             os.makedirs(self.log_location, exist_ok=True)
 
+    def get_file_path(self, file_name):
+        return self.log_location + "/" + file_name
+
     def get_log_name(self):
         now = datetime.datetime.now()
-        return self.log_location + "/" + str(now.year) + "-" + str(now.month) + "-" + str(now.day) + ".txt"
+        return str(now.year) + "-" + str(now.month) + "-" + str(now.day) + ".txt"
 
     def get_logs(self):
         dir_list = enumerate(os.listdir(self.log_location))
@@ -80,10 +83,10 @@ class MessageLog:
         all_logs = self.get_logs()
         text_logs = [word for i, word in enumerate(all_logs) if re.search('.txt$', word)]
         for file_name in text_logs:
-            file_location = self.log_location+"/"+file_name
-            with zipfile.ZipFile(file_location.replace(".txt", ".zip"), 'w') as zip_file:
-                zip_file.write(file_location, file_name)
-            os.remove(file_location)
+            file_path = self.get_file_path(file_name)
+            with zipfile.ZipFile(file_path.replace(".txt", ".zip"), 'w') as zip_file:
+                zip_file.write(file_path, file_name)
+            os.remove(file_path)
 
     def get_oldest_log(self):
         all_logs = self.get_logs()
@@ -94,21 +97,21 @@ class MessageLog:
         return old_log
 
     def unpack_log(self, file_name):
-        file_location = self.log_location+"/"+file_name
-        with zipfile.ZipFile(file_location, 'r') as zip_file:
+        file_path = self.get_file_path(file_name)
+        with zipfile.ZipFile(file_path, 'r') as zip_file:
             zip_file.extractall(self.log_location)
-        os.remove(file_location)
+        os.remove(file_path)
         return file_name.replace(".zip", ".txt")
 
     def remove_first_lines(self, file_name, number_of_lines):
-        file_location = self.log_location+"/"+file_name
-        with open(file_location, 'r') as file:
+        file_path = self.get_file_path(file_name)
+        with open(file_path, 'r') as file:
             lines = file.readlines()
         if number_of_lines < len(lines):
-            with open(file_location, 'w') as file:
+            with open(file_path, 'w') as file:
                 file.writelines(lines[number_of_lines:])
         else:
-            os.remove(file_location)
+            os.remove(file_path)
         self.wapp_log.debug('Removed old data')
 
     def add_message(self, data):
@@ -125,10 +128,11 @@ class MessageLog:
             try:
                 string_data = json.dumps(data)
                 if self.log_data_limit >= self.get_size(string_data):
-                    if not os.path.isfile(self.get_log_name()):
+                    file_path = self.get_file_path(self.get_log_name())
+                    if not os.path.isfile(file_path):
                         # compact data if log for this day doesnt exist
                         self.compact_logs()
-                    file = open(self.get_log_name(), 'a')
+                    file = open(file_path, 'a')
                     file.write(string_data + " \n")
                     file.close()
                     self.wapp_log.debug('Raw log Json: {}'.format(string_data))
@@ -181,19 +185,19 @@ class MessageLog:
                 log_list = self.get_logs()
                 self.wapp_log.debug("Found log files: " + str(log_list))
 
-                for element in log_list:
-                    file_location = self.log_location + "/" + element
-                    with open(self.get_log_name(), 'r') as file:
+                for log_name in log_list:
+                    file_path = self.get_file_path(log_name)
+                    with open(file_path, 'r') as file:
                         lines = file.readlines()
 
                     for line in lines:
                         data = json.loads(line)
                         for data_element in data:
                             conn.create_bulk(data_element)
-                    self.wapp_log.debug("file: " + file_location + " data sent.")
-                    os.remove(file_location)
+                    self.wapp_log.debug("file: " + file_path + " data sent.")
+                    os.remove(file_path)
             except JSONDecodeError:
-                error = "Json decoding error while reading file: {}".format(file_location)
+                error = "Json decoding error while reading file: {}".format(file_path)
                 self.wapp_log.error(error)
             except FileNotFoundError:
                 error = "Log directory could not be found: {}".format(self.log_location)
