@@ -24,22 +24,6 @@ TEST_JSON = "test_JSON/test_json.json"
 TEST_JSON_prettyprint = "test_JSON/test_json_prettyprint.json"
 
 
-def check_for_correct_conn(*args, **kwargs):
-    """
-    Check if connection is valid.
-
-    Reviews the provided address and port, if it does not correspond to expected values raises the same exception,
-    that would be raised when inputting wrong details.
-
-    Args:
-        args: arguments that method was called with
-        kwargs: key worded arguments
-
-    """
-    if args[0][0] != ADDRESS or args[0][1] != PORT:
-        raise wappsto_errors.ServerConnectionException
-
-
 def fake_connect(self, address, port):
     """
     Creates fake connection.
@@ -52,6 +36,10 @@ def fake_connect(self, address, port):
         port: port used for connecting to server
 
     """
+    def check_for_correct_conn(*args, **kwargs):
+        if args[0][0] != ADDRESS or args[0][1] != PORT:
+            raise wappsto_errors.ServerConnectionException
+
     wappsto.RETRY_LIMIT = 2
     with patch("ssl.SSLContext.wrap_socket") as context:
         context.connect = Mock(side_effect=check_for_correct_conn)
@@ -328,9 +316,13 @@ class TestConnClass:
         if not valid_json:
             self.service.instance.network.uuid = None
 
+        def send_log():
+            self.service.message_log.send_log(None)
+
         # Act
         with patch("os.getenv", return_value=str(upgradable)), \
             patch("builtins.open"), \
+            patch("wappsto.communication.ClientSocket.send_logged_data", side_effect=send_log), \
             patch("os.remove") as file_remove, \
                 patch("os.listdir", return_value=["2020-01-01.txt"]):
             try:

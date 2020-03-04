@@ -12,6 +12,7 @@ import os
 import re
 import sys
 import json
+import time
 import zipfile
 import logging
 import datetime
@@ -20,6 +21,8 @@ from json.decoder import JSONDecodeError
 
 REMOVE_OLD = 1
 REMOVE_RECENT = 2
+
+TIME_BETWEEN_LOG_SEND = 0.1  # time to wait before sending next logged message (seconds)
 
 
 class MessageLog:
@@ -263,7 +266,11 @@ class MessageLog:
                         try:
                             data = json.loads(line)
                             for data_element in data:
-                                conn.create_bulk(data_element)
+                                if conn.connected:
+                                    time.sleep(TIME_BETWEEN_LOG_SEND)
+                                    conn.create_bulk(data_element)
+                                else:
+                                    raise ConnectionError
                         except JSONDecodeError:
                             error = "Json decoding error while reading : {}".format(line)
                             self.wapp_log.error(error)
@@ -273,3 +280,5 @@ class MessageLog:
             except FileNotFoundError:
                 error = "Log directory could not be found: {}".format(self.log_location)
                 self.wapp_log.error(error)
+            except ConnectionError:
+                self.wapp_log.debug("No connection to the server: Logs are no longer being sent")

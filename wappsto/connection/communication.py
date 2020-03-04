@@ -207,12 +207,21 @@ class ClientSocket:
             self.connected = True
             self.my_socket.settimeout(None)
             self.wappsto_status.set_status(status.CONNECTED)
-            self.message_log.send_log(self)
+            self.send_logged_data()
             return True
 
         except Exception as e:
             self.wapp_log.error("Failed to connect: {}".format(e))
             return False
+
+    def send_logged_data(self):
+        """
+        Sends logged data.
+
+        Makes a thread that sends all of the logged data.
+        """
+        processThread = threading.Thread(target=self.message_log.send_log, args=(self,))
+        processThread.start()
 
     def initialize_all(self):
         """
