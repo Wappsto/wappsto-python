@@ -81,11 +81,12 @@ class MessageLog:
 
     def compact_logs(self):
         all_logs = self.get_logs()
-        text_logs = [word for i, word in enumerate(all_logs) if re.search(".txt$", word)]
+        text_logs = [file_name for id, file_name in enumerate(all_logs) if re.search(".txt$", file_name)]
         for file_name in text_logs:
             file_path = self.get_file_path(file_name)
-            with zipfile.ZipFile(file_path.replace(".txt", ".zip"), "w") as zip_file:
-                zip_file.write(file_path, file_name)
+            zip_file = zipfile.ZipFile(file_path.replace(".txt", ".zip"), "w")
+            zip_file.write(file_path, file_name)
+            zip_file.close()
             os.remove(file_path)
 
     def get_oldest_log(self):
@@ -117,7 +118,7 @@ class MessageLog:
             os.remove(file_path)
         self.wapp_log.debug("Removed old data")
 
-    def add_message(self, data):
+    def add_message(self, data, number_of_lines=1):
         """
         Add message to log.
 
@@ -143,7 +144,7 @@ class MessageLog:
                     self.wapp_log.debug("Log limit exeeded.")
                     if self.limit_action == REMOVE_OLD:
                         file_name = self.get_oldest_log()
-                        self.remove_first_lines(file_name, 1)
+                        self.remove_first_lines(file_name, number_of_lines)
                         self.add_message(data)
                     elif self.limit_action == REMOVE_RECENT:
                         self.wapp_log.debug("Not adding data")

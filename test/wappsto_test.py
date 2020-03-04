@@ -809,8 +809,10 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("log_location", ["logs", "test_logs_2"])
     @pytest.mark.parametrize("file_size", [[2, 0], [0], [1]])
     @pytest.mark.parametrize("limit_action", [message_log.REMOVE_OLD])
+    @pytest.mark.parametrize("log_file_exists", [True, False])
     def test_send_thread_success(self, messages_in_queue, value, log_offline,
-                                 connected, log_location, file_size, limit_action):
+                                 connected, log_location, file_size, limit_action,
+                                 log_file_exists):
         """
         Tests sending message.
 
@@ -848,7 +850,10 @@ class TestSendThreadClass:
             with patch("builtins.open") as opened_file, \
                 patch("sys.getsizeof", return_value=0), \
                 patch("logging.Logger.error", side_effect=KeyboardInterrupt) as Logger_error, \
-                patch("os.path.isfile", return_value=True), \
+                patch("zipfile.ZipFile") as zipfile, \
+                patch("os.remove"), \
+                patch("os.listdir", return_value=["2020-01-01.txt"]), \
+                patch("os.path.isfile", return_value=log_file_exists), \
                 patch("os.path.getsize", side_effect=file_size):
                 opened_file.write = Mock(side_effect=KeyboardInterrupt)
                 with patch("builtins.open", return_value=opened_file):
@@ -857,6 +862,7 @@ class TestSendThreadClass:
             pass
 
         # Assert
+        assert zipfile.called == (not log_file_exists and log_offline and not connected)
         assert self.service.message_log.log_location == log_location
         if connected or log_offline:
             if connected:
