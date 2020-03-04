@@ -192,15 +192,16 @@ class MessageLog:
                 for file_name in log_list:
                     file_name = self.get_text_log(file_name)
                     file_path = self.get_file_path(file_name)
-                    with open(file_path, "r") as file:
-                        for line in file.readlines():
-                            try:
-                                data = json.loads(line)
-                                for data_element in data:
-                                    conn.create_bulk(data_element)
-                            except JSONDecodeError:
-                                error = "Json decoding error while reading : {}".format(line)
-                                self.wapp_log.error(error)
+                    file = open(file_path, "r")
+                    for line in file.readlines():
+                        try:
+                            data = json.loads(line)
+                            for data_element in data:
+                                conn.create_bulk(data_element)
+                        except JSONDecodeError:
+                            error = "Json decoding error while reading : {}".format(line)
+                            self.wapp_log.error(error)
+                    file.close()
                     self.wapp_log.debug("Data sent from file: " + file_path)
                     os.remove(file_path)
             except FileNotFoundError:
