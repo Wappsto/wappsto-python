@@ -29,17 +29,18 @@ class MessageLog:
     Saves data not being sent due to no connection.
     """
 
-    def __init__(self, log_offline, log_location, log_data_limit, limit_action):
+    def __init__(self, log_offline, log_location, log_data_limit, limit_action, lines_to_remove):
         """
         Initialize MessageLog class.
 
         Sets up message logging enviroment.
 
         Args:
-            log_offline: boolean indicating of data should be logged.
-            log_location: location of the logs.
+            log_offline: boolean indicating if data should be logged
+            log_location: location of the logs
             log_data_limit: limit of data to be saved in log (bytes)
             limit_action: action to take when limit is reached
+            lines_to_remove: how many lines to remove from the file
 
         Raises:
             ServerConnectionException: "Unable to connect to the server.
@@ -51,6 +52,7 @@ class MessageLog:
         self.log_offline = log_offline
         self.log_data_limit = log_data_limit
         self.limit_action = limit_action
+        self.lines_to_remove = lines_to_remove
 
         self.set_location(log_location)
 
@@ -69,17 +71,51 @@ class MessageLog:
             os.makedirs(self.log_location, exist_ok=True)
 
     def get_file_path(self, file_name):
+        """
+        Gets path to the file.
+
+        Concatenates location of the logs and file name.
+
+        Args:
+            file_name: name of the file.
+
+        Returns:
+            path to the file.
+        """
         return self.log_location + "/" + file_name
 
     def get_log_name(self):
+        """
+        Gets name of the newest log.
+
+        Creates and returns the name of the log.
+
+        Returns:
+            name of the latest log
+        """
         now = datetime.datetime.now()
         return str(now.year) + "-" + str(now.month) + "-" + str(now.day) + ".txt"
 
     def get_logs(self):
+        """
+        Gets log files in the location.
+
+        Gets all files from directory and return ones that follow log file format.
+
+        Returns:
+            list of log file names.
+        """
         file_list = enumerate(os.listdir(self.log_location))
-        return [file_name for id, file_name in file_list if re.search("[0-9][0-9][0-9][0-9]-((0|)[0-9]|1[0-2])-((|1|2)[0-9]|3[0-1])", file_name)]
+        return [file_name for id, file_name in file_list if
+                re.search("[0-9][0-9][0-9][0-9]-((0|)[0-9]|1[0-2])-((|1|2)[0-9]|3[0-1])", file_name)]
 
     def compact_logs(self):
+        """
+        Compacts all logs to save space.
+
+        Uses all logs received from "get_logs" method and compacts the ones that
+        are of type text, after compacting the text file is deleted.
+        """
         all_logs = self.get_logs()
         text_logs = [file_name for id, file_name in enumerate(all_logs) if re.search(".txt$", file_name)]
         for file_name in text_logs:
@@ -90,35 +126,62 @@ class MessageLog:
             os.remove(file_path)
 
     def get_oldest_log(self):
+        """
+        Gets the oldest log.
+
+        Uses all logs received from "get_logs" method and sorts them, taking the first (oldest)
+        later calls "get_text_log" to ensure file is of text type.
+
+        Returns:
+            name of the file.
+        """
         all_logs = self.get_logs()
         all_logs.sort()
         file_name = all_logs[0]
         return self.get_text_log(file_name)
 
     def get_text_log(self, file_name):
+        """
+        Gets name of the text file.
+
+        Checks if the file is compacted, if it is then it is unzipped and new name is returned.
+
+        Args:
+            file_name: name of the file.
+
+        Returns:
+            name of the file.
+        """
         if re.search(".zip$", file_name):
-            file_name = self.unpack_log(file_name)
+            file_path = self.get_file_path(file_name)
+            with zipfile.ZipFile(file_path, "r") as zip_file:
+                zip_file.extractall(self.log_location)
+            os.remove(file_path)
+            file_name = file_name.replace(".zip", ".txt")
         return file_name
 
-    def unpack_log(self, file_name):
-        file_path = self.get_file_path(file_name)
-        with zipfile.ZipFile(file_path, "r") as zip_file:
-            zip_file.extractall(self.log_location)
-        os.remove(file_path)
-        return file_name.replace(".zip", ".txt")
+    def remove_first_lines(self, file_name):
+        """
+        Removes first lines from file.
 
-    def remove_first_lines(self, file_name, number_of_lines):
+        Removes specific number of lines from the file, if the number
+        of lines to remove exceeds lines in file, the file is deleted.
+
+        Args:
+            file_name: name of the file.
+
+        """
         file_path = self.get_file_path(file_name)
         with open(file_path, "r") as file:
             lines = file.readlines()
-        if number_of_lines < len(lines):
+        if self.lines_to_remove < len(lines):
             with open(file_path, "w") as file:
-                file.writelines(lines[number_of_lines:])
+                file.writelines(lines[self.lines_to_remove:])
         else:
             os.remove(file_path)
         self.wapp_log.debug("Removed old data")
 
-    def add_message(self, data, number_of_lines=1):
+    def add_message(self, data):
         """
         Add message to log.
 
@@ -144,7 +207,7 @@ class MessageLog:
                     self.wapp_log.debug("Log limit exeeded.")
                     if self.limit_action == REMOVE_OLD:
                         file_name = self.get_oldest_log()
-                        self.remove_first_lines(file_name, number_of_lines)
+                        self.remove_first_lines(file_name)
                         self.add_message(data)
                     elif self.limit_action == REMOVE_RECENT:
                         self.wapp_log.debug("Not adding data")
@@ -182,6 +245,9 @@ class MessageLog:
         Sends log data.
 
         If logging is enabled reads all saved messages from log and sends them, later emptying log.
+
+        Args:
+            conn: reference to ClientSocket object.
 
         """
         if self.log_offline:

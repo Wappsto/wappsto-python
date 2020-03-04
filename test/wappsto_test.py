@@ -313,6 +313,7 @@ class TestConnClass:
             value_changed_to_none: specifies if value should be replaced with none
             upgradable: specifies if object is upgradable
             valid_json: Boolean indicating if the sent json should be valid
+            log_offline: boolean indicating if data should be logged
 
         """
         # Arrange
@@ -331,7 +332,7 @@ class TestConnClass:
         with patch("os.getenv", return_value=str(upgradable)), \
             patch("builtins.open"), \
             patch("os.remove") as file_remove, \
-            patch("os.listdir", return_value=["2020-01-01.txt"]):
+                patch("os.listdir", return_value=["2020-01-01.txt"]):
             try:
                 fake_connect(self, address, port)
                 args, kwargs = self.service.socket.my_socket.send.call_args
@@ -818,7 +819,13 @@ class TestSendThreadClass:
 
         Args:
             messages_in_queue: How many messages should be sent
-            valid_message: Boolean indicating if the sent json should be valid
+            value: value to be sent (when None is provided should make json invalid)
+            log_offline: boolean indicating if data should be logged
+            connected: boolean indicating if the is connection to server
+            log_location: location of the logs
+            file_size: how big is the current size of the folder
+            limit_action: action to perform when limit is exeeded
+            log_file_exists: boolean indicating if log file exist
 
         """
         # Arrange
@@ -852,7 +859,7 @@ class TestSendThreadClass:
                 patch("os.remove"), \
                 patch("os.listdir", return_value=["2020-01-01.txt"]), \
                 patch("os.path.isfile", return_value=log_file_exists), \
-                patch("os.path.getsize", side_effect=file_size):
+                    patch("os.path.getsize", side_effect=file_size):
                 opened_file.write = Mock(side_effect=KeyboardInterrupt)
                 with patch("builtins.open", return_value=opened_file):
                     self.service.socket.send_thread()
@@ -898,9 +905,14 @@ class TestSendThreadClass:
         Tests what would happen when sending message.
 
         Args:
-            type: Type of message being sent
             messages_in_queue: How many messages should be sent
-            valid_message: Boolean indicating if the sent json should be valid
+            value: value to be sent (when None is provided should make json invalid)
+            log_offline: boolean indicating if data should be logged
+            connected: boolean indicating if the is connection to server
+            log_location: location of the logs
+            file_size: how big is the current size of the folder
+            limit_action: action to perform when limit is exeeded
+            log_file_exists: boolean indicating if log file exist
 
         """
         # Arrange
@@ -935,7 +947,7 @@ class TestSendThreadClass:
                 patch("os.remove"), \
                 patch("os.listdir", return_value=["2020-01-01.txt"]), \
                 patch("os.path.isfile", return_value=log_file_exists), \
-                patch("os.path.getsize", side_effect=file_size):
+                    patch("os.path.getsize", side_effect=file_size):
                 opened_file.write = Mock(side_effect=KeyboardInterrupt)
                 with patch("builtins.open", return_value=opened_file):
                     self.service.socket.send_thread()
@@ -982,9 +994,14 @@ class TestSendThreadClass:
         Tests what would happen when sending message.
 
         Args:
-            type: Type of message being sent
             messages_in_queue: How many messages should be sent
-            valid_message: Boolean indicating if the sent json should be valid
+            value: value to be sent (when None is provided should make json invalid)
+            log_offline: boolean indicating if data should be logged
+            connected: boolean indicating if the is connection to server
+            log_location: location of the logs
+            file_size: how big is the current size of the folder
+            limit_action: action to perform when limit is exeeded
+            log_file_exists: boolean indicating if log file exist
 
         """
         # Arrange
@@ -1018,7 +1035,7 @@ class TestSendThreadClass:
                 patch("os.remove"), \
                 patch("os.listdir", return_value=["2020-01-01.txt"]), \
                 patch("os.path.isfile", return_value=log_file_exists), \
-                patch("os.path.getsize", side_effect=file_size):
+                    patch("os.path.getsize", side_effect=file_size):
                 opened_file.write = Mock(side_effect=KeyboardInterrupt)
                 with patch("builtins.open", return_value=opened_file):
                     self.service.socket.send_thread()
@@ -1064,9 +1081,14 @@ class TestSendThreadClass:
         Tests what would happen when sending message.
 
         Args:
-            type: Type of message being sent
             messages_in_queue: How many messages should be sent
             valid_message: Boolean indicating if the sent json should be valid
+            log_offline: boolean indicating if data should be logged
+            connected: boolean indicating if the is connection to server
+            log_location: location of the logs
+            file_size: how big is the current size of the folder
+            limit_action: action to perform when limit is exeeded
+            log_file_exists: boolean indicating if log file exist
 
         """
         # Arrange
@@ -1103,7 +1125,7 @@ class TestSendThreadClass:
                 patch("os.remove"), \
                 patch("os.listdir", return_value=["2020-01-01.txt"]), \
                 patch("os.path.isfile", return_value=log_file_exists), \
-                patch("os.path.getsize", side_effect=file_size):
+                    patch("os.path.getsize", side_effect=file_size):
                 opened_file.write = Mock(side_effect=KeyboardInterrupt)
                 with patch("builtins.open", return_value=opened_file):
                     self.service.socket.send_thread()
@@ -1150,9 +1172,14 @@ class TestSendThreadClass:
         Tests what would happen when sending message.
 
         Args:
-            type: Type of message being sent
             messages_in_queue: How many messages should be sent
             valid_message: Boolean indicating if the sent json should be valid
+            log_offline: boolean indicating if data should be logged
+            connected: boolean indicating if the is connection to server
+            log_location: location of the logs
+            file_size: how big is the current size of the folder
+            limit_action: action to perform when limit is exeeded
+            log_file_exists: boolean indicating if log file exist
 
         """
         # Arrange
@@ -1191,7 +1218,7 @@ class TestSendThreadClass:
                 patch("os.remove"), \
                 patch("os.listdir", return_value=["2020-01-01.txt"]), \
                 patch("os.path.isfile", return_value=log_file_exists), \
-                patch("os.path.getsize", side_effect=file_size):
+                    patch("os.path.getsize", side_effect=file_size):
                 opened_file.write = Mock(side_effect=KeyboardInterrupt)
                 with patch("builtins.open", return_value=opened_file):
                     self.service.socket.send_thread()
@@ -1240,6 +1267,12 @@ class TestSendThreadClass:
         Args:
             object_name: name of the object to be updated
             messages_in_queue: value indicating how many messages should be sent at once
+            log_offline: boolean indicating if data should be logged
+            connected: boolean indicating if the is connection to server
+            log_location: location of the logs
+            file_size: how big is the current size of the folder
+            limit_action: action to perform when limit is exeeded
+            log_file_exists: boolean indicating if log file exist
 
         """
         # Arrange
@@ -1289,7 +1322,7 @@ class TestSendThreadClass:
                 patch("os.remove"), \
                 patch("os.listdir", return_value=["2020-01-01.txt"]), \
                 patch("os.path.isfile", return_value=log_file_exists), \
-                patch("os.path.getsize", side_effect=file_size):
+                    patch("os.path.getsize", side_effect=file_size):
                 opened_file.write = Mock(side_effect=KeyboardInterrupt)
                 with patch("builtins.open", return_value=opened_file):
                     self.service.socket.send_thread()
@@ -1310,7 +1343,6 @@ class TestSendThreadClass:
             assert len(arg) <= wappsto.connection.communication.MAX_BULK_SIZE
             assert self.service.socket.sending_queue.qsize() == max(
                 messages_in_queue - wappsto.connection.communication.MAX_BULK_SIZE, 0)
-            #is sent stuff ok?
             for request in arg:
                 assert request["params"]["url"] == url
         else:
