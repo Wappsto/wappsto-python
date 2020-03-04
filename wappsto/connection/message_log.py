@@ -76,43 +76,46 @@ class MessageLog:
         return str(now.year) + "-" + str(now.month) + "-" + str(now.day) + ".txt"
 
     def get_logs(self):
-        dir_list = enumerate(os.listdir(self.log_location))
-        return [name for id, name in dir_list if re.search('[0-9][0-9][0-9][0-9]-((0|)[0-9]|1[0-2])-((|1|2)[0-9]|3[0-1])', name)]
+        file_list = enumerate(os.listdir(self.log_location))
+        return [file_name for id, file_name in file_list if re.search("[0-9][0-9][0-9][0-9]-((0|)[0-9]|1[0-2])-((|1|2)[0-9]|3[0-1])", file_name)]
 
     def compact_logs(self):
         all_logs = self.get_logs()
-        text_logs = [word for i, word in enumerate(all_logs) if re.search('.txt$', word)]
+        text_logs = [word for i, word in enumerate(all_logs) if re.search(".txt$", word)]
         for file_name in text_logs:
             file_path = self.get_file_path(file_name)
-            with zipfile.ZipFile(file_path.replace(".txt", ".zip"), 'w') as zip_file:
+            with zipfile.ZipFile(file_path.replace(".txt", ".zip"), "w") as zip_file:
                 zip_file.write(file_path, file_name)
             os.remove(file_path)
 
     def get_oldest_log(self):
         all_logs = self.get_logs()
         all_logs.sort()
-        old_log = all_logs[0]
-        if re.search('.zip$', old_log):
-            old_log = self.unpack_log(old_log)
-        return old_log
+        file_name = all_logs[0]
+        return self.get_text_log(file_name)
+
+    def get_text_log(self, file_name):
+        if re.search(".zip$", file_name):
+            file_name = self.unpack_log(file_name)
+        return file_name
 
     def unpack_log(self, file_name):
         file_path = self.get_file_path(file_name)
-        with zipfile.ZipFile(file_path, 'r') as zip_file:
+        with zipfile.ZipFile(file_path, "r") as zip_file:
             zip_file.extractall(self.log_location)
         os.remove(file_path)
         return file_name.replace(".zip", ".txt")
 
     def remove_first_lines(self, file_name, number_of_lines):
         file_path = self.get_file_path(file_name)
-        with open(file_path, 'r') as file:
+        with open(file_path, "r") as file:
             lines = file.readlines()
         if number_of_lines < len(lines):
-            with open(file_path, 'w') as file:
+            with open(file_path, "w") as file:
                 file.writelines(lines[number_of_lines:])
         else:
             os.remove(file_path)
-        self.wapp_log.debug('Removed old data')
+        self.wapp_log.debug("Removed old data")
 
     def add_message(self, data):
         """
@@ -132,23 +135,23 @@ class MessageLog:
                     if not os.path.isfile(file_path):
                         # compact data if log for this day doesnt exist
                         self.compact_logs()
-                    file = open(file_path, 'a')
+                    file = open(file_path, "a")
                     file.write(string_data + " \n")
                     file.close()
-                    self.wapp_log.debug('Raw log Json: {}'.format(string_data))
+                    self.wapp_log.debug("Raw log Json: {}".format(string_data))
                 else:
-                    self.wapp_log.debug('Log limit exeeded.')
+                    self.wapp_log.debug("Log limit exeeded.")
                     if self.limit_action == REMOVE_OLD:
-                        old_log = self.get_oldest_log()
-                        self.remove_first_lines(old_log, 1)
+                        file_name = self.get_oldest_log()
+                        self.remove_first_lines(file_name, 1)
                         self.add_message(data)
                     elif self.limit_action == REMOVE_RECENT:
-                        self.wapp_log.debug('Not adding data')
+                        self.wapp_log.debug("Not adding data")
             except FileNotFoundError:
                 msg = "No log file could be created in: {}".format(self.log_location)
                 self.wapp_log.error(msg)
         else:
-            self.wapp_log.error('Sending while not connected')
+            self.wapp_log.error("Sending while not connected")
 
     def get_size(self, data):
         """
@@ -163,12 +166,12 @@ class MessageLog:
             Total size of the folder.
         """
         total_size = 0
-        for dirpath, dirnames, filenames in os.walk(self.log_location):
-            for f in filenames:
-                fp = os.path.join(dirpath, f)
-                # skip if it is symbolic link
-                if not os.path.islink(fp):
-                    total_size += os.path.getsize(fp)
+        for dirpath, dirnames, file_names in os.walk(self.log_location):
+            for file_name in file_names:
+                file_path = os.path.join(dirpath, file_name)
+                # skip if it is link
+                if not os.path.islink(file_path):
+                    total_size += os.path.getsize(file_path)
 
         total_size += sys.getsizeof(data)
         return total_size
@@ -185,20 +188,20 @@ class MessageLog:
                 log_list = self.get_logs()
                 self.wapp_log.debug("Found log files: " + str(log_list))
 
-                for log_name in log_list:
-                    file_path = self.get_file_path(log_name)
-                    with open(file_path, 'r') as file:
-                        lines = file.readlines()
-
-                    for line in lines:
-                        data = json.loads(line)
-                        for data_element in data:
-                            conn.create_bulk(data_element)
-                    self.wapp_log.debug("file: " + file_path + " data sent.")
+                for file_name in log_list:
+                    file_name = self.get_text_log(file_name)
+                    file_path = self.get_file_path(file_name)
+                    with open(file_path, "r") as file:
+                        for line in file.readlines():
+                            try:
+                                data = json.loads(line)
+                                for data_element in data:
+                                    conn.create_bulk(data_element)
+                            except JSONDecodeError:
+                                error = "Json decoding error while reading : {}".format(line)
+                                self.wapp_log.error(error)
+                    self.wapp_log.debug("Data sent from file: " + file_path)
                     os.remove(file_path)
-            except JSONDecodeError:
-                error = "Json decoding error while reading file: {}".format(file_path)
-                self.wapp_log.error(error)
             except FileNotFoundError:
                 error = "Log directory could not be found: {}".format(self.log_location)
                 self.wapp_log.error(error)
