@@ -32,7 +32,7 @@ class MessageLog:
     Saves data not being sent due to no connection.
     """
 
-    def __init__(self, log_offline, log_location, log_data_limit, limit_action, lines_to_remove):
+    def __init__(self, log_offline, log_location, log_data_limit, limit_action):
         """
         Initialize MessageLog class.
 
@@ -41,9 +41,8 @@ class MessageLog:
         Args:
             log_offline: boolean indicating if data should be logged
             log_location: location of the logs
-            log_data_limit: limit of data to be saved in log (bytes)
+            log_data_limit: limit of data to be saved in log [in Megabytes]
             limit_action: action to take when limit is reached
-            lines_to_remove: how many lines to remove from the file
 
         Raises:
             ServerConnectionException: "Unable to connect to the server.
@@ -55,7 +54,6 @@ class MessageLog:
         self.log_offline = log_offline
         self.log_data_limit = log_data_limit
         self.limit_action = limit_action
-        self.lines_to_remove = lines_to_remove
 
         self.set_location(log_location)
 
@@ -141,7 +139,7 @@ class MessageLog:
         all_logs = self.get_logs()
         all_logs.sort()
         file_name = all_logs[0]
-        return self.get_text_log(file_name)
+        return file_name
 
     def get_text_log(self, file_name):
         """
@@ -163,23 +161,26 @@ class MessageLog:
             file_name = file_name.replace(".zip", ".txt")
         return file_name
 
-    def remove_first_lines(self, file_name):
+    def remove_data(self, file_name):
         """
-        Removes first lines from file.
+        Removes data.
 
-        Removes specific number of lines from the file, if the number
-        of lines to remove exceeds lines in file, the file is deleted.
+        Removes lines from the file, but if the number of lines to remove
+        exceeds lines in file or file is not text format the file is deleted.
 
         Args:
             file_name: name of the file.
 
         """
         file_path = self.get_file_path(file_name)
-        with open(file_path, "r") as file:
-            lines = file.readlines()
-        if self.lines_to_remove < len(lines):
-            with open(file_path, "w") as file:
-                file.writelines(lines[self.lines_to_remove:])
+        if re.search(".txt$", file_name):
+            with open(file_path, "r") as file:
+                lines = file.readlines()
+            if len(lines) > 1:
+                with open(file_path, "w") as file:
+                    file.writelines(lines[1:])
+            else:
+                os.remove(file_path)
         else:
             os.remove(file_path)
         self.wapp_log.debug("Removed old data")
@@ -197,7 +198,7 @@ class MessageLog:
         if self.log_offline:
             try:
                 string_data = json.dumps(data)
-                if self.log_data_limit >= self.get_size(string_data):
+                if (self.log_data_limit * 1000000) >= self.get_size(string_data):
                     file_path = self.get_file_path(self.get_log_name())
                     if not os.path.isfile(file_path):
                         # compact data if log for this day doesnt exist
@@ -210,7 +211,7 @@ class MessageLog:
                     self.wapp_log.debug("Log limit exeeded.")
                     if self.limit_action == REMOVE_OLD:
                         file_name = self.get_oldest_log()
-                        self.remove_first_lines(file_name)
+                        self.remove_data(file_name)
                         self.add_message(data)
                     elif self.limit_action == REMOVE_RECENT:
                         self.wapp_log.debug("Not adding data")

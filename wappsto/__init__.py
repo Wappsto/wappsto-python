@@ -31,8 +31,7 @@ class Wappsto:
 
     def __init__(self, json_file_name=None, load_from_state_file=False,
                  save_init=False, log_offline=False, log_location="logs",
-                 log_data_limit=1000, limit_action=message_log.REMOVE_OLD,
-                 lines_to_remove=10):
+                 log_data_limit=10, limit_action=message_log.REMOVE_OLD):
         # TODO(Dimitar): Come up with a better description.
         """
         Initialize wappsto class.
@@ -51,9 +50,8 @@ class Wappsto:
                 (default: {False})
             log_offline: boolean indicating if data should be logged (default: {False})
             log_location: location of the logs (default: {"logs"})
-            log_data_limit: limit of data to be saved in log (default: {1000})
+            log_data_limit: limit of data to be saved in log [in Megabytes] (default: {10})
             limit_action: action to take when limit is reached (default: {REMOVE_OLD})
-            lines_to_remove: how many lines to remove from the file (default: {10})
 
         """
         self.wapp_log = logging.getLogger(__name__)
@@ -68,8 +66,7 @@ class Wappsto:
         self.message_log = message_log.MessageLog(
             log_offline, log_location,
             log_data_limit,
-            limit_action,
-            lines_to_remove
+            limit_action
         )
         self.socket = None
         self.receive_thread = None

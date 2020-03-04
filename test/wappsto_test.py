@@ -798,7 +798,7 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("log_offline", [True, False])
     @pytest.mark.parametrize("connected", [True, False])
     @pytest.mark.parametrize("log_location", ["logs", "test_logs_2"])
-    @pytest.mark.parametrize("file_size", [[2, 0], [0], [1]])
+    @pytest.mark.parametrize("file_size", [[2000000, 0], [0], [1000000]])
     @pytest.mark.parametrize("limit_action", [message_log.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
     def test_send_thread_success(self, messages_in_queue, value, log_offline,
@@ -885,7 +885,7 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("log_offline", [True, False])
     @pytest.mark.parametrize("connected", [True, False])
     @pytest.mark.parametrize("log_location", ["logs", "test_logs_2"])
-    @pytest.mark.parametrize("file_size", [[2, 0], [0], [1]])
+    @pytest.mark.parametrize("file_size", [[2000000, 0], [0], [1000000]])
     @pytest.mark.parametrize("limit_action", [message_log.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
     def test_send_thread_report(self, messages_in_queue, value, log_offline,
@@ -974,7 +974,7 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("log_offline", [True, False])
     @pytest.mark.parametrize("connected", [True, False])
     @pytest.mark.parametrize("log_location", ["logs", "test_logs_2"])
-    @pytest.mark.parametrize("file_size", [[2, 0], [0], [1]])
+    @pytest.mark.parametrize("file_size", [[2000000, 0], [0], [1000000]])
     @pytest.mark.parametrize("limit_action", [message_log.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
     def test_send_thread_failed(self, messages_in_queue, value, log_offline,
@@ -1061,7 +1061,7 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("log_offline", [True, False])
     @pytest.mark.parametrize("connected", [True, False])
     @pytest.mark.parametrize("log_location", ["logs", "test_logs_2"])
-    @pytest.mark.parametrize("file_size", [[2, 0], [0], [1]])
+    @pytest.mark.parametrize("file_size", [[2000000, 0], [0], [1000000]])
     @pytest.mark.parametrize("limit_action", [message_log.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
     def test_send_thread_reconnect(self, messages_in_queue, valid_message, log_offline,
@@ -1152,7 +1152,7 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("log_offline", [True, False])
     @pytest.mark.parametrize("connected", [True, False])
     @pytest.mark.parametrize("log_location", ["logs", "test_logs_2"])
-    @pytest.mark.parametrize("file_size", [[2, 0], [0], [1]])
+    @pytest.mark.parametrize("file_size", [[2000000, 0], [0], [1000000]])
     @pytest.mark.parametrize("limit_action", [message_log.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
     def test_send_thread_control(self, messages_in_queue, valid_message, log_offline,
@@ -1245,7 +1245,7 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("log_offline", [True, False])
     @pytest.mark.parametrize("connected", [True, False])
     @pytest.mark.parametrize("log_location", ["logs", "test_logs_2"])
-    @pytest.mark.parametrize("file_size", [[2, 0], [0], [1]])
+    @pytest.mark.parametrize("file_size", [[2000000, 0], [0], [1000000]])
     @pytest.mark.parametrize("limit_action", [message_log.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
     def test_send_thread_delete(self, object_name, messages_in_queue, log_offline,
