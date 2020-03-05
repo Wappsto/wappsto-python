@@ -22,6 +22,10 @@ from json.decoder import JSONDecodeError
 REMOVE_OLD = 1
 REMOVE_RECENT = 2
 
+HOUR_PERIOD = 3
+DAY_PERIOD = 2
+MONTH_PERIOD = 1
+
 TIME_BETWEEN_LOG_SEND = 0.1  # time to wait before sending next logged message (seconds)
 
 
@@ -32,7 +36,7 @@ class MessageLog:
     Saves data not being sent due to no connection.
     """
 
-    def __init__(self, log_offline, log_location, log_data_limit, limit_action):
+    def __init__(self, log_offline, log_location, log_data_limit, limit_action, compression_period):
         """
         Initialize MessageLog class.
 
@@ -43,6 +47,7 @@ class MessageLog:
             log_location: location of the logs
             log_data_limit: limit of data to be saved in log [in Megabytes]
             limit_action: action to take when limit is reached
+            compression_period: period foe compressing data [day, hour]
 
         Raises:
             ServerConnectionException: "Unable to connect to the server.
@@ -54,6 +59,7 @@ class MessageLog:
         self.log_offline = log_offline
         self.log_data_limit = log_data_limit
         self.limit_action = limit_action
+        self.compression_period = compression_period
 
         self.set_location(log_location)
 
@@ -95,7 +101,14 @@ class MessageLog:
             name of the latest log
         """
         now = datetime.datetime.now()
-        return str(now.year) + "-" + str(now.month) + "-" + str(now.day) + ".txt"
+        if self.compression_period >= MONTH_PERIOD:
+            file_name = str(now.year) + "-" + str(now.month)
+        if self.compression_period >= DAY_PERIOD:
+            file_name += "-" + str(now.day)
+        if self.compression_period >= HOUR_PERIOD:
+            file_name += "-" + str(now.hour)
+        file_name += ".txt"
+        return file_name
 
     def get_logs(self):
         """
@@ -106,9 +119,9 @@ class MessageLog:
         Returns:
             list of log file names.
         """
-        file_list = enumerate(os.listdir(self.log_location))
-        return [file_name for id, file_name in file_list if
-                re.search("[0-9][0-9][0-9][0-9]-((0|)[0-9]|1[0-2])-((|1|2)[0-9]|3[0-1])", file_name)]
+        file_list = os.listdir(self.log_location)
+        pattern = "[0-9][0-9][0-9][0-9]-([0-9]|1[0-2])"
+        return [file_name for id, file_name in enumerate(file_list) if re.search(pattern, file_name)]
 
     def compact_logs(self):
         """
