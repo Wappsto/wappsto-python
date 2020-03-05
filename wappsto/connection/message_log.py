@@ -47,7 +47,7 @@ class MessageLog:
             log_location: location of the logs
             log_data_limit: limit of data to be saved in log [in Megabytes]
             limit_action: action to take when limit is reached
-            compression_period: period foe compressing data [day, hour]
+            compression_period: period for compressing data [day, hour]
 
         Raises:
             ServerConnectionException: "Unable to connect to the server.
@@ -212,7 +212,8 @@ class MessageLog:
             try:
                 string_data = json.dumps(data)
                 if (self.log_data_limit * 1000000) >= self.get_size(string_data):
-                    file_path = self.get_file_path(self.get_log_name())
+                    file_name = self.get_log_name()
+                    file_path = self.get_file_path(file_name)
                     if not os.path.isfile(file_path):
                         # compact data if log for this period doesnt exist
                         self.compact_logs()

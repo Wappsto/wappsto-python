@@ -53,7 +53,7 @@ class Wappsto:
             log_location: location of the logs (default: {"logs"})
             log_data_limit: limit of data to be saved in log [in Megabytes] (default: {10})
             limit_action: action to take when limit is reached (default: {REMOVE_OLD})
-            compression_period: period foe compressing data [day, hour] (default: {DAY_PERIOD})
+            compression_period: period for compressing data [day, hour] (default: {DAY_PERIOD})
 
         """
         self.wapp_log = logging.getLogger(__name__)

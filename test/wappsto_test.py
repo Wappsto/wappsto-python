@@ -3,6 +3,7 @@ The test module.
 
 Tests wappsto project functionality.
 """
+import re
 import os
 import math
 import json
@@ -791,9 +792,12 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("file_size", [[2000000, 0], [0], [1000000]])
     @pytest.mark.parametrize("limit_action", [message_log.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
+    @pytest.mark.parametrize("compression_period", [message_log.HOUR_PERIOD,
+                                                    message_log.DAY_PERIOD,
+                                                    message_log.MONTH_PERIOD])
     def test_send_thread_success(self, messages_in_queue, value, log_offline,
                                  connected, log_location, file_size, limit_action,
-                                 log_file_exists):
+                                 log_file_exists, compression_period):
         """
         Tests sending message.
 
@@ -808,6 +812,7 @@ class TestSendThreadClass:
             file_size: how big is the current size of the folder
             limit_action: action to perform when limit is exeeded
             log_file_exists: boolean indicating if log file exist
+            compression_period: period for compressing data
 
         """
         # Arrange
@@ -817,7 +822,8 @@ class TestSendThreadClass:
                                            log_offline=log_offline,
                                            log_location=log_location,
                                            log_data_limit=1,
-                                           limit_action=limit_action)
+                                           limit_action=limit_action,
+                                           compression_period=compression_period)
         fake_connect(self, ADDRESS, PORT)
         i = 0
         while i < messages_in_queue:
@@ -834,29 +840,32 @@ class TestSendThreadClass:
         try:
             # runs until mock object is run and its side_effect raises
             # exception
-            with patch("builtins.open") as opened_file, \
+            with patch("builtins.open") as builtins_open, \
                 patch("sys.getsizeof", return_value=0), \
-                patch("logging.Logger.error", side_effect=KeyboardInterrupt) as Logger_error, \
-                patch("zipfile.ZipFile") as zipfile, \
+                patch("logging.Logger.error", side_effect=KeyboardInterrupt) as logging_Logger_error, \
+                patch("zipfile.ZipFile") as zipfile_ZipFile, \
                 patch("os.remove"), \
                 patch("os.listdir", return_value=["2020-01-01.txt"]), \
-                patch("os.path.isfile", return_value=log_file_exists), \
+                patch("os.path.isfile", return_value=log_file_exists) as os_path_isfile, \
                     patch("os.path.getsize", side_effect=file_size):
-                opened_file.write = Mock(side_effect=KeyboardInterrupt)
-                with patch("builtins.open", return_value=opened_file):
+                builtins_open.write = Mock(side_effect=KeyboardInterrupt)
+                with patch("builtins.open", return_value=builtins_open):
                     self.service.socket.send_thread()
         except KeyboardInterrupt:
             pass
 
         # Assert
-        assert zipfile.called == (not log_file_exists and log_offline and not connected)
+        assert zipfile_ZipFile.called == (not log_file_exists and log_offline and not connected)
         assert self.service.message_log.log_location == log_location
         if connected or log_offline:
             if connected:
                 args, kwargs = self.service.socket.my_socket.send.call_args
                 args = args[0].decode("utf-8")
             else:
-                args, kwargs = opened_file.write.call_args
+                args, kwargs = os_path_isfile.call_args
+                assert re.search("[0-9][0-9][0-9][0-9]-([0-9]|1[0-2])", args[0])
+
+                args, kwargs = builtins_open.write.call_args
                 args = args[0]
             arg = json.loads(args)
             assert len(arg) <= wappsto.connection.communication.MAX_BULK_SIZE
@@ -867,7 +876,7 @@ class TestSendThreadClass:
                 assert request.get("id", None) == value
                 assert bool(request["result"]) is True
         else:
-            args, kwargs = Logger_error.call_args
+            args, kwargs = logging_Logger_error.call_args
             assert args[0] == "Sending while not connected"
 
     @pytest.mark.parametrize("value", ["test_info", None])
@@ -878,9 +887,12 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("file_size", [[2000000, 0], [0], [1000000]])
     @pytest.mark.parametrize("limit_action", [message_log.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
+    @pytest.mark.parametrize("compression_period", [message_log.HOUR_PERIOD,
+                                                    message_log.DAY_PERIOD,
+                                                    message_log.MONTH_PERIOD])
     def test_send_thread_report(self, messages_in_queue, value, log_offline,
                                 connected, log_location, file_size, limit_action,
-                                log_file_exists):
+                                log_file_exists, compression_period):
         """
         Tests sending message.
 
@@ -895,6 +907,7 @@ class TestSendThreadClass:
             file_size: how big is the current size of the folder
             limit_action: action to perform when limit is exeeded
             log_file_exists: boolean indicating if log file exist
+            compression_period: period for compressing data
 
         """
         # Arrange
@@ -904,7 +917,8 @@ class TestSendThreadClass:
                                            log_offline=log_offline,
                                            log_location=log_location,
                                            log_data_limit=1,
-                                           limit_action=limit_action)
+                                           limit_action=limit_action,
+                                           compression_period=compression_period)
         fake_connect(self, ADDRESS, PORT)
         i = 0
         while i < messages_in_queue:
@@ -922,29 +936,32 @@ class TestSendThreadClass:
         try:
             # runs until mock object is run and its side_effect raises
             # exception
-            with patch("builtins.open") as opened_file, \
+            with patch("builtins.open") as builtins_open, \
                 patch("sys.getsizeof", return_value=0), \
-                patch("logging.Logger.error", side_effect=KeyboardInterrupt) as Logger_error, \
-                patch("zipfile.ZipFile") as zipfile, \
+                patch("logging.Logger.error", side_effect=KeyboardInterrupt) as logging_Logger_error, \
+                patch("zipfile.ZipFile") as zipfile_ZipFile, \
                 patch("os.remove"), \
                 patch("os.listdir", return_value=["2020-01-01.txt"]), \
-                patch("os.path.isfile", return_value=log_file_exists), \
+                patch("os.path.isfile", return_value=log_file_exists) as os_path_isfile, \
                     patch("os.path.getsize", side_effect=file_size):
-                opened_file.write = Mock(side_effect=KeyboardInterrupt)
-                with patch("builtins.open", return_value=opened_file):
+                builtins_open.write = Mock(side_effect=KeyboardInterrupt)
+                with patch("builtins.open", return_value=builtins_open):
                     self.service.socket.send_thread()
         except KeyboardInterrupt:
             pass
 
         # Assert
-        assert zipfile.called == (not log_file_exists and log_offline and not connected)
+        assert zipfile_ZipFile.called == (not log_file_exists and log_offline and not connected)
         assert self.service.message_log.log_location == log_location
         if connected or log_offline:
             if connected:
                 args, kwargs = self.service.socket.my_socket.send.call_args
                 args = args[0].decode("utf-8")
             else:
-                args, kwargs = opened_file.write.call_args
+                args, kwargs = os_path_isfile.call_args
+                assert re.search("[0-9][0-9][0-9][0-9]-([0-9]|1[0-2])", args[0])
+
+                args, kwargs = builtins_open.write.call_args
                 args = args[0]
             arg = json.loads(args)
             assert len(arg) <= wappsto.connection.communication.MAX_BULK_SIZE
@@ -956,7 +973,7 @@ class TestSendThreadClass:
                 assert request["params"]["data"]["type"] == "Report"
                 assert request["method"] == "PUT"
         else:
-            args, kwargs = Logger_error.call_args
+            args, kwargs = logging_Logger_error.call_args
             assert args[0] == "Sending while not connected"
 
     @pytest.mark.parametrize("value", [1, None])
@@ -967,9 +984,12 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("file_size", [[2000000, 0], [0], [1000000]])
     @pytest.mark.parametrize("limit_action", [message_log.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
+    @pytest.mark.parametrize("compression_period", [message_log.HOUR_PERIOD,
+                                                    message_log.DAY_PERIOD,
+                                                    message_log.MONTH_PERIOD])
     def test_send_thread_failed(self, messages_in_queue, value, log_offline,
                                 connected, log_location, file_size, limit_action,
-                                log_file_exists):
+                                log_file_exists, compression_period):
         """
         Tests sending message.
 
@@ -984,6 +1004,7 @@ class TestSendThreadClass:
             file_size: how big is the current size of the folder
             limit_action: action to perform when limit is exeeded
             log_file_exists: boolean indicating if log file exist
+            compression_period: period for compressing data
 
         """
         # Arrange
@@ -993,7 +1014,8 @@ class TestSendThreadClass:
                                            log_offline=log_offline,
                                            log_location=log_location,
                                            log_data_limit=1,
-                                           limit_action=limit_action)
+                                           limit_action=limit_action,
+                                           compression_period=compression_period)
         fake_connect(self, ADDRESS, PORT)
         i = 0
         while i < messages_in_queue:
@@ -1010,29 +1032,32 @@ class TestSendThreadClass:
         try:
             # runs until mock object is run and its side_effect raises
             # exception
-            with patch("builtins.open") as opened_file, \
+            with patch("builtins.open") as builtins_open, \
                 patch("sys.getsizeof", return_value=0), \
-                patch("logging.Logger.error", side_effect=KeyboardInterrupt) as Logger_error, \
-                patch("zipfile.ZipFile") as zipfile, \
+                patch("logging.Logger.error", side_effect=KeyboardInterrupt) as logging_Logger_error, \
+                patch("zipfile.ZipFile") as zipfile_ZipFile, \
                 patch("os.remove"), \
                 patch("os.listdir", return_value=["2020-01-01.txt"]), \
-                patch("os.path.isfile", return_value=log_file_exists), \
+                patch("os.path.isfile", return_value=log_file_exists) as os_path_isfile, \
                     patch("os.path.getsize", side_effect=file_size):
-                opened_file.write = Mock(side_effect=KeyboardInterrupt)
-                with patch("builtins.open", return_value=opened_file):
+                builtins_open.write = Mock(side_effect=KeyboardInterrupt)
+                with patch("builtins.open", return_value=builtins_open):
                     self.service.socket.send_thread()
         except KeyboardInterrupt:
             pass
 
         # Assert
-        assert zipfile.called == (not log_file_exists and log_offline and not connected)
+        assert zipfile_ZipFile.called == (not log_file_exists and log_offline and not connected)
         assert self.service.message_log.log_location == log_location
         if connected or log_offline:
             if connected:
                 args, kwargs = self.service.socket.my_socket.send.call_args
                 args = args[0].decode("utf-8")
             else:
-                args, kwargs = opened_file.write.call_args
+                args, kwargs = os_path_isfile.call_args
+                assert re.search("[0-9][0-9][0-9][0-9]-([0-9]|1[0-2])", args[0])
+
+                args, kwargs = builtins_open.write.call_args
                 args = args[0]
             arg = json.loads(args)
             assert len(arg) <= wappsto.connection.communication.MAX_BULK_SIZE
@@ -1043,7 +1068,7 @@ class TestSendThreadClass:
                 assert request.get("id", None) == value
                 assert request["error"] == {"code": -32020}
         else:
-            args, kwargs = Logger_error.call_args
+            args, kwargs = logging_Logger_error.call_args
             assert args[0] == "Sending while not connected"
 
     @pytest.mark.parametrize("valid_message", [True, False])
@@ -1054,9 +1079,12 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("file_size", [[2000000, 0], [0], [1000000]])
     @pytest.mark.parametrize("limit_action", [message_log.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
+    @pytest.mark.parametrize("compression_period", [message_log.HOUR_PERIOD,
+                                                    message_log.DAY_PERIOD,
+                                                    message_log.MONTH_PERIOD])
     def test_send_thread_reconnect(self, messages_in_queue, valid_message, log_offline,
                                    connected, log_location, file_size, limit_action,
-                                   log_file_exists):
+                                   log_file_exists, compression_period):
         """
         Tests sending message.
 
@@ -1071,6 +1099,7 @@ class TestSendThreadClass:
             file_size: how big is the current size of the folder
             limit_action: action to perform when limit is exeeded
             log_file_exists: boolean indicating if log file exist
+            compression_period: period for compressing data
 
         """
         # Arrange
@@ -1080,7 +1109,8 @@ class TestSendThreadClass:
                                            log_offline=log_offline,
                                            log_location=log_location,
                                            log_data_limit=1,
-                                           limit_action=limit_action)
+                                           limit_action=limit_action,
+                                           compression_period=compression_period)
         fake_connect(self, ADDRESS, PORT)
         if valid_message:
             value = self.service.get_network().uuid
@@ -1100,29 +1130,32 @@ class TestSendThreadClass:
         try:
             # runs until mock object is run and its side_effect raises
             # exception
-            with patch("builtins.open") as opened_file, \
+            with patch("builtins.open") as builtins_open, \
                 patch("sys.getsizeof", return_value=0), \
-                patch("logging.Logger.error", side_effect=KeyboardInterrupt) as Logger_error, \
-                patch("zipfile.ZipFile") as zipfile, \
+                patch("logging.Logger.error", side_effect=KeyboardInterrupt) as logging_Logger_error, \
+                patch("zipfile.ZipFile") as zipfile_ZipFile, \
                 patch("os.remove"), \
                 patch("os.listdir", return_value=["2020-01-01.txt"]), \
-                patch("os.path.isfile", return_value=log_file_exists), \
+                patch("os.path.isfile", return_value=log_file_exists) as os_path_isfile, \
                     patch("os.path.getsize", side_effect=file_size):
-                opened_file.write = Mock(side_effect=KeyboardInterrupt)
-                with patch("builtins.open", return_value=opened_file):
+                builtins_open.write = Mock(side_effect=KeyboardInterrupt)
+                with patch("builtins.open", return_value=builtins_open):
                     self.service.socket.send_thread()
         except KeyboardInterrupt:
             pass
 
         # Assert
-        assert zipfile.called == (not log_file_exists and log_offline and not connected)
+        assert zipfile_ZipFile.called == (not log_file_exists and log_offline and not connected)
         assert self.service.message_log.log_location == log_location
         if connected or log_offline:
             if connected:
                 args, kwargs = self.service.socket.my_socket.send.call_args
                 args = args[0].decode("utf-8")
             else:
-                args, kwargs = opened_file.write.call_args
+                args, kwargs = os_path_isfile.call_args
+                assert re.search("[0-9][0-9][0-9][0-9]-([0-9]|1[0-2])", args[0])
+
+                args, kwargs = builtins_open.write.call_args
                 args = args[0]
             arg = json.loads(args)
             assert len(arg) <= wappsto.connection.communication.MAX_BULK_SIZE
@@ -1134,7 +1167,7 @@ class TestSendThreadClass:
                 assert request["params"]["data"]["meta"]["type"] == "network"
                 assert request["method"] == "POST"
         else:
-            args, kwargs = Logger_error.call_args
+            args, kwargs = logging_Logger_error.call_args
             assert args[0] == "Sending while not connected"
 
     @pytest.mark.parametrize("valid_message", [True, False])
@@ -1145,9 +1178,12 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("file_size", [[2000000, 0], [0], [1000000]])
     @pytest.mark.parametrize("limit_action", [message_log.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
+    @pytest.mark.parametrize("compression_period", [message_log.HOUR_PERIOD,
+                                                    message_log.DAY_PERIOD,
+                                                    message_log.MONTH_PERIOD])
     def test_send_thread_control(self, messages_in_queue, valid_message, log_offline,
                                  connected, log_location, file_size, limit_action,
-                                 log_file_exists):
+                                 log_file_exists, compression_period):
         """
         Tests sending message.
 
@@ -1162,6 +1198,7 @@ class TestSendThreadClass:
             file_size: how big is the current size of the folder
             limit_action: action to perform when limit is exeeded
             log_file_exists: boolean indicating if log file exist
+            compression_period: period for compressing data
 
         """
         # Arrange
@@ -1171,7 +1208,8 @@ class TestSendThreadClass:
                                            log_offline=log_offline,
                                            log_location=log_location,
                                            log_data_limit=1,
-                                           limit_action=limit_action)
+                                           limit_action=limit_action,
+                                           compression_period=compression_period)
         fake_connect(self, ADDRESS, PORT)
         if valid_message:
             value = self.service.get_network().uuid
@@ -1193,29 +1231,32 @@ class TestSendThreadClass:
         try:
             # runs until mock object is run and its side_effect raises
             # exception
-            with patch("builtins.open") as opened_file, \
+            with patch("builtins.open") as builtins_open, \
                 patch("sys.getsizeof", return_value=0), \
-                patch("logging.Logger.error", side_effect=KeyboardInterrupt) as Logger_error, \
-                patch("zipfile.ZipFile") as zipfile, \
+                patch("logging.Logger.error", side_effect=KeyboardInterrupt) as logging_Logger_error, \
+                patch("zipfile.ZipFile") as zipfile_ZipFile, \
                 patch("os.remove"), \
                 patch("os.listdir", return_value=["2020-01-01.txt"]), \
-                patch("os.path.isfile", return_value=log_file_exists), \
+                patch("os.path.isfile", return_value=log_file_exists) as os_path_isfile, \
                     patch("os.path.getsize", side_effect=file_size):
-                opened_file.write = Mock(side_effect=KeyboardInterrupt)
-                with patch("builtins.open", return_value=opened_file):
+                builtins_open.write = Mock(side_effect=KeyboardInterrupt)
+                with patch("builtins.open", return_value=builtins_open):
                     self.service.socket.send_thread()
         except KeyboardInterrupt:
             pass
 
         # Assert
-        assert zipfile.called == (not log_file_exists and log_offline and not connected)
+        assert zipfile_ZipFile.called == (not log_file_exists and log_offline and not connected)
         assert self.service.message_log.log_location == log_location
         if connected or log_offline:
             if connected:
                 args, kwargs = self.service.socket.my_socket.send.call_args
                 args = args[0].decode("utf-8")
             else:
-                args, kwargs = opened_file.write.call_args
+                args, kwargs = os_path_isfile.call_args
+                assert re.search("[0-9][0-9][0-9][0-9]-([0-9]|1[0-2])", args[0])
+
+                args, kwargs = builtins_open.write.call_args
                 args = args[0]
             arg = json.loads(args)
             assert len(arg) <= wappsto.connection.communication.MAX_BULK_SIZE
@@ -1227,7 +1268,7 @@ class TestSendThreadClass:
                 assert request["params"]["data"]["type"] == "Control"
                 assert request["method"] == "PUT"
         else:
-            args, kwargs = Logger_error.call_args
+            args, kwargs = logging_Logger_error.call_args
             assert args[0] == "Sending while not connected"
 
     @pytest.mark.parametrize("object_name", ["network", "device", "value", "control_state", "report_state"])
@@ -1238,9 +1279,12 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("file_size", [[2000000, 0], [0], [1000000]])
     @pytest.mark.parametrize("limit_action", [message_log.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
+    @pytest.mark.parametrize("compression_period", [message_log.HOUR_PERIOD,
+                                                    message_log.DAY_PERIOD,
+                                                    message_log.MONTH_PERIOD])
     def test_send_thread_delete(self, object_name, messages_in_queue, log_offline,
                                 connected, log_location, file_size, limit_action,
-                                log_file_exists):
+                                log_file_exists, compression_period):
         """
         Tests sending DELETE message.
 
@@ -1255,6 +1299,7 @@ class TestSendThreadClass:
             file_size: how big is the current size of the folder
             limit_action: action to perform when limit is exeeded
             log_file_exists: boolean indicating if log file exist
+            compression_period: period for compressing data
 
         """
         # Arrange
@@ -1264,7 +1309,8 @@ class TestSendThreadClass:
                                            log_offline=log_offline,
                                            log_location=log_location,
                                            log_data_limit=1,
-                                           limit_action=limit_action)
+                                           limit_action=limit_action,
+                                           compression_period=compression_period)
         fake_connect(self, ADDRESS, PORT)
         actual_object = get_object(self, object_name)
 
@@ -1297,29 +1343,32 @@ class TestSendThreadClass:
         try:
             # runs until mock object is run and its side_effect raises
             # exception
-            with patch("builtins.open") as opened_file, \
+            with patch("builtins.open") as builtins_open, \
                 patch("sys.getsizeof", return_value=0), \
-                patch("logging.Logger.error", side_effect=KeyboardInterrupt) as Logger_error, \
-                patch("zipfile.ZipFile") as zipfile, \
+                patch("logging.Logger.error", side_effect=KeyboardInterrupt) as logging_Logger_error, \
+                patch("zipfile.ZipFile") as zipfile_ZipFile, \
                 patch("os.remove"), \
                 patch("os.listdir", return_value=["2020-01-01.txt"]), \
-                patch("os.path.isfile", return_value=log_file_exists), \
+                patch("os.path.isfile", return_value=log_file_exists) as os_path_isfile, \
                     patch("os.path.getsize", side_effect=file_size):
-                opened_file.write = Mock(side_effect=KeyboardInterrupt)
-                with patch("builtins.open", return_value=opened_file):
+                builtins_open.write = Mock(side_effect=KeyboardInterrupt)
+                with patch("builtins.open", return_value=builtins_open):
                     self.service.socket.send_thread()
         except KeyboardInterrupt:
             pass
 
         # Assert
-        assert zipfile.called == (not log_file_exists and log_offline and not connected)
+        assert zipfile_ZipFile.called == (not log_file_exists and log_offline and not connected)
         assert self.service.message_log.log_location == log_location
         if connected or log_offline:
             if connected:
                 args, kwargs = self.service.socket.my_socket.send.call_args
                 args = args[0].decode("utf-8")
             else:
-                args, kwargs = opened_file.write.call_args
+                args, kwargs = os_path_isfile.call_args
+                assert re.search("[0-9][0-9][0-9][0-9]-([0-9]|1[0-2])", args[0])
+
+                args, kwargs = builtins_open.write.call_args
                 args = args[0]
             arg = json.loads(args)
             assert len(arg) <= wappsto.connection.communication.MAX_BULK_SIZE
@@ -1328,7 +1377,7 @@ class TestSendThreadClass:
             for request in arg:
                 assert request["params"]["url"] == url
         else:
-            args, kwargs = Logger_error.call_args
+            args, kwargs = logging_Logger_error.call_args
             assert args[0] == "Sending while not connected"
 
     @pytest.mark.parametrize("expected_trace_id", [
