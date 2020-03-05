@@ -317,23 +317,25 @@ class TestConnClass:
             self.service.instance.network.uuid = None
 
         def send_log():
-            self.service.message_log.send_log(None)
+            self.service.message_log.send_log(self.service.socket)
 
         # Act
         with patch("os.getenv", return_value=str(upgradable)), \
-            patch("builtins.open"), \
+            patch("builtins.open") as opened_file, \
             patch("wappsto.communication.ClientSocket.send_logged_data", side_effect=send_log), \
             patch("os.remove") as file_remove, \
                 patch("os.listdir", return_value=["2020-01-01.txt"]):
-            try:
-                fake_connect(self, address, port)
-                args, kwargs = self.service.socket.my_socket.send.call_args
-                arg = json.loads(args[0].decode("utf-8"))
-                sent_json = arg[-1]["params"]["data"]
-            except wappsto_errors.ServerConnectionException:
-                sent_json = None
-                arg = []
-                pass
+            opened_file.readlines = Mock(return_value=['[{"test": 1}]'])
+            with patch("builtins.open", return_value=opened_file):
+                try:
+                    fake_connect(self, address, port)
+                    args, kwargs = self.service.socket.my_socket.send.call_args
+                    arg = json.loads(args[0].decode("utf-8"))
+                    sent_json = arg[-1]["params"]["data"]
+                except wappsto_errors.ServerConnectionException:
+                    sent_json = None
+                    arg = []
+                    pass
 
         # Assert
         if sent_json is not None:
