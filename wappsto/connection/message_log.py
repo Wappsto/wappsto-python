@@ -214,7 +214,7 @@ class MessageLog:
                 if (self.log_data_limit * 1000000) >= self.get_size(string_data):
                     file_path = self.get_file_path(self.get_log_name())
                     if not os.path.isfile(file_path):
-                        # compact data if log for this day doesnt exist
+                        # compact data if log for this period doesnt exist
                         self.compact_logs()
                     file = open(file_path, "a")
                     file.write(string_data + " \n")
@@ -295,4 +295,5 @@ class MessageLog:
                 error = "Log directory could not be found: {}".format(self.log_location)
                 self.wapp_log.error(error)
             except ConnectionError:
+                # todo maybe here should remove sent messages from file being read
                 self.wapp_log.debug("No connection to the server: Logs are no longer being sent")

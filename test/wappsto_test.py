@@ -781,18 +781,6 @@ class TestSendThreadClass:
 
     """
 
-    def setup_method(self):
-        """
-        Sets up each method.
-
-        Sets location to be used in test, initializes service and creates connection.
-
-        """
-        test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
-        with patch("os.makedirs"):
-            self.service = wappsto.Wappsto(json_file_name=test_json_location)
-        fake_connect(self, ADDRESS, PORT)
-
     @pytest.mark.parametrize("value", [1, None])
     @pytest.mark.parametrize("messages_in_queue", [1, 2, 20])
     @pytest.mark.parametrize("log_offline", [True, False])
@@ -1354,6 +1342,10 @@ class TestSendThreadClass:
 
         """
         # Arrange
+        test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
+        with patch("os.makedirs"):
+            self.service = wappsto.Wappsto(json_file_name=test_json_location)
+        fake_connect(self, ADDRESS, PORT)
         reply = message_data.MessageData(
             message_data.SEND_TRACE,
             trace_id=expected_trace_id,
