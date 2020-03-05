@@ -89,7 +89,7 @@ class MessageLog:
         Returns:
             path to the file.
         """
-        return self.log_location + "/" + file_name
+        return os.path.join(self.log_location, file_name)
 
     def get_log_name(self):
         """

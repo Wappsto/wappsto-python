@@ -794,7 +794,6 @@ class ClientSocket:
             package.rpc_id,
             package.text
         )
-        self.wapp_log.debug(rpc_fail_response)
         try:
             self.create_bulk(rpc_fail_response)
         except OSError as e:
