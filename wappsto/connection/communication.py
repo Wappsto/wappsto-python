@@ -18,7 +18,6 @@ import random
 import urllib.request as request
 import logging
 from . import message_data
-from . import handlers
 from .. import status
 from .network_classes.errors import wappsto_errors
 
@@ -43,7 +42,7 @@ class ClientSocket:
     """
 
     def __init__(self, rpc, instance, address, port, path_to_calling_file,
-                 wappsto_status, automatic_trace):
+                 wappsto_status, automatic_trace, handler):
         """
         Create a client socket.
 
@@ -60,11 +59,12 @@ class ClientSocket:
             path_to_calling_file: path to OS directory of calling file.
             wappsto_status: status object.
             automatic_trace: indicates if all messages automaticaly send trace.
+            handler: instance of handlers.
 
         """
         self.wapp_log = logging.getLogger(__name__)
         self.wapp_log.addHandler(logging.NullHandler())
-        self.network = instance.network_cl
+        self.network = instance.network
         self.instance = instance
         self.path_to_calling_file = path_to_calling_file
         self.ssl_server_cert = os.path.join(path_to_calling_file,
@@ -88,7 +88,7 @@ class ClientSocket:
         self.sending_thread = threading.Thread(target=self.send_thread)
         self.sending_thread.setDaemon(True)
         self.rpc = rpc
-        self.handlers = handlers.Handlers(self.instance)
+        self.handler = handler
         self.packet_awaiting_confirm = {}
         self.add_trace_to_report_list = {}
         self.bulk_send_list = []
@@ -223,7 +223,7 @@ class ClientSocket:
 
         Initializes the object instances on the sending/receiving queue.
         """
-        for device in self.instance.network_cl.devices:
+        for device in self.instance.network.devices:
             for value in device.values:
                 state = value.get_control_state()
                 if state is not None:
@@ -232,10 +232,9 @@ class ClientSocket:
         trace_id = self.create_trace(self.instance.network_cl.uuid)
         message = self.rpc.get_rpc_whole_json(self.instance.build_json(), trace_id)
         self.rpc.send_init_json(self, message)
-        self.add_id_to_confirm_list(message)
 
         msg = "The whole network {} added to Sending queue {}.".format(
-            self.instance.network_cl.name,
+            self.instance.network.name,
             self.rpc
         )
         self.wapp_log.debug(msg)
@@ -309,7 +308,7 @@ class ClientSocket:
             # ignore
             trace_id = None
 
-        if self.handlers.handle_incoming_put(
+        if self.handler.handle_incoming_put(
                 control_id,
                 local_data,
                 self.sending_queue,
@@ -402,7 +401,7 @@ class ClientSocket:
         except AttributeError:
             trace_id = None
 
-        if self.handlers.handle_incoming_get(
+        if self.handler.handle_incoming_get(
                 get_url_id,
                 self.sending_queue,
                 trace_id
@@ -444,7 +443,7 @@ class ClientSocket:
         except AttributeError:
             trace_id = None
 
-        if self.handlers.handle_incoming_delete(
+        if self.handler.handle_incoming_delete(
                 get_url_id,
                 self.sending_queue,
                 trace_id
@@ -624,7 +623,6 @@ class ClientSocket:
                 package.value_id,
                 package.state_id
             )
-            self.add_id_to_confirm_list(local_data)
             self.create_bulk(local_data)
         except OSError as e:
             self.connected = False
@@ -652,7 +650,6 @@ class ClientSocket:
                 state.state_type,
                 get=True
             )
-            self.add_id_to_confirm_list(local_data)
             self.create_bulk(local_data)
         except OSError as e:
             self.connected = False
@@ -992,7 +989,7 @@ class ClientSocket:
                     if result_value is not True:
                         uuid = result_value['meta']['id']
                         data = result_value['data']
-                        object = self.handlers.get_by_id(uuid)
+                        object = self.handler.get_by_id(uuid)
                         if object.parent.control_state == object:
                             object.parent.handle_control(data_value=data)
                     self.remove_id_from_confirm_list(decoded_id)

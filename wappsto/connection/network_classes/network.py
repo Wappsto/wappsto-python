@@ -93,7 +93,7 @@ class Network:
             network_id=self.uuid,
         )
         self.conn.sending_queue.put(message)
-        self.instance.network_cl = None
+        self.instance.network = None
         self.wapp_log.info("Network removed")
 
     def __callback_not_set(self, network, event):

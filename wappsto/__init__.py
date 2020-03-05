@@ -7,6 +7,7 @@ Stores the Wappsto class functionality.
 import os
 import logging
 import inspect
+from .connection import handlers
 from .connection import seluxit_rpc
 from .connection import communication
 from .connection.network_classes.errors import wappsto_errors
@@ -69,6 +70,7 @@ class Wappsto:
                 load_from_state_file=load_from_state_file,
                 path_to_calling_file=self.path_to_calling_file
             )
+            self.handler = handlers.Handlers(self.instance)
         # When the file fails to open a FileNotFoundError is raised and
         # the service is stopped
         except FileNotFoundError as fnfe:
@@ -99,7 +101,7 @@ class Wappsto:
             A reference to the network object instance.
 
         """
-        return self.instance.network_cl
+        return self.instance.network
 
     def get_devices(self):
         """
@@ -111,7 +113,7 @@ class Wappsto:
             A list of devices.
 
         """
-        return self.instance.network_cl.devices
+        return self.instance.network.devices
 
     def get_by_id(self, id):
         """
@@ -126,7 +128,7 @@ class Wappsto:
             A reference to the network/device/value/state object instance.
 
         """
-        return self.socket.handlers.get_by_id(id)
+        return self.handler.get_by_id(id)
 
     def get_device(self, name):
         """
@@ -145,7 +147,7 @@ class Wappsto:
             DeviceNotFoundException: Device {name} not found in {instance}.
 
         """
-        for device in self.instance.network_cl.devices:
+        for device in self.instance.network.devices:
             if name == device.name:
                 return device
         else:
@@ -179,7 +181,8 @@ class Wappsto:
             port=port,
             path_to_calling_file=self.path_to_calling_file,
             wappsto_status=self.status,
-            automatic_trace=automatic_trace
+            automatic_trace=automatic_trace,
+            handler=self.handler
         )
 
         self.status.set_status(status.CONNECTING)
