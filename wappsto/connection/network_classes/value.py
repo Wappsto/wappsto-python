@@ -6,10 +6,8 @@ methods.
 """
 import logging
 import warnings
-import time
 import datetime
 import decimal
-import re
 from .. import message_data
 from .errors import wappsto_errors
 

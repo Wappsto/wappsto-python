@@ -52,7 +52,9 @@ class Instantiator:
 
         if self.load_from_state_file:
             object_saver = save_objects.SaveObjects(path_to_calling_file)
-            self.json_file_name = object_saver.load_instance()
+            json_file_name = object_saver.load_instance()
+            if json_file_name is not None:
+                self.json_file_name = json_file_name
         try:
             with open(self.json_file_name) as data_file:
                 self.decoded = json.loads(data_file.read())
@@ -95,14 +97,10 @@ class Instantiator:
         self.wapp_log.debug("Opening file: {}".format(self.json_file_name))
 
         try:
-            self.json_container = self.decoded.get('data')
-            self.json_container.get('meta')
-        except Exception:
-            try:
-                self.json_container = json.loads(self.decoded.get('data'))
-            except Exception as jde:
-                self.wapp_log.error("Error decoding: {}".format(jde))
-                raise jde
+            self.json_container = json.loads(self.decoded.get('data'))
+        except json.JSONDecodeError as jde:
+            self.wapp_log.error("Error decoding: {}".format(jde))
+            raise jde
 
         self.wapp_log.debug("RAW JSON DATA:\n\n{}\n\n".format(
             self.json_container)

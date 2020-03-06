@@ -26,7 +26,8 @@ class SaveObjects:
         self.wapp_log = logging.getLogger(__name__)
         self.wapp_log.addHandler(logging.NullHandler())
         self.wappsto_encoder = encoder.WappstoEncoder()
-        self.path_to_calling_file = path_to_calling_file
+        self.path = os.path.join(path_to_calling_file, 'saved_instances/')
+        os.makedirs(self.path, exist_ok=True)
 
     def save_instance(self, instance):
         """
@@ -41,18 +42,13 @@ class SaveObjects:
             device, value and state instances.
 
         """
-        # Creates the path.
-        path = os.path.join(self.path_to_calling_file, 'saved_instances/')
-        if not os.path.exists(path):
-            os.mkdir(path)
-
         encoded_string = str(self.wappsto_encoder.encode(instance))
         encoded_string = str(encoded_string).replace("\'", "\\\"")
         encoded_string = '{"data":"' + encoded_string + '"}'
 
         network_id = instance.network.uuid
 
-        path_open = os.path.join(path, '{}.json'.format(network_id))
+        path_open = os.path.join(self.path, '{}.json'.format(network_id))
 
         with open(path_open, "w+") as network_file:
             network_file.write(encoded_string)
@@ -74,14 +70,14 @@ class SaveObjects:
             directory.
 
         """
-        path = os.path.join(self.path_to_calling_file, 'saved_instances/')
-        files = os.listdir(path)
+        files = os.listdir(self.path)
         file_paths = []
         latest_file = None
         for file_name in files:
-            file_paths.append(os.path.join(path, file_name))
+            file_paths.append(os.path.join(self.path, file_name))
         try:
-            latest_file = str(max(file_paths, key=os.path.getctime))
+            if len(file_paths) > 0:
+                latest_file = str(max(file_paths, key=os.path.getctime))
         except ValueError as ve:
             self.wapp_log.error("Exception in finding latest file: {}"
                                 .format(ve))

@@ -445,12 +445,8 @@ class ClientSocket:
             self.wapp_log.info("Trying to reconnect in 5 seconds")
             time.sleep(5)
             self.close()
-            try:
-                self.set_sockets()
-                self.connect()
-            except Exception as e:
-                msg = "Failed to reconnect {}".format(e)
-                self.wapp_log.error(msg, exc_info=True)
+            self.set_sockets()
+            self.connect()
 
         if self.connected is True:
             self.wapp_log.info("Reconnected with " + attempt + " attempts")
@@ -829,10 +825,6 @@ class ClientSocket:
                     self.receive(decoded_data)
             else:
                 self.receive(decoded)
-
-        except JSONDecodeError:
-            self.wapp_log.error("Json error: {}".format(decoded))
-            # TODO send json rpc error, parse error
 
         except ConnectionResetError as e:  # pragma: no cover
             msg = "Received Reset: {}".format(e)

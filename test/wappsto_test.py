@@ -299,16 +299,6 @@ class TestConnClass:
 
     """
 
-    def setup_method(self):
-        """
-        Sets up each method.
-
-        Sets location to be used in test and initializes service.
-
-        """
-        self.test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
-        self.service = wappsto.Wappsto(json_file_name=self.test_json_location)
-
     @pytest.mark.parametrize("""address,port,callback_exists,expected_status,
                              value_changed_to_none,upgradable""", [
         (ADDRESS, PORT, True, status.RUNNING, False, False),
@@ -336,8 +326,10 @@ class TestConnClass:
         (ADDRESS, -1, False, status.DISCONNECTING, True, True),
         ("wappstoFail.com", PORT, False, status.DISCONNECTING, True, True)])
     @pytest.mark.parametrize("valid_json", [True, False])
+    @pytest.mark.parametrize("load_from_state_file", [True, False])
     def test_connection(self, address, port, callback_exists, expected_status,
-                        value_changed_to_none, upgradable, valid_json):
+                        value_changed_to_none, upgradable, valid_json,
+                        load_from_state_file):
         """
         Tests connection.
 
@@ -351,9 +343,13 @@ class TestConnClass:
             value_changed_to_none: specifies if value should be replaced with none
             upgradable: specifies if object is upgradable
             valid_json: Boolean indicating if the sent json should be valid
+            load_from_state_file: Defines if the data should be loaded from saved files
 
         """
         # Arrange
+        test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
+        self.service = wappsto.Wappsto(json_file_name=test_json_location,
+                                       load_from_state_file=load_from_state_file)
         status_service = self.service.get_status()
         fix_object(callback_exists, status_service)
         if value_changed_to_none:
@@ -380,6 +376,36 @@ class TestConnClass:
             assert (upgradable and 'upgradable' in str(sent_json['meta'])
                     or not upgradable and 'upgradable' not in str(sent_json['meta']))
         assert self.service.status.get_status() == expected_status
+
+    @pytest.mark.parametrize("load_from_state_file", [True, False])
+    @pytest.mark.parametrize("save", [True, False])
+    def test_close(self, load_from_state_file, save):
+        """
+        Tests closing connection.
+
+        Tests if closing connecting works es expected within different setup.
+
+        Args:
+            load_from_state_file: Defines if the data should be loaded from saved files
+            save: Flag to determine whether runtime instances should be saved
+
+        """
+        # Arrange
+        test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
+        self.service = wappsto.Wappsto(json_file_name=test_json_location,
+                                       load_from_state_file=load_from_state_file)
+        fake_connect(self, ADDRESS, PORT)
+        path = self.service.object_saver.path
+        network_id = self.service.instance.network.uuid
+        path_open = os.path.join(path, '{}.json'.format(network_id))
+        if os.path.exists(path_open):
+            os.remove(path_open)
+
+        # Act
+        self.service.stop(save)
+
+        # Assert
+        assert save == os.path.isfile(path_open)
 
 
 class TestValueSendClass:
