@@ -73,7 +73,7 @@ class Wappsto:
             self.handler = handlers.Handlers(self.instance)
         # When the file fails to open a FileNotFoundError is raised and
         # the service is stopped
-        except FileNotFoundError as fnfe:
+        except FileNotFoundError as fnfe:  # pragma: no cover
             self.wapp_log.error("Failed to open file: {}".format(fnfe))
             self.stop(False)
             raise fnfe
@@ -197,7 +197,7 @@ class Wappsto:
         # TODO(Dimitar): Change from generic Exception
         try:
             self.socket.initialize_all()
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             self.wapp_log.error("Error initializing: {}".format(e))
             self.stop(False)
             raise e
@@ -207,7 +207,7 @@ class Wappsto:
         try:
             self.receive_thread = self.socket.receiving_thread.start()
             self.send_thread = self.socket.sending_thread.start()
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             msg = "Error starting threads: {}".format(e)
             self.wapp_log.error(msg, exc_info=True)
             self.stop(False)

@@ -480,11 +480,16 @@ class ClientSocket:
             data: JSON communication message data.
 
         """
-        self.bulk_send_list.append(data)
-        if ((self.sending_queue.qsize() == 0 and len(self.packet_awaiting_confirm) == 0)
-                or len(self.bulk_send_list) >= MAX_BULK_SIZE):
-            self.send_data(self.bulk_send_list)
-            self.bulk_send_list.clear()
+        try:
+            self.bulk_send_list.append(data)
+            if ((self.sending_queue.qsize() == 0 and len(self.packet_awaiting_confirm) == 0)
+                    or len(self.bulk_send_list) >= MAX_BULK_SIZE):
+                self.send_data(self.bulk_send_list)
+                self.bulk_send_list.clear()
+        except OSError as e:  # pragma: no cover
+            self.connected = False
+            msg = "Error sending message: {}".format(e)
+            self.wapp_log.error(msg, exc_info=True)
 
     def send_data(self, data):
         """
@@ -588,18 +593,13 @@ class ClientSocket:
 
         """
         self.wapp_log.info("Sending delete message")
-        try:
-            local_data = self.rpc.get_rpc_delete(
-                package.network_id,
-                package.device_id,
-                package.value_id,
-                package.state_id
-            )
-            self.create_bulk(local_data)
-        except OSError as e:
-            self.connected = False
-            msg = "Error sending delete: {}".format(e)
-            self.wapp_log.error(msg, exc_info=True)
+        local_data = self.rpc.get_rpc_delete(
+            package.network_id,
+            package.device_id,
+            package.value_id,
+            package.state_id
+        )
+        self.create_bulk(local_data)
 
     def get_control(self, state):
         """
@@ -612,22 +612,16 @@ class ClientSocket:
 
         """
         self.wapp_log.info("Getting control value")
-        try:
-            local_data = self.rpc.get_rpc_state(
-                None,
-                state.parent.parent.parent.uuid,
-                state.parent.parent.uuid,
-                state.parent.uuid,
-                state.uuid,
-                state.state_type,
-                get=True
-            )
-            self.create_bulk(local_data)
-        except OSError as e:
-            self.connected = False
-            msg = "Failed to send a get request for the control value: {}"
-            msg = msg.format(e)
-            self.wapp_log.error(msg, exc_info=True)
+        local_data = self.rpc.get_rpc_state(
+            None,
+            state.parent.parent.parent.uuid,
+            state.parent.parent.uuid,
+            state.parent.uuid,
+            state.uuid,
+            state.state_type,
+            get=True
+        )
+        self.create_bulk(local_data)
 
     def send_trace(self, package):
         """
@@ -670,21 +664,16 @@ class ClientSocket:
 
         """
         self.wapp_log.info("Sending control message")
-        try:
-            local_data = self.rpc.get_rpc_state(
-                package.data,
-                package.network_id,
-                package.device_id,
-                package.value_id,
-                package.state_id,
-                'Control',
-                trace_id=package.trace_id
-            )
-            self.create_bulk(local_data)
-        except OSError as e:
-            self.connected = False
-            msg = "Error sending control: {}".format(e)
-            self.wapp_log.error(msg, exc_info=True)
+        local_data = self.rpc.get_rpc_state(
+            package.data,
+            package.network_id,
+            package.device_id,
+            package.value_id,
+            package.state_id,
+            'Control',
+            trace_id=package.trace_id
+        )
+        self.create_bulk(local_data)
 
     def receive_data(self):
         """
@@ -734,19 +723,14 @@ class ClientSocket:
         Sends a request to attempt to reconnect to the server.
         """
         self.wapp_log.info("Sending reconnect data")
-        try:
-            rpc_network = self.rpc.get_rpc_network(
-                self.network.uuid,
-                self.network.name,
-                put=False
-            )
-            self.create_bulk(rpc_network)
-            for element in self.packet_awaiting_confirm:
-                self.create_bulk(self.packet_awaiting_confirm[element])
-        except OSError as e:
-            self.connected = False
-            msg = "Error sending reconnect: {}".format(e)
-            self.wapp_log.error(msg, exc_info=True)
+        rpc_network = self.rpc.get_rpc_network(
+            self.network.uuid,
+            self.network.name,
+            put=False
+        )
+        self.create_bulk(rpc_network)
+        for element in self.packet_awaiting_confirm:
+            self.create_bulk(self.packet_awaiting_confirm[element])
 
     def send_failed(self, package):
         """
@@ -764,12 +748,7 @@ class ClientSocket:
             package.text
         )
         self.wapp_log.debug(rpc_fail_response)
-        try:
-            self.create_bulk(rpc_fail_response)
-        except OSError as e:
-            self.connected = False
-            msg = "Error sending failed response: {}".format(e)
-            self.wapp_log.error(msg, exc_info=True)
+        self.create_bulk(rpc_fail_response)
 
     def send_report(self, package):
         """
@@ -781,28 +760,23 @@ class ClientSocket:
             package: A sending queue item.
 
         """
-        try:
-            if not package.trace_id:
-                if package.value_id in self.add_trace_to_report_list.keys():
-                    package.trace_id = (
-                        self.add_trace_to_report_list.pop(package.value_id)
-                    )
-            local_data = self.rpc.get_rpc_state(
-                package.data,
-                package.network_id,
-                package.device_id,
-                package.value_id,
-                package.state_id,
-                'Report',
-                trace_id=package.trace_id
-            )
-            self.create_bulk(local_data)
-            data_decoded = local_data.get('params').get('data').get('data')
-            self.wapp_log.info('Sending report value: {}'.format(data_decoded))
-        except OSError as e:
-            self.connected = False
-            msg = "Error sending report: {}".format(e)
-            self.wapp_log.error(msg, exc_info=True)
+        if not package.trace_id:
+            if package.value_id in self.add_trace_to_report_list.keys():
+                package.trace_id = (
+                    self.add_trace_to_report_list.pop(package.value_id)
+                )
+        local_data = self.rpc.get_rpc_state(
+            package.data,
+            package.network_id,
+            package.device_id,
+            package.value_id,
+            package.state_id,
+            'Report',
+            trace_id=package.trace_id
+        )
+        self.create_bulk(local_data)
+        data_decoded = local_data.get('params').get('data').get('data')
+        self.wapp_log.info('Sending report value: {}'.format(data_decoded))
 
     def send_success(self, package):
         """
@@ -814,16 +788,10 @@ class ClientSocket:
             package: A sending queue item.
 
         """
-        try:
-            rpc_success_response = self.rpc.get_rpc_success_response(
-                package.rpc_id
-            )
-            self.create_bulk(rpc_success_response)
-
-        except OSError as e:
-            self.connected = False
-            msg = "Error sending response: {}".format(e)
-            self.wapp_log.error(msg, exc_info=True)
+        rpc_success_response = self.rpc.get_rpc_success_response(
+            package.rpc_id
+        )
+        self.create_bulk(rpc_success_response)
 
     def close(self):
         """
@@ -871,7 +839,7 @@ class ClientSocket:
             self.wapp_log.error("Json error: {}".format(decoded))
             # TODO send json rpc error, parse error
 
-        except ConnectionResetError as e:
+        except ConnectionResetError as e:  # pragma: no cover
             msg = "Received Reset: {}".format(e)
             self.wapp_log.error(msg, exc_info=True)
             self.reconnect()

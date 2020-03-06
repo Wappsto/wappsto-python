@@ -40,9 +40,6 @@ class SaveObjects:
             instance: Reference to the instance object that holds the network,
             device, value and state instances.
 
-        Raises:
-            OSError: There was an error opening or writing to the file.
-
         """
         # Creates the path.
         path = os.path.join(self.path_to_calling_file, 'saved_instances/')
