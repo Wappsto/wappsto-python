@@ -66,7 +66,7 @@ class Device:
         msg = "Device {} Debug: \n {}".format(name, str(self.__dict__))
         self.wapp_log.debug(msg)
 
-    def __getattr__(self, attr):
+    def __getattr__(self, attr):  # pragma: no cover
         """
         Get attribute value.
 
@@ -81,7 +81,7 @@ class Device:
             warnings.warn("Property %s is deprecated" % attr)
             return self.values
 
-    def get_parent_network(self):
+    def get_parent_network(self):  # pragma: no cover
         """
         Retrieve parent network reference.
 

@@ -102,7 +102,7 @@ class Value:
         msg = "Value {} debug: {}".format(name, str(self.__dict__))
         self.wapp_log.debug(msg)
 
-    def __getattr__(self, attr):
+    def __getattr__(self, attr):  # pragma: no cover
         """
         Get attribute value.
 
@@ -158,7 +158,7 @@ class Value:
         except ValueError:
             self.wapp_log.error("Delta value must be a number")
 
-    def get_parent_device(self):
+    def get_parent_device(self):  # pragma: no cover
         """
         Retrieve parent device reference.
 
@@ -230,29 +230,6 @@ class Value:
             msg = "Value {}  has no control state.".format(self.name)
             self.wapp_log.warning(msg)
 
-    def __send_report_delta(self, state):
-        """
-        Send report message when delta range reached.
-
-        Sends a report message with the current value when the delta range is
-        reached.
-
-        Args:
-            state: Reference to the report state
-
-        """
-        try:
-            result = int(self.difference) >= int(self.delta)
-            if result and self.delta_report == 1:
-                state.timestamp = self.get_now()
-                self.last_update_of_report = state.timestamp
-                self.parent.parent.conn.send_state(state)
-                self.wapp_log.info("Sent report [DELTA].")
-                self.delta_report = 0
-                return True
-        except AttributeError:
-            pass
-
     def get_now(self):
         """
         Retrieve current time.
@@ -264,50 +241,6 @@ class Value:
 
         """
         return datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-
-    def __send_report_thread(self):
-        """
-        Send report message.
-
-        Sends a report message with the current value to the server.
-        Unless state exists, runs a while loop. It is determined whether or
-        not set flag allowing send report because of delta attribute. If delta
-        exists: __send_report_delta method is called. If period exists it is
-        checked if the sum of period value and last time the value was
-        updated is greater than current time. If it does then a report is sent.
-        Method is running on separate thread which after each loop sleeps for
-        one second.
-        """
-        state = self.get_report_state()
-        if state is not None:
-            value = state.data
-            while True:
-                if (state.data is not None
-                        and self.__is_number_type()):
-                    value_check = state.data
-                    if value != value_check:
-                        self.difference = fabs(int(value) - int(value_check))
-                        value = value_check
-                        self.delta_report = 1
-                if self.delta is not None:
-                    self.__send_report_delta(state)
-                if self.period is not None:
-                    try:
-                        last_update_timestamp = self.__date_converter(
-                            self.last_update_of_report
-                        )
-                        now = self.get_now()
-                        now_timestamp = self.__date_converter(now)
-                        the_time = last_update_timestamp + self.period
-                        if the_time <= now_timestamp:
-                            self.wapp_log.info("Sending report [PERIOD].")
-                            state.timestamp = self.get_now()
-                            self.last_update_of_report = state.timestamp
-                            self.parent.parent.conn.send_state(state)
-                    except Exception as e:
-                        self.reporting_thread.join()
-                        self.wapp_log.error(e)
-                time.sleep(1)
 
     def set_callback(self, callback):
         """

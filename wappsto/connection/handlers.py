@@ -102,8 +102,6 @@ class Handlers:
                         control_value_id=random_id
                     )
                     return True
-                else:
-                    return False
         except AttributeError:
             pass
 
