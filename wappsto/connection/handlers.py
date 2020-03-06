@@ -89,17 +89,15 @@ class Handlers:
         object = self.get_by_id(control_id)
         try:
             if object.parent.control_state == object:
-                random_id = None
-                if trace_id:
-                    random_id = self.__get_random_id()
                 if object.parent.handle_control(data_value=incoming_value):
-                    send_trace(
-                        sending_queue,
-                        object.parent.uuid,
-                        trace_id,
-                        incoming_value,
-                        control_value_id=random_id
-                    )
+                    if trace_id:
+                        send_trace(
+                            sending_queue,
+                            object.parent.uuid,
+                            trace_id,
+                            incoming_value,
+                            control_value_id=self.__get_random_id()
+                        )
                     return True
                 else:
                     return False
@@ -131,17 +129,14 @@ class Handlers:
         object = self.get_by_id(id)
         try:
             if object.parent.report_state == object:
-                random_id = None
                 if trace_id:
-                    random_id = self.__get_random_id()
-                current_value = object.data
-                send_trace(
-                    sending_queue,
-                    object.parent.uuid,
-                    trace_id,
-                    current_value,
-                    control_value_id=random_id
-                )
+                    send_trace(
+                        sending_queue,
+                        object.parent.uuid,
+                        trace_id,
+                        object.data,
+                        control_value_id=self.__get_random_id()
+                    )
                 object.parent.handle_refresh()
                 return True
         except AttributeError:
@@ -170,16 +165,13 @@ class Handlers:
         object = self.get_by_id(id)
         try:
             if object is not None:
-                random_id = None
                 if trace_id:
-                    random_id = self.__get_random_id()
-
                     send_trace(
                         sending_queue,
                         id,
                         trace_id,
                         None,
-                        control_value_id=random_id
+                        control_value_id=self.__get_random_id()
                     )
                 return object.handle_delete()
         except AttributeError:
