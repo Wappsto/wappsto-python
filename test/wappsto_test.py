@@ -302,37 +302,18 @@ class TestConnClass:
 
     """
 
-    @pytest.mark.parametrize("""address,port,callback_exists,expected_status,
-                             value_changed_to_none,upgradable""", [
-        (ADDRESS, PORT, True, status.RUNNING, False, False),
-        (ADDRESS, -1, True, status.DISCONNECTING, False, False),
-        ("wappstoFail.com", PORT, True, status.DISCONNECTING, False, False),
-        (ADDRESS, PORT, False, status.RUNNING, False, False),
-        (ADDRESS, -1, False, status.DISCONNECTING, False, False),
-        ("wappstoFail.com", PORT, False, status.DISCONNECTING, False, False),
-        (ADDRESS, PORT, True, status.RUNNING, True, False),
-        (ADDRESS, -1, True, status.DISCONNECTING, True, False),
-        ("wappstoFail.com", PORT, True, status.DISCONNECTING, True, False),
-        (ADDRESS, PORT, False, status.RUNNING, True, False),
-        (ADDRESS, -1, False, status.DISCONNECTING, True, False),
-        ("wappstoFail.com", PORT, False, status.DISCONNECTING, True, False),
-        (ADDRESS, PORT, True, status.RUNNING, False, True),
-        (ADDRESS, -1, True, status.DISCONNECTING, False, True),
-        ("wappstoFail.com", PORT, True, status.DISCONNECTING, False, True),
-        (ADDRESS, PORT, False, status.RUNNING, False, True),
-        (ADDRESS, -1, False, status.DISCONNECTING, False, True),
-        ("wappstoFail.com", PORT, False, status.DISCONNECTING, False, True),
-        (ADDRESS, PORT, True, status.RUNNING, True, True),
-        (ADDRESS, -1, True, status.DISCONNECTING, True, True),
-        ("wappstoFail.com", PORT, True, status.DISCONNECTING, True, True),
-        (ADDRESS, PORT, False, status.RUNNING, True, True),
-        (ADDRESS, -1, False, status.DISCONNECTING, True, True),
-        ("wappstoFail.com", PORT, False, status.DISCONNECTING, True, True)])
+    @pytest.mark.parametrize("address,port,expected_status", [
+        (ADDRESS, PORT, status.RUNNING),
+        (ADDRESS, -1, status.DISCONNECTING,),
+        ("wappstoFail.com", PORT, status.DISCONNECTING)])
+    @pytest.mark.parametrize("callback_exists", [True, False])
+    @pytest.mark.parametrize("value_changed_to_none", [True, False])
+    @pytest.mark.parametrize("upgradable", [True, False])
     @pytest.mark.parametrize("valid_json", [True, False])
     @pytest.mark.parametrize("log_offline", [True, False])
     @pytest.mark.parametrize("log_location", ["test_logs/logs"])
     @pytest.mark.parametrize("log_file_exists", [True, False])
-    def test_connection(self, address, port, callback_exists, expected_status,
+    def test_connection(self, address, port, expected_status, callback_exists,
                         value_changed_to_none, upgradable, valid_json, log_offline,
                         log_location, log_file_exists):
         """
