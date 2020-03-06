@@ -44,7 +44,7 @@ class State:
         msg = "State {} Debug: \n{}".format(uuid, str(self.__dict__))
         self.wapp_log.debug(msg)
 
-    def get_parent_value(self):
+    def get_parent_value(self):  # pragma: no cover
         """
         Retrieve parent value reference.
 
