@@ -499,7 +499,7 @@ class TestValueSendClass:
         value.string_max = max
         value.blob_max = max
         if delta:
-            value.last_update_of_control = 0
+            value.last_update_of_report = 0
             value.set_delta(delta)
             # delta should not have eny effect
 

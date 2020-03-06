@@ -91,7 +91,7 @@ class Value:
         self.callback = self.__callback_not_set
 
         self.timer = threading.Timer(None, None)
-        self.last_update_of_control = None
+        self.last_update_of_report = None
 
         if period is not None:
             self.set_period(period)
@@ -462,7 +462,7 @@ class Value:
         if self.period is not None:
             # period should work
             if self.timer_elapsed:
-                # this is timer thread or timer is not running
+                # timer has elapsed
                 self.timer_elapsed = False
                 return True
             else:
