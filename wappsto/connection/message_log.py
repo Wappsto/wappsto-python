@@ -6,6 +6,10 @@ Logs data being sent in case of in connection and sends it when connection is es
 Attributes:
     REMOVE_OLD: Removes the old data.
     REMOVE_RECENT: Doesnt add the most recent data.
+    
+    HOUR_PERIOD: Indicates that log should be compacted once an hour.
+    DAY_PERIOD: Indicates that log should be compacted once a day.
+    MONTH_PERIOD: Indicates that log should be compacted once a month.
 
 """
 import os
@@ -33,7 +37,7 @@ class MessageLog:
     """
     Message logger.
 
-    Saves data not being sent due to no connection.
+    Saves data not being sent due to not having connection.
     """
 
     def __init__(self, log_offline, log_location, log_data_limit, limit_action, compression_period):
