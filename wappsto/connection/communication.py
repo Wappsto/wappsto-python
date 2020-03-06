@@ -115,7 +115,8 @@ class ClientSocket:
                 state.state_type,
                 state_obj=state
             )
-            return self.rpc.send_init_json(self, json_data)
+            self.create_bulk(json_data)
+            return True
 
         except Exception as e:
             msg = "Error reporting state: {}".format(e)
@@ -220,7 +221,7 @@ class ClientSocket:
                     self.get_control(state)
 
         message = self.rpc.get_rpc_whole_json(self.instance.build_json())
-        self.rpc.send_init_json(self, message)
+        self.create_bulk(message)
 
         msg = "The whole network {} added to Sending queue {}.".format(
             self.instance.network.name,

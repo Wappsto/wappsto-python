@@ -28,8 +28,7 @@ class Wappsto:
 
     __version__ = "1.1.0"
 
-    def __init__(self, json_file_name=None, load_from_state_file=False,
-                 save_init=False):
+    def __init__(self, json_file_name=None, load_from_state_file=False):
         # TODO(Dimitar): Come up with a better description.
         """
         Initialize wappsto class.
@@ -44,8 +43,6 @@ class Wappsto:
                 about a network (default: {None})
             load_from_state_file: Defines if the data should be loaded from
                 saved files (default: {False})
-            save_init: Determines whether or not save json data
-                (default: {False})
 
         """
         self.wapp_log = logging.getLogger(__name__)
@@ -56,7 +53,7 @@ class Wappsto:
         self.path_to_calling_file = os.path.dirname(os.path.abspath(stack))
 
         self.connecting = True
-        self.rpc = seluxit_rpc.SeluxitRpc(save_init)
+        self.rpc = seluxit_rpc.SeluxitRpc()
         self.socket = None
         self.receive_thread = None
         self.send_thread = None

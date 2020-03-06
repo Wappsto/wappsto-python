@@ -99,25 +99,16 @@ class SeluxitRpc:
         """
         return True if os.getenv("UPGRADABLE") in ['true', 'True'] else False
 
-    def __init__(self, save_init):
+    def __init__(self):
         """
         Initialize the seluxit_rpc class.
 
         Initializes an object of seluxit_rpc class by passing required
         parameters. While initialization, wapp_log is created.
 
-        Args:
-            save_init: Determines whether or not save json data.
-
         """
         self.wapp_log = logging.getLogger(__name__)
         self.wapp_log.addHandler(logging.NullHandler())
-        self.save_init = save_init
-        self.filename = 'Init_json.txt'
-        try:
-            os.remove(self.filename)
-        except OSError:
-            pass
 
     def get_rpc_network(self, network_id, network_name, put=True):
         """
@@ -279,37 +270,3 @@ class SeluxitRpc:
                                          url='/{}'.format('network'),
                                          data=json_data)
         return data_json_rpc
-
-    def add_whole_json(
-            self,
-            connection,
-            json_data
-    ):
-        """Add an instance of the whole json file.
-
-        While initializing adds network/device/value/state to send and
-        receive queue.
-
-        Args:
-            connection: A reference to the socket instance.
-            json_data: Data read from json file.
-
-        """
-        message = self.get_rpc_whole_json(json_data)
-        self.send_init_json(connection, message)
-
-    def send_init_json(self, connection, json_data):
-        """Send initial JSON data.
-
-        Sends the initial state of the JSON data before instantiation or
-        modification of it.
-
-        Args:
-            connection: Reference to the connection socket.
-            json_data: Initial JSON data.
-
-        """
-        connection.create_bulk(json_data)
-        if self.save_init:
-            with open(self.filename, 'a+') as file:
-                file.write(str(json_data) + '\n')
