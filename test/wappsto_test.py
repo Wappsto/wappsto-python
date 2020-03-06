@@ -76,7 +76,10 @@ def fix_object(callback_exists, testing_object):
         test_callback = Mock(return_value=True)
         testing_object.set_callback(test_callback)
     else:
-        testing_object.callback = None
+        try:
+            testing_object.set_callback(None)
+        except wappsto_errors.CallbackNotCallableException:
+            pass
 
 
 def get_object(self, object_name):

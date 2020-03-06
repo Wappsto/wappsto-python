@@ -92,7 +92,7 @@ class Value:
         self.delta = delta
         self.report_state = None
         self.control_state = None
-        self.callback = self.__callback_not_set
+        self.callback = None
         self.last_update_of_report = self.get_now()
         self.reporting_thread = None
         self.last_update_of_control = None
@@ -157,20 +157,6 @@ class Value:
                 self.wapp_log.warning("Cannot set the delta for this value.")
         except ValueError:
             self.wapp_log.error("Delta value must be a number")
-
-    def __callback_not_set(self, value, type):
-        """
-        Message about no callback being set.
-
-        Temporary method to signify that there is no callback set for the
-        class.
-
-        Returns:
-            "Callback not set" message.
-
-        """
-        msg = "Callback for value {} was not set".format(self.name)
-        return self.wapp_log.debug(msg)
 
     def get_parent_device(self):
         """
@@ -327,8 +313,7 @@ class Value:
         """
         Set the callback.
 
-        Sets the callback attribute. It will be called by the __send_logic
-        method.
+        Sets the callback attribute.
 
         Args:
             callback: Callback reference.
@@ -338,16 +323,13 @@ class Value:
             callback.
 
         """
-        try:
-            if not callable(callback):
-                msg = "Callback method should be a method"
-                raise wappsto_errors.CallbackNotCallableException(msg)
-            self.callback = callback
-            self.wapp_log.debug("Callback {} has been set.".format(callback))
-            return True
-        except wappsto_errors.CallbackNotCallableException as e:
-            self.wapp_log.error("Error setting callback: {}".format(e))
-            raise
+        if not callable(callback):
+            msg = "Callback method should be a method"
+            self.wapp_log.error("Error setting callback: {}".format(msg))
+            raise wappsto_errors.CallbackNotCallableException
+        self.callback = callback
+        self.wapp_log.debug("Callback {} has been set.".format(callback))
+        return True
 
     def __date_converter(self, date):
         """
@@ -448,7 +430,7 @@ class Value:
         Update value.
 
         Check if value has a state and validates the information in data_value
-        if both of these checks pass then method __send_logic is called.
+        if both of these checks pass then method send_state is called.
 
         Args:
             data_value: the new value.

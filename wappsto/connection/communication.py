@@ -19,11 +19,7 @@ import logging
 from . import message_data
 from .. import status
 from .network_classes.errors import wappsto_errors
-
-try:
-    from json.decoder import JSONDecodeError
-except ImportError:
-    JSONDecodeError = ValueError
+from json.decoder import JSONDecodeError
 
 RECEIVE_SIZE = 1024
 MESSAGE_SIZE_BYTES = 1000000
@@ -282,9 +278,10 @@ class ClientSocket:
         return_id = data.get('id')
         try:
             control_id = data.get('params').get('data').get('meta').get('id')
-        except AttributeError as e:
-            error_str = 'Error received incorrect format in put'
-            return self.handle_incoming_error(data, e, error_str, return_id)
+        except AttributeError:
+            error_str = 'Error received incorrect format in put: {}'.format(str(data))
+            self.wapp_log.error(error_str, exc_info=True)
+            return
         self.wapp_log.debug("Control Request from control id: " + control_id)
 
         try:
@@ -311,22 +308,6 @@ class ClientSocket:
         else:
             error = 'Invalid value range or non-existing ID'
             self.send_error(error, return_id)
-
-    def handle_incoming_error(self, data, error_str, return_id):
-        """
-        Handle errors on the receive thread.
-
-        Receives an error message and delivers it to the appropriate method.
-
-        Args:
-            data: JSON communication message data.
-            error_str: Error contents.
-            return_id: ID of the error message.
-
-        """
-        self.wapp_log.error(data)
-        self.wapp_log.error(error_str, exc_info=True)
-        return
 
     def send_success_reply(self, return_id):
         """
@@ -380,11 +361,10 @@ class ClientSocket:
         try:
             get_url_id = data.get('params').get('url').split('/')
             get_url_id = get_url_id[-1]
-        except AttributeError as e:
-            error_str = 'Error received incorrect format in get'
-            msg = "Report Request from url ID: {}".format(get_url_id)
-            self.wapp_log.error(msg)
-            return self.handle_incoming_error(data, e, error_str, return_id)
+        except AttributeError:
+            error_str = 'Error received incorrect format in get: {}'.format(str(data))
+            self.wapp_log.error(error_str, exc_info=True)
+            return
 
         try:
             trace_id = data.get('params').get('meta').get('trace')
@@ -422,11 +402,10 @@ class ClientSocket:
         try:
             get_url_id = data.get('params').get('url').split('/')
             get_url_id = get_url_id[-1]
-        except AttributeError as e:
-            error_str = 'Error received incorrect format in delete'
-            msg = "Report Request from url ID: {}".format(get_url_id)
-            self.wapp_log.error(msg)
-            return self.handle_incoming_error(data, e, error_str, return_id)
+        except AttributeError:
+            error_str = 'Error received incorrect format in delete: {}'.format(str(data))
+            self.wapp_log.error(error_str, exc_info=True)
+            return
 
         try:
             trace_id = data.get('params').get('meta').get('trace')

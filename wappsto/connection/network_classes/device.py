@@ -131,8 +131,7 @@ class Device:
         """
         Set the callback.
 
-        Sets the callback attribute. It will be called by the __send_logic
-        method.
+        Sets the callback attribute.
 
         Args:
             callback: Callback reference.
@@ -142,16 +141,13 @@ class Device:
             callback.
 
         """
-        try:
-            if not callable(callback):
-                msg = "Callback method should be a method"
-                raise wappsto_errors.CallbackNotCallableException(msg)
-            self.callback = callback
-            self.wapp_log.debug("Callback {} has been set.".format(callback))
-            return True
-        except wappsto_errors.CallbackNotCallableException as e:
-            self.wapp_log.error("Error setting callback: {}".format(e))
-            raise
+        if not callable(callback):
+            msg = "Callback method should be a method"
+            self.wapp_log.error("Error setting callback: {}".format(msg))
+            raise wappsto_errors.CallbackNotCallableException
+        self.callback = callback
+        self.wapp_log.debug("Callback {} has been set.".format(callback))
+        return True
 
     def handle_delete(self):
         """

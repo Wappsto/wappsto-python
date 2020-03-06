@@ -38,7 +38,7 @@ class Network:
         self.instance = instance
         self.rpc = None
         self.conn = None
-        self.callback = self.__callback_not_set
+        self.callback = None
         msg = "Network {} Debug \n{}".format(name, str(self.__dict__))
         self.wapp_log.debug(msg)
 
@@ -46,8 +46,7 @@ class Network:
         """
         Set the callback.
 
-        Sets the callback attribute. It will be called by the __send_logic
-        method.
+        Sets the callback attribute.
 
         Args:
             callback: Callback reference.
@@ -57,16 +56,13 @@ class Network:
             callback.
 
         """
-        try:
-            if not callable(callback):
-                msg = "Callback method should be a method"
-                raise wappsto_errors.CallbackNotCallableException(msg)
-            self.callback = callback
-            self.wapp_log.debug("Callback {} has been set.".format(callback))
-            return True
-        except wappsto_errors.CallbackNotCallableException as e:
-            self.wapp_log.error("Error setting callback: {}".format(e))
-            raise
+        if not callable(callback):
+            msg = "Callback method should be a method"
+            self.wapp_log.error("Error setting callback: {}".format(msg))
+            raise wappsto_errors.CallbackNotCallableException
+        self.callback = callback
+        self.wapp_log.debug("Callback {} has been set.".format(callback))
+        return True
 
     def handle_delete(self):
         """
@@ -95,20 +91,6 @@ class Network:
         self.conn.sending_queue.put(message)
         self.instance.network = None
         self.wapp_log.info("Network removed")
-
-    def __callback_not_set(self, network, event):
-        """
-        Message about no callback being set.
-
-        Temporary method to signify that there is no callback set for the
-        class.
-
-        Returns:
-            "Callback not set" message.
-
-        """
-        msg = "Callback for network '{}' is not set".format(self.name)
-        return self.wapp_log.debug(msg)
 
     def __call_callback(self, event):
         if self.callback is not None:
