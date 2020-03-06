@@ -127,7 +127,7 @@ class MessageLog:
         Compacts all logs to save space.
 
         Uses all logs received from "get_logs" method and compacts the ones that
-        are of type text, after compacting the text file is deleted.
+        are of type text (after compacting the text file is deleted).
         """
         all_logs = self.get_logs()
         text_logs = [file_name for id, file_name in enumerate(all_logs) if re.search(".txt$", file_name)]
@@ -138,12 +138,11 @@ class MessageLog:
             zip_file.close()
             os.remove(file_path)
 
-    def get_oldest_log(self):
+    def get_oldest_log_name(self):
         """
-        Gets the oldest log.
+        Gets the oldest log's name.
 
-        Uses all logs received from "get_logs" method and sorts them, taking the first (oldest)
-        later calls "get_text_log" to ensure file is of text type.
+        Uses all logs received from "get_logs" method and sorts them, taking the first (oldest).
 
         Returns:
             name of the file.
@@ -155,9 +154,10 @@ class MessageLog:
 
     def get_text_log(self, file_name):
         """
-        Gets name of the text file.
+        Gets name of the file.
 
-        Checks if the file is compacted, if it is then it is unzipped and new name is returned.
+        Checks if the file is compacted, if it is then it is unzipped and new name is returned,
+        otherwise same file is returned.
 
         Args:
             file_name: name of the file.
@@ -204,7 +204,7 @@ class MessageLog:
         Adds message to log if logging is enabled otherwise writes error.
 
         Args:
-            data: JSON communication message data.
+            data: JSON message data.
 
         """
         if self.log_offline:
@@ -223,7 +223,7 @@ class MessageLog:
                 else:
                     self.wapp_log.debug("Log limit exeeded.")
                     if self.limit_action == REMOVE_OLD:
-                        file_name = self.get_oldest_log()
+                        file_name = self.get_oldest_log_name()
                         self.remove_data(file_name)
                         self.add_message(data)
                     elif self.limit_action == REMOVE_RECENT:
@@ -238,13 +238,14 @@ class MessageLog:
         """
         Gets size of log folder.
 
-        Method loops through all file and gets their total size in the folder.
+        Method loops through all files and gets their total size in the folder,
+        later also adds size of the data you are trying to save.
 
         Args:
-            data: JSON communication message data.
+            data: JSON message data.
 
         Returns:
-            Total size of the folder.
+            Total size of the folder after changes.
         """
         total_size = 0
         for dirpath, dirnames, file_names in os.walk(self.log_location):
@@ -295,5 +296,5 @@ class MessageLog:
                 error = "Log directory could not be found: {}".format(self.log_location)
                 self.wapp_log.error(error)
             except ConnectionError:
-                # todo maybe here should remove sent messages from file being read
+                # todo maybe should remove sent messages from file being read (so it wouldnt be sent twice)
                 self.wapp_log.debug("No connection to the server: Logs are no longer being sent")
