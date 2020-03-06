@@ -10,7 +10,6 @@ import time
 import datetime
 import decimal
 import re
-from math import fabs
 from .. import message_data
 from .errors import wappsto_errors
 
@@ -210,7 +209,7 @@ class Value:
         """
         if self.report_state is not None:
             return self.report_state
-        else:
+        else:  # pragma: no cover
             msg = "Value {} has no report state.".format(self.name)
             self.wapp_log.warning(msg)
 
@@ -226,7 +225,7 @@ class Value:
         """
         if self.control_state is not None:
             return self.control_state
-        else:
+        else:  # pragma: no cover
             msg = "Value {}  has no control state.".format(self.name)
             self.wapp_log.warning(msg)
 
@@ -263,27 +262,6 @@ class Value:
         self.callback = callback
         self.wapp_log.debug("Callback {} has been set.".format(callback))
         return True
-
-    def __date_converter(self, date):
-        """
-        Convert date to timestamp.
-
-        Converts passed date to a timestamp, first removed Z and T charts
-        from the date, then using functionality of time and datetime
-        libraries, changes the date into timestamp and returns it.
-
-        Args:
-            date: string format date
-
-        Returns:
-            timestamp
-            integer
-
-        """
-        date_first = re.sub("Z", "", re.sub("T", " ", date))
-        date_format = '%Y-%m-%d %H:%M:%S.%f'
-        date_datetime = datetime.datetime.strptime(date_first, date_format)
-        return time.mktime(date_datetime.timetuple())
 
     def __validate_value_data(self, data_value):
         if self.__is_number_type():

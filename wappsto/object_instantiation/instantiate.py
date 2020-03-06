@@ -63,7 +63,7 @@ class Instantiator:
             self.wapp_log.error("Error finding file: {}".format(fnfe))
             raise fnfe
 
-    def __getattr__(self, attr):
+    def __getattr__(self, attr):  # pragma: no cover
         """
         Get attribute value.
 

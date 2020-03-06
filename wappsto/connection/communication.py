@@ -105,23 +105,17 @@ class ClientSocket:
             Exception: If one occurs while sending control message.
 
         """
-        try:
-            json_data = self.rpc.get_rpc_state(
-                str(data_value),
-                state.parent.parent.parent.uuid,
-                state.parent.parent.uuid,
-                state.parent.uuid,
-                state.uuid,
-                state.state_type,
-                state_obj=state
-            )
-            self.create_bulk(json_data)
-            return True
-
-        except Exception as e:
-            msg = "Error reporting state: {}".format(e)
-            self.wapp_log.error(msg)
-            return False
+        json_data = self.rpc.get_rpc_state(
+            str(data_value),
+            state.parent.parent.parent.uuid,
+            state.parent.parent.uuid,
+            state.parent.uuid,
+            state.uuid,
+            state.state_type,
+            state_obj=state
+        )
+        self.create_bulk(json_data)
+        return True
 
     def set_sockets(self):
         """
