@@ -74,8 +74,7 @@ class MessageLog:
 
         """
         self.log_location = log_location
-        if self.log_offline:
-            os.makedirs(self.log_location, exist_ok=True)
+        os.makedirs(self.log_location, exist_ok=True)
 
     def get_file_path(self, file_name):
         """

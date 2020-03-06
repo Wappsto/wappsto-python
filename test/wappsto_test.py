@@ -207,21 +207,21 @@ def validate_json(json_schema, arg):
         return False
 
 
-def set_up_log(self, log_file_exists, file_path, file_size):
+def set_up_log(log_location, log_file_exists, file_path, file_size):
     """
     Sets up logs.
 
     Deletes all log files and creates new one if log file should exist.
 
     Args:
-        self: instance of the calling object
+        log_location: location of the logs
         log_file_exists: boolean indicating if log file should exist
         file_path: path to the file
         file_size: how big is the current size of the folder
 
     """
-    # remove all files
-    for root, dirs, files in os.walk(self.service.message_log.log_location):
+    # removes all files
+    for root, dirs, files in os.walk(log_location):
         for file in files:
             os.remove(os.path.join(root, file))
 
@@ -369,7 +369,7 @@ class TestConnClass:
 
         file_name = self.service.message_log.get_log_name()
         file_path = self.service.message_log.get_file_path(file_name)
-        set_up_log(self, log_file_exists, file_path, 1)
+        set_up_log(self.service.message_log.log_location, log_file_exists, file_path, 1)
 
         def send_log():
             self.service.message_log.send_log(self.service.socket)
@@ -882,7 +882,7 @@ class TestSendThreadClass:
         self.service.socket.connected = connected
         file_name = self.service.message_log.get_log_name()
         file_path = self.service.message_log.get_file_path(file_name)
-        set_up_log(self, log_file_exists, file_path, file_size)
+        set_up_log(self.service.message_log.log_location, log_file_exists, file_path, file_size)
 
         # Act
         try:
@@ -963,7 +963,7 @@ class TestSendThreadClass:
         self.service.socket.connected = connected
         file_name = self.service.message_log.get_log_name()
         file_path = self.service.message_log.get_file_path(file_name)
-        set_up_log(self, log_file_exists, file_path, file_size)
+        set_up_log(self.service.message_log.log_location, log_file_exists, file_path, file_size)
 
         # Act
         try:
@@ -1044,7 +1044,7 @@ class TestSendThreadClass:
         self.service.socket.connected = connected
         file_name = self.service.message_log.get_log_name()
         file_path = self.service.message_log.get_file_path(file_name)
-        set_up_log(self, log_file_exists, file_path, file_size)
+        set_up_log(self.service.message_log.log_location, log_file_exists, file_path, file_size)
 
         # Act
         try:
@@ -1127,7 +1127,7 @@ class TestSendThreadClass:
         self.service.socket.connected = connected
         file_name = self.service.message_log.get_log_name()
         file_path = self.service.message_log.get_file_path(file_name)
-        set_up_log(self, log_file_exists, file_path, file_size)
+        set_up_log(self.service.message_log.log_location, log_file_exists, file_path, file_size)
 
         # Act
         try:
@@ -1213,7 +1213,7 @@ class TestSendThreadClass:
         self.service.socket.connected = connected
         file_name = self.service.message_log.get_log_name()
         file_path = self.service.message_log.get_file_path(file_name)
-        set_up_log(self, log_file_exists, file_path, file_size)
+        set_up_log(self.service.message_log.log_location, log_file_exists, file_path, file_size)
 
         # Act
         try:
@@ -1321,7 +1321,7 @@ class TestSendThreadClass:
         self.service.socket.connected = connected
         file_name = self.service.message_log.get_log_name()
         file_path = self.service.message_log.get_file_path(file_name)
-        set_up_log(self, log_file_exists, file_path, file_size)
+        set_up_log(self.service.message_log.log_location, log_file_exists, file_path, file_size)
 
         # Act
         try:
