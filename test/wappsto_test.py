@@ -288,8 +288,7 @@ class TestJsonLoadClass:
             decoded = json.load(json_file)
 
         # Act
-        with patch("os.makedirs"):
-            service = wappsto.Wappsto(json_file_name=self.test_json_prettyprint_location)
+        service = wappsto.Wappsto(json_file_name=self.test_json_prettyprint_location)
 
         # Assert
         assert service.instance.decoded == decoded
@@ -356,10 +355,9 @@ class TestConnClass:
         """
         # Arrange
         test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
-        with patch("os.makedirs"):
-            self.service = wappsto.Wappsto(json_file_name=test_json_location,
-                                           log_offline=log_offline,
-                                           log_location=log_location)
+        self.service = wappsto.Wappsto(json_file_name=test_json_location,
+                                       log_offline=log_offline,
+                                       log_location=log_location)
         status_service = self.service.get_status()
         fix_object(callback_exists, status_service)
         if value_changed_to_none:
@@ -369,7 +367,8 @@ class TestConnClass:
 
         file_name = self.service.message_log.get_log_name()
         file_path = self.service.message_log.get_file_path(file_name)
-        set_up_log(self.service.message_log.log_location, log_file_exists, file_path, 1)
+        log_location = self.service.message_log.log_location
+        set_up_log(log_location, log_file_exists, file_path, 1)
 
         def send_log():
             self.service.message_log.send_log(self.service.socket)
@@ -390,7 +389,7 @@ class TestConnClass:
         # Assert
         if sent_json is not None:
             if log_offline:
-                assert len(os.listdir(self.service.message_log.log_location)) == 0
+                assert len(os.listdir(log_location)) == 0
             assert validate_json("request", arg) == valid_json
             assert "None" not in str(sent_json)
             assert (upgradable and "upgradable" in str(sent_json["meta"])
@@ -414,8 +413,7 @@ class TestValueSendClass:
 
         """
         test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
-        with patch("os.makedirs"):
-            self.service = wappsto.Wappsto(json_file_name=test_json_location)
+        self.service = wappsto.Wappsto(json_file_name=test_json_location)
         fake_connect(self, ADDRESS, PORT)
 
     @pytest.mark.parametrize("input,step_size,expected", [
@@ -553,8 +551,7 @@ class TestReceiveThreadClass:
 
         """
         test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
-        with patch("os.makedirs"):
-            self.service = wappsto.Wappsto(json_file_name=test_json_location)
+        self.service = wappsto.Wappsto(json_file_name=test_json_location)
         fake_connect(self, ADDRESS, PORT)
 
     @pytest.mark.parametrize("trace_id", [None, "321"])
@@ -912,6 +909,7 @@ class TestSendThreadClass:
                 assert request.get("id", None) == value
                 assert bool(request["result"]) is True
         else:
+            # Message not being sent or saved
             pass
 
     @pytest.mark.parametrize("value", ["test_info", None])
@@ -994,6 +992,7 @@ class TestSendThreadClass:
                 assert request["params"]["data"]["type"] == "Report"
                 assert request["method"] == "PUT"
         else:
+            # Message not being sent or saved
             pass
 
     @pytest.mark.parametrize("value", [1, None])
@@ -1074,6 +1073,7 @@ class TestSendThreadClass:
                 assert request.get("id", None) == value
                 assert request["error"] == {"code": -32020}
         else:
+            # Message not being sent or saved
             pass
 
     @pytest.mark.parametrize("valid_message", [True, False])
@@ -1158,6 +1158,7 @@ class TestSendThreadClass:
                 assert request["params"]["data"]["meta"]["type"] == "network"
                 assert request["method"] == "POST"
         else:
+            # Message not being sent or saved
             pass
 
     @pytest.mark.parametrize("valid_message", [True, False])
@@ -1244,6 +1245,7 @@ class TestSendThreadClass:
                 assert request["params"]["data"]["type"] == "Control"
                 assert request["method"] == "PUT"
         else:
+            # Message not being sent or saved
             pass
 
     @pytest.mark.parametrize("object_name", ["network", "device", "value", "control_state", "report_state"])
@@ -1349,6 +1351,7 @@ class TestSendThreadClass:
             for request in arg:
                 assert request["params"]["url"] is not None
         else:
+            # Message not being sent or saved
             pass
 
     @pytest.mark.parametrize("expected_trace_id", [
