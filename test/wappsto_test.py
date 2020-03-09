@@ -54,7 +54,9 @@ def fake_connect(self, address, port):
     wappsto.RETRY_LIMIT = 2
     with patch('ssl.SSLContext.wrap_socket') as context:
         context.connect = Mock(side_effect=check_for_correct_conn)
-        with patch('time.sleep', return_value=None), patch('threading.Thread'), \
+        with patch('time.sleep', return_value=None), \
+            patch('threading.Thread'), \
+            patch('threading.Timer'), \
             patch('wappsto.communication.ClientSocket.add_id_to_confirm_list'), \
                 patch('socket.socket'), \
                 patch('ssl.SSLContext.wrap_socket', return_value=context):
@@ -438,7 +440,9 @@ class TestValueSendClass:
         (2, 123.456e-5, "1.9999872"),
         (1, 9.0e-20, "0.99999999999999999999"),
         (0.02442002442002442001001, 0.00000000000002, "0.02442002442002")])
-    def test_send_value_update_number_type(self, input, step_size, expected):
+    @pytest.mark.parametrize("delta", [None, 0.1, 1, 100])
+    @pytest.mark.parametrize("period", [True, False])
+    def test_send_value_update_number_type(self, input, step_size, expected, delta, period):
         """
         Tests sending update for number value.
 
@@ -448,6 +452,8 @@ class TestValueSendClass:
             input: value to be updated
             step_size: step size value should follow
             expected: value expected to be sent
+            delta: delta of value (determines if change was significant enough to be sent)
+            period: parameter indicating whether value should be updated periodically
 
         """
         # Arrange
@@ -456,10 +462,23 @@ class TestValueSendClass:
         value = device.values[0]
         value.data_type == "number"
         value.number_step = step_size
+        if delta:
+            value.last_update_of_report = 0
+            value.set_delta(delta)
+            if abs(input - value.last_update_of_report) < value.delta:
+                # if change is less then delta then no message would be sent
+                expected = None
 
         # Act
         try:
-            value.update(input)
+            if period is True and delta is None:
+                with patch('threading.Timer.start') as start:
+                    value.set_period(1)
+                    value.timer_elapsed = True
+                    if start.called:
+                        value.update(input)
+            else:
+                value.update(input)
             args, kwargs = self.service.socket.my_socket.send.call_args
             arg = json.loads(args[0].decode('utf-8'))
             result = arg[0]['params']['data']['data']
@@ -483,7 +502,9 @@ class TestValueSendClass:
         (None, None, None),
         ("test", 1, None)])  # value over max
     @pytest.mark.parametrize("type", ["string", "blob"])
-    def test_send_value_update_text_type(self, input, max, expected, type):
+    @pytest.mark.parametrize("delta", [None, 0.1, 1, 100])
+    @pytest.mark.parametrize("period", [True, False])
+    def test_send_value_update_text_type(self, input, max, expected, type, delta, period):
         """
         Tests sending update for text/blob value.
 
@@ -494,6 +515,8 @@ class TestValueSendClass:
             max: maximum length of the message
             expected: value expected to be sent
             type: indicates if it is string or blob types of value
+            delta: delta of value (determines if change was significant enough to be sent)
+            period: parameter indicating whether value should be updated periodically
 
         """
         # Arrange
@@ -503,10 +526,21 @@ class TestValueSendClass:
         value.data_type = type
         value.string_max = max
         value.blob_max = max
+        if delta:
+            value.last_update_of_report = 0
+            value.set_delta(delta)
+            # delta should not have eny effect
 
         # Act
         try:
-            value.update(input)
+            if period is True:
+                with patch('threading.Timer.start') as start:
+                    value.set_period(1)
+                    value.timer_elapsed = True
+                    if start.called:
+                        value.update(input)
+            else:
+                value.update(input)
             args, kwargs = self.service.socket.my_socket.send.call_args
             arg = json.loads(args[0].decode('utf-8'))
             result = arg[0]['params']['data']['data']

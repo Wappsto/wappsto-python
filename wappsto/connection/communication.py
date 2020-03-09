@@ -853,6 +853,15 @@ class ClientSocket:
         Closes the socket object connection.
         """
         self.wapp_log.info("Closing connection...")
+
+        for device in self.network.devices:
+            for value in device.values:
+                if value.timer.is_alive():
+                    msg = "Value: {} is no longer periodically sending updates."
+                    msg = msg.format(value.uuid)
+                    self.wapp_log.debug(msg)
+                value.timer.cancel()
+
         self.connected = False
         if self.my_socket:
             self.my_socket.close()
