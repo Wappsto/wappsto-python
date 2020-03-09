@@ -20,7 +20,6 @@ from wappsto.connection.network_classes.errors import wappsto_errors
 ADDRESS = "wappsto.com"
 PORT = 11006
 TEST_JSON = "test_JSON/test_json.json"
-TEST_JSON_prettyprint = "test_JSON/test_json_prettyprint.json"
 
 
 def check_for_correct_conn(*args, **kwargs):
@@ -240,30 +239,51 @@ class TestJsonLoadClass:
         Sets locations to be used in test.
 
         """
-        self.test_json_prettyprint_location = os.path.join(
-            os.path.dirname(__file__),
-            TEST_JSON_prettyprint)
         self.test_json_location = os.path.join(
             os.path.dirname(__file__),
             TEST_JSON)
 
-    def test_load_prettyprint_json(self):
+    @pytest.mark.parametrize("valid_location", [True, False])
+    @pytest.mark.parametrize("valid_json", [True, False])
+    def test_load_json(self, valid_location, valid_json):
         """
-        Tests loading pretty print json.
+        Tests loading json.
 
-        Loads pretty print json file and checks if it is read the same way
-        as normal json file.
+        Loads json file and checks if pretty print json is read same way as ordinary file.
+
+        Args:
+            valid_location: parameter indicating whether file should be found in the location
+            valid_json: parameter indicating whether file should be parsed successfully
 
         """
         # Arrange
+        if not valid_location:
+            test_json_location_2 = "wrong_location"
+        else:
+            if not valid_json:
+                test_json_location_2 = os.path.join(
+                    os.path.dirname(__file__),
+                    "test_JSON/test_json_wrong.json")
+            else:
+                test_json_location_2 = os.path.join(
+                    os.path.dirname(__file__),
+                    "test_JSON/test_json_prettyprint.json")
+
         with open(self.test_json_location, "r") as json_file:
             decoded = json.load(json_file)
 
         # Act
-        service = wappsto.Wappsto(json_file_name=self.test_json_prettyprint_location)
+        try:
+            service = wappsto.Wappsto(json_file_name=test_json_location_2)
+        except FileNotFoundError:
+            service = None
+        except json.JSONDecodeError:
+            service = None
 
         # Assert
-        assert service.instance.decoded == decoded
+        assert (valid_location and valid_json) == bool(service)
+        if service is not None:
+            assert service.instance.decoded == decoded
 
     @pytest.mark.parametrize("object_exists", [True, False])
     @pytest.mark.parametrize("object_name", ["network", "device", "value", "control_state", "report_state"])
@@ -279,7 +299,7 @@ class TestJsonLoadClass:
 
         """
         # Arrange
-        self.service = wappsto.Wappsto(json_file_name=self.test_json_prettyprint_location)
+        self.service = wappsto.Wappsto(json_file_name=self.test_json_location)
         get_object(self, "network").conn = Mock()
         actual_object = get_object(self, object_name)
         id = actual_object.uuid
@@ -488,8 +508,7 @@ class TestValueSendClass:
         # Arrange
         self.service.socket.my_socket.send = Mock()
         device = self.service.get_devices()[0]
-        value = device.values[0]
-        value.data_type == "number"
+        value = next(val for val in device.values if val.data_type == "number")
         value.number_step = step_size
         if delta:
             value.last_update_of_report = 0
@@ -551,8 +570,7 @@ class TestValueSendClass:
         # Arrange
         self.service.socket.my_socket.send = Mock()
         device = self.service.get_devices()[0]
-        value = device.values[0]
-        value.data_type = type
+        value = next(val for val in device.values if val.data_type == type)
         value.string_max = max
         value.blob_max = max
         if delta:

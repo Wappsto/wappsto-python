@@ -65,23 +65,14 @@ class SaveObjects:
         Returns:
             Path string to load file from.
 
-        Raises:
-            ValueError: An error occured finding files in the saved_instances
-            directory.
-
         """
         files = os.listdir(self.path)
         file_paths = []
         latest_file = None
         for file_name in files:
             file_paths.append(os.path.join(self.path, file_name))
-        try:
-            if len(file_paths) > 0:
-                latest_file = str(max(file_paths, key=os.path.getctime))
-        except ValueError as ve:
-            self.wapp_log.error("Exception in finding latest file: {}"
-                                .format(ve))
-            raise ve
+        if len(file_paths) > 0:
+            latest_file = str(max(file_paths, key=os.path.getctime))
         self.wapp_log.debug('Latest file: {}'.format(latest_file))
 
         return latest_file

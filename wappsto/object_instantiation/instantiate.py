@@ -55,15 +55,11 @@ class Instantiator:
             json_file_name = object_saver.load_instance()
             if json_file_name is not None:
                 self.json_file_name = json_file_name
-        try:
-            with open(self.json_file_name) as data_file:
-                self.decoded = json.loads(data_file.read())
-            self.parse_json_file()
-            msg = "Classes instantiated from: {}".format(json_file_name)
-            self.wapp_log.debug(msg)
-        except FileNotFoundError as fnfe:
-            self.wapp_log.error("Error finding file: {}".format(fnfe))
-            raise fnfe
+        with open(self.json_file_name) as data_file:
+            self.decoded = json.loads(data_file.read())
+        self.parse_json_file()
+        msg = "Classes instantiated from: {}".format(json_file_name)
+        self.wapp_log.debug(msg)
 
     def __getattr__(self, attr):  # pragma: no cover
         """
@@ -186,12 +182,12 @@ class Instantiator:
                     data_type = 'string'
                     get_string = value_iterator.get('string')
                     string_encoding = get_string.get('encoding')
-                    string_max = value_iterator.get('string').get('max')
+                    string_max = get_string.get('max')
                 elif 'blob' in value_iterator:
                     data_type = 'blob'
                     get_bolb = value_iterator.get('blob')
                     blob_encoding = get_bolb.get('encoding')
-                    blob_max = value_iterator.get('blob').get('max')
+                    blob_max = get_bolb.get('max')
                 elif 'number' in value_iterator:
                     data_type = 'number'
                     get_number = value_iterator.get('number')
