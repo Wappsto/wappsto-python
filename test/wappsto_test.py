@@ -575,12 +575,13 @@ class TestReceiveThreadClass:
     @pytest.mark.parametrize("trace_id", [None, '321'])
     @pytest.mark.parametrize("expected_msg_id", [message_data.SEND_SUCCESS])
     @pytest.mark.parametrize("object_name", ["value", "wrong"])
+    @pytest.mark.parametrize("object_exists", [False, True])
     @pytest.mark.parametrize("bulk", [False, True])
     @pytest.mark.parametrize("data", ["44"])
     @pytest.mark.parametrize("split_message", [False, True])
     def test_receive_thread_Put(self, callback_exists, trace_id,
-                                expected_msg_id, object_name, bulk, data,
-                                split_message):
+                                expected_msg_id, object_name, object_exists,
+                                bulk, data, split_message):
         """
         Tests receiving message with PUT verb.
 
@@ -591,6 +592,7 @@ class TestReceiveThreadClass:
             trace_id: id used for tracing
             expected_msg_id: message id expected to be received
             object_name: name of the object to be updated
+            object_exists: indicates if object would exists
             bulk: Boolean value indicating if multiple messages should be sent at once
             data: data value provided in the message
             split_message: Boolean value indicating if message should be sent in parts
@@ -603,6 +605,10 @@ class TestReceiveThreadClass:
             actual_object.control_state.data = '1'
             id = str(actual_object.control_state.uuid)
             url = str(actual_object.report_state.uuid)
+            if not object_exists:
+                with patch('queue.Queue.put'):
+                    actual_object.control_state.delete()
+                expected_msg_id = message_data.SEND_FAILED
         else:
             expected_msg_id = message_data.SEND_FAILED
             id = url = '1'
@@ -618,28 +624,30 @@ class TestReceiveThreadClass:
             pass
 
         # Assert
-        if actual_object:
+        if trace_id and object_exists and actual_object:
+            assert any(message.msg_id == message_data.SEND_TRACE for message in self.service.socket.sending_queue.queue)
+        if actual_object and object_exists:
             if callback_exists:
                 assert actual_object.callback.call_args[0][1] == 'set'
         assert self.service.socket.sending_queue.qsize() > 0
         while self.service.socket.sending_queue.qsize() > 0:
             message = self.service.socket.sending_queue.get()
-            if message.msg_id == message_data.SEND_SUCCESS:
-                message.data == data
             assert (message.msg_id == message_data.SEND_TRACE
                     or message.msg_id == expected_msg_id)
             if message.msg_id == message_data.SEND_TRACE:
                 assert message.trace_id == trace_id
+                assert message.data == data
 
     @pytest.mark.parametrize("callback_exists", [False, True])
     @pytest.mark.parametrize("trace_id", [None, '321'])
     @pytest.mark.parametrize("expected_msg_id", [message_data.SEND_SUCCESS])
     @pytest.mark.parametrize("object_name", ["value", "wrong"])
+    @pytest.mark.parametrize("object_exists", [False, True])
     @pytest.mark.parametrize("bulk", [False, True])
     @pytest.mark.parametrize("split_message", [False, True])
     def test_receive_thread_Get(self, callback_exists, trace_id,
-                                expected_msg_id, object_name, bulk,
-                                split_message):
+                                expected_msg_id, object_name, object_exists,
+                                bulk, split_message):
         """
         Tests receiving message with GET verb.
 
@@ -650,6 +658,7 @@ class TestReceiveThreadClass:
             trace_id: id used for tracing
             expected_msg_id: message id expected to be received
             object_name: name of the object to be updated
+            object_exists: indicates if object would exists
             bulk: Boolean value indicating if multiple messages should be sent at once
             split_message: Boolean value indicating if message should be sent in parts
 
@@ -660,6 +669,10 @@ class TestReceiveThreadClass:
             fix_object(callback_exists, actual_object)
             id = str(actual_object.control_state.uuid)
             url = str(actual_object.report_state.uuid)
+            if not object_exists:
+                with patch('queue.Queue.put'):
+                    actual_object.report_state.delete()
+                expected_msg_id = message_data.SEND_FAILED
         else:
             expected_msg_id = message_data.SEND_FAILED
             id = url = '1'
@@ -675,7 +688,9 @@ class TestReceiveThreadClass:
             pass
 
         # Assert
-        if actual_object:
+        if trace_id and object_exists and actual_object:
+            assert any(message.msg_id == message_data.SEND_TRACE for message in self.service.socket.sending_queue.queue)
+        if actual_object and object_exists:
             if callback_exists:
                 assert actual_object.callback.call_args[0][1] == 'refresh'
         assert self.service.socket.sending_queue.qsize() > 0
@@ -690,11 +705,12 @@ class TestReceiveThreadClass:
     @pytest.mark.parametrize("trace_id", [None, '321'])
     @pytest.mark.parametrize("expected_msg_id", [message_data.SEND_SUCCESS])
     @pytest.mark.parametrize("object_name", ["network", "device", "value", "control_state", "report_state", "wrong"])
+    @pytest.mark.parametrize("object_exists", [False, True])
     @pytest.mark.parametrize("bulk", [False, True])
     @pytest.mark.parametrize("split_message", [False, True])
     def test_receive_thread_Delete(self, callback_exists, trace_id,
-                                   expected_msg_id, object_name, bulk,
-                                   split_message):
+                                   expected_msg_id, object_name, object_exists,
+                                   bulk, split_message):
         """
         Tests receiving message with DELETE verb.
 
@@ -705,6 +721,7 @@ class TestReceiveThreadClass:
             trace_id: id used for tracing
             expected_msg_id: message id expected to be received
             object_name: name of the object to be updated
+            object_exists: indicates if object would exists
             bulk: Boolean value indicating if multiple messages should be sent at once
             split_message: Boolean value indicating if message should be sent in parts
 
@@ -714,6 +731,10 @@ class TestReceiveThreadClass:
         if actual_object:
             fix_object(callback_exists, actual_object)
             id = url = str(actual_object.uuid)
+            if not object_exists:
+                with patch('queue.Queue.put'):
+                    actual_object.delete()
+                expected_msg_id = message_data.SEND_FAILED
         else:
             expected_msg_id = message_data.SEND_FAILED
             id = url = '1'
@@ -729,9 +750,9 @@ class TestReceiveThreadClass:
             pass
 
         # Assert
-        if trace_id:
+        if trace_id and object_exists and actual_object:
             assert any(message.msg_id == message_data.SEND_TRACE for message in self.service.socket.sending_queue.queue)
-        if actual_object:
+        if actual_object and object_exists:
             if callback_exists:
                 assert actual_object.callback.call_args[0][1] == 'remove'
         assert self.service.socket.sending_queue.qsize() > 0
