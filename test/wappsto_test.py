@@ -934,7 +934,8 @@ class TestSendThreadClass:
         message_data.SEND_CONTROL])
     @pytest.mark.parametrize("valid_message", [True, False])
     @pytest.mark.parametrize("messages_in_queue", [1, 2, 20])
-    def test_send_thread(self, type, messages_in_queue, valid_message):
+    @pytest.mark.parametrize("upgradable", [True, False])
+    def test_send_thread(self, type, messages_in_queue, valid_message, upgradable):
         """
         Tests sending message.
 
@@ -944,6 +945,7 @@ class TestSendThreadClass:
             type: Type of message being sent
             messages_in_queue: How many messages should be sent
             valid_message: Boolean indicating if the sent json should be valid
+            upgradable: specifies if object is upgradable
 
         """
         # Arrange
@@ -964,7 +966,8 @@ class TestSendThreadClass:
                 type,
                 state_id=state_id,
                 rpc_id=rpc_id,
-                data=value
+                data=value,
+                trace_id=1
             )
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
@@ -975,7 +978,8 @@ class TestSendThreadClass:
         try:
             # runs until mock object is run and its side_effect raises
             # exception
-            self.service.socket.send_thread()
+            with patch('os.getenv', return_value=str(upgradable)):
+                self.service.socket.send_thread()
         except KeyboardInterrupt:
             args, kwargs = self.service.socket.my_socket.send.call_args
             arg = json.loads(args[0].decode('utf-8'))
@@ -1002,6 +1006,8 @@ class TestSendThreadClass:
                 assert request['params']['data'].get('name', None) == value
                 assert request['params']['data']['meta']['type'] == "network"
                 assert request['method'] == "POST"
+                assert (upgradable and 'upgradable' in str(request['params']['data']['meta'])
+                        or not upgradable and 'upgradable' not in str(request['params']['data']['meta']))
             elif type == message_data.SEND_CONTROL:
                 assert validate_json("request", arg) == valid_message
                 assert request['params']['data'].get('data', None) == value
