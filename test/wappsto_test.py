@@ -111,7 +111,7 @@ def get_object(self, object_name):
 
 
 def send_response(self, verb, trace_id, bulk, message_id, element_id, url, data, split_message,
-                  control_id_exists=True, data_exists=True):
+                  control_id_exists=True, params_exists=True):
     """
     Sends response.
 
@@ -126,6 +126,8 @@ def send_response(self, verb, trace_id, bulk, message_id, element_id, url, data,
         url: url sent in message parameters
         data: data to be sent
         split_message: Boolean value indicating if message should be sent in parts
+        control_id_exists: indicates if control_id should be in the message
+        params_exists: indicates if parameters should be in the message
 
     Returns:
         the generated message
@@ -136,23 +138,19 @@ def send_response(self, verb, trace_id, bulk, message_id, element_id, url, data,
     if verb == "DELETE" or verb == "PUT" or verb == "GET":
         if trace_id is not None:
             trace = {"trace": str(trace_id)}
-        
-        if control_id_exists:
-            meta = {"id": element_id}
+
+        if params_exists:
+            if control_id_exists:
+                meta = {"id": element_id}
+            else:
+                meta = None
+            params = {"url": url, "meta": trace, "data": {"meta": meta, "data": data}}
         else:
-            meta = None
-            
-        if data_exists:
-            data = {"meta": meta, "data": data}
-        else:
-            data = None
+            params = None
 
         message = {"jsonrpc": "2.0",
                    "id": message_id,
-                   "params": {
-                       "url": str(url),
-                       "meta": trace,
-                       "data": data},
+                   "params": params,
                    "method": verb}
     elif verb == "error" or verb == "result":
         if data:
@@ -663,11 +661,11 @@ class TestReceiveThreadClass:
     @pytest.mark.parametrize("data", ["44"])
     @pytest.mark.parametrize("split_message", [False, True])
     @pytest.mark.parametrize("control_id_exists", [False, True])
-    @pytest.mark.parametrize("data_exists", [False, True])
+    @pytest.mark.parametrize("params_exists", [False, True])
     def test_receive_thread_Put(self, callback_exists, trace_id,
                                 expected_msg_id, object_name, object_exists,
                                 bulk, data, split_message, control_id_exists,
-                                data_exists):
+                                params_exists):
         """
         Tests receiving message with PUT verb.
 
@@ -682,6 +680,8 @@ class TestReceiveThreadClass:
             bulk: Boolean value indicating if multiple messages should be sent at once
             data: data value provided in the message
             split_message: Boolean value indicating if message should be sent in parts
+            control_id_exists: indicates if control_id should be in the message
+            params_exists: indicates if parameters should be in the message
 
         """
         # Arrange
@@ -699,7 +699,7 @@ class TestReceiveThreadClass:
             id = url = '1'
 
         send_response(self, 'PUT', trace_id, bulk, '1', id, url, data, split_message,
-                      control_id_exists = control_id_exists, data_exists = data_exists)
+                      control_id_exists=control_id_exists, params_exists=params_exists)
 
         # Act
         try:
@@ -710,9 +710,10 @@ class TestReceiveThreadClass:
             pass
 
         # Assert
-        if control_id_exists and data_exists:
+        if control_id_exists and params_exists:
             if trace_id and object_exists and actual_object:
-                assert any(message.msg_id == message_data.SEND_TRACE for message in self.service.socket.sending_queue.queue)
+                assert any(message.msg_id == message_data.SEND_TRACE for message
+                           in self.service.socket.sending_queue.queue)
             if actual_object and object_exists:
                 if callback_exists:
                     assert actual_object.callback.call_args[0][1] == 'set'
@@ -734,9 +735,10 @@ class TestReceiveThreadClass:
     @pytest.mark.parametrize("object_exists", [False, True])
     @pytest.mark.parametrize("bulk", [False, True])
     @pytest.mark.parametrize("split_message", [False, True])
+    @pytest.mark.parametrize("params_exists", [False, True])
     def test_receive_thread_Get(self, callback_exists, trace_id,
                                 expected_msg_id, object_name, object_exists,
-                                bulk, split_message):
+                                bulk, split_message, params_exists):
         """
         Tests receiving message with GET verb.
 
@@ -750,6 +752,7 @@ class TestReceiveThreadClass:
             object_exists: indicates if object would exists
             bulk: Boolean value indicating if multiple messages should be sent at once
             split_message: Boolean value indicating if message should be sent in parts
+            params_exists: indicates if parameters should be in the message
 
         """
         # Arrange
@@ -766,7 +769,8 @@ class TestReceiveThreadClass:
             expected_msg_id = message_data.SEND_FAILED
             id = url = '1'
 
-        send_response(self, 'GET', trace_id, bulk, '1', id, url, "1", split_message)
+        send_response(self, 'GET', trace_id, bulk, '1', id, url, "1", split_message,
+                      params_exists=params_exists)
 
         # Act
         try:
@@ -777,18 +781,22 @@ class TestReceiveThreadClass:
             pass
 
         # Assert
-        if trace_id and object_exists and actual_object:
-            assert any(message.msg_id == message_data.SEND_TRACE for message in self.service.socket.sending_queue.queue)
-        if actual_object and object_exists:
-            if callback_exists:
-                assert actual_object.callback.call_args[0][1] == 'refresh'
-        assert self.service.socket.sending_queue.qsize() > 0
-        while self.service.socket.sending_queue.qsize() > 0:
-            message = self.service.socket.sending_queue.get()
-            assert (message.msg_id == message_data.SEND_TRACE
-                    or message.msg_id == expected_msg_id)
-            if message.msg_id == message_data.SEND_TRACE:
-                assert message.trace_id == trace_id
+        if params_exists:
+            if trace_id and object_exists and actual_object:
+                assert any(message.msg_id == message_data.SEND_TRACE for message
+                           in self.service.socket.sending_queue.queue)
+            if actual_object and object_exists:
+                if callback_exists:
+                    assert actual_object.callback.call_args[0][1] == 'refresh'
+            assert self.service.socket.sending_queue.qsize() > 0
+            while self.service.socket.sending_queue.qsize() > 0:
+                message = self.service.socket.sending_queue.get()
+                assert (message.msg_id == message_data.SEND_TRACE
+                        or message.msg_id == expected_msg_id)
+                if message.msg_id == message_data.SEND_TRACE:
+                    assert message.trace_id == trace_id
+        else:
+            assert self.service.socket.sending_queue.qsize() == 0
 
     @pytest.mark.parametrize("callback_exists", [False, True])
     @pytest.mark.parametrize("trace_id", [None, '321'])
@@ -797,9 +805,10 @@ class TestReceiveThreadClass:
     @pytest.mark.parametrize("object_exists", [False, True])
     @pytest.mark.parametrize("bulk", [False, True])
     @pytest.mark.parametrize("split_message", [False, True])
+    @pytest.mark.parametrize("params_exists", [False, True])
     def test_receive_thread_Delete(self, callback_exists, trace_id,
                                    expected_msg_id, object_name, object_exists,
-                                   bulk, split_message):
+                                   bulk, split_message, params_exists):
         """
         Tests receiving message with DELETE verb.
 
@@ -813,6 +822,7 @@ class TestReceiveThreadClass:
             object_exists: indicates if object would exists
             bulk: Boolean value indicating if multiple messages should be sent at once
             split_message: Boolean value indicating if message should be sent in parts
+            params_exists: indicates if parameters should be in the message
 
         """
         # Arrange
@@ -828,7 +838,8 @@ class TestReceiveThreadClass:
             expected_msg_id = message_data.SEND_FAILED
             id = url = '1'
 
-        send_response(self, 'DELETE', trace_id, bulk, '1', id, url, "1", split_message)
+        send_response(self, 'DELETE', trace_id, bulk, '1', id, url, "1", split_message,
+                      params_exists=params_exists)
 
         # Act
         try:
@@ -839,18 +850,22 @@ class TestReceiveThreadClass:
             pass
 
         # Assert
-        if trace_id and object_exists and actual_object:
-            assert any(message.msg_id == message_data.SEND_TRACE for message in self.service.socket.sending_queue.queue)
-        if actual_object and object_exists:
-            if callback_exists:
-                assert actual_object.callback.call_args[0][1] == 'remove'
-        assert self.service.socket.sending_queue.qsize() > 0
-        while self.service.socket.sending_queue.qsize() > 0:
-            message = self.service.socket.sending_queue.get()
-            assert (message.msg_id == message_data.SEND_TRACE
-                    or message.msg_id == expected_msg_id)
-            if message.msg_id == message_data.SEND_TRACE:
-                assert message.trace_id == trace_id
+        if params_exists:
+            if trace_id and object_exists and actual_object:
+                assert any(message.msg_id == message_data.SEND_TRACE for message
+                           in self.service.socket.sending_queue.queue)
+            if actual_object and object_exists:
+                if callback_exists:
+                    assert actual_object.callback.call_args[0][1] == 'remove'
+            assert self.service.socket.sending_queue.qsize() > 0
+            while self.service.socket.sending_queue.qsize() > 0:
+                message = self.service.socket.sending_queue.get()
+                assert (message.msg_id == message_data.SEND_TRACE
+                        or message.msg_id == expected_msg_id)
+                if message.msg_id == message_data.SEND_TRACE:
+                    assert message.trace_id == trace_id
+        else:
+            assert self.service.socket.sending_queue.qsize() == 0
 
     @pytest.mark.parametrize("id", ["93043873"])
     @pytest.mark.parametrize("data", ["55"])
