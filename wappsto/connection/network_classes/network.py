@@ -64,6 +64,30 @@ class Network:
         self.wapp_log.debug("Callback {} has been set.".format(callback))
         return True
 
+    def get_device(self, name):
+        """
+        Device reference.
+
+        Finds the device with a specific name attribute based on a given
+        string
+
+        Args:
+            name: String containing the name attribute to search for.
+
+        Returns:
+            A reference to the device object instance.
+
+        Raises:
+            DeviceNotFoundException: Device {name} not found.
+
+        """
+        for device in self.devices:
+            if name == device.name:
+                return device
+        else:
+            msg = "Device {} not found".format(name)
+            raise wappsto_errors.DeviceNotFoundException(msg)
+
     def handle_delete(self):
         """
         Handle delete.

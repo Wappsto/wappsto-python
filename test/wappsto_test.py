@@ -507,7 +507,7 @@ class TestValueSendClass:
         """
         # Arrange
         self.service.socket.my_socket.send = Mock()
-        device = self.service.get_devices()[0]
+        device = self.service.get_device("device-1")
         value = next(val for val in device.values if val.data_type == "number")
         value.number_step = step_size
         if delta:
@@ -569,7 +569,7 @@ class TestValueSendClass:
         """
         # Arrange
         self.service.socket.my_socket.send = Mock()
-        device = self.service.get_devices()[0]
+        device = self.service.get_device("device-1")
         value = next(val for val in device.values if val.data_type == type)
         value.string_max = max
         value.blob_max = max

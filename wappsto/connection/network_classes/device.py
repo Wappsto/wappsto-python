@@ -121,7 +121,7 @@ class Device:
 
         """
         for value in self.values:
-            if value_name in list(value.__dict__.values()):
+            if value_name == value.name:
                 return value
             else:
                 msg = "Value {} not found".format(value_name)

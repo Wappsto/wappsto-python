@@ -35,13 +35,9 @@ class Instantiator:
 
         Args:
             json_file_name: The name of the JSON file to parse.
-            load_from_state_files: A True/False flag to denote whether to load
+            load_from_state_file: A True/False flag to denote whether to load
                 from the saved files directory.
-
-        Raises:
-            JSONDecodeError: Exception when trying to parse the JSON file.
-            FileNotFoundError: Exception when trying to find the file's
-                location.
+            path_to_calling_file: path to use.
 
         """
         self.wapp_log = logging.getLogger(__name__)

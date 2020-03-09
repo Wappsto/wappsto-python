@@ -140,18 +140,8 @@ class Wappsto:
         Returns:
             A reference to the device object instance.
 
-        Raises:
-            DeviceNotFoundException: Device {name} not found in {instance}.
-
         """
-        for device in self.instance.network.devices:
-            if name == device.name:
-                return device
-        else:
-            msg = "Device {} not found in {}".format(name, self.instance)
-            self.wapp_log.warning(msg, exc_info=True)
-            self.stop(False)
-            raise wappsto_errors.DeviceNotFoundException(msg)
+        return self.instance.network.get_device(name)
 
     def start(self, address="wappsto.com", port=11006):
         """
