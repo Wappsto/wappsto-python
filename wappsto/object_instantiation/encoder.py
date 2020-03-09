@@ -140,7 +140,7 @@ class WappstoEncoder:
         elif value.data_type == 'blob':
             details = {
                 'encoding': value.blob_encoding,
-                'max': value.string_max
+                'max': value.blob_max
             }
         elif value.data_type == 'number':
             details = {
