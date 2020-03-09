@@ -100,13 +100,13 @@ def get_object(self, object_name):
     if object_name == "network":
         actual_object = self.service.instance.network
     elif object_name == "device":
-        actual_object = self.service.instance.network.devices[0]
+        actual_object = self.service.get_devices()[0]
     elif object_name == "value":
-        actual_object = self.service.instance.network.devices[0].values[0]
+        actual_object = self.service.get_devices()[0].values[0]
     elif object_name == "control_state":
-        actual_object = self.service.instance.network.devices[0].values[0].get_control_state()
+        actual_object = self.service.get_devices()[0].values[0].get_control_state()
     elif object_name == "report_state":
-        actual_object = self.service.instance.network.devices[0].values[0].get_report_state()
+        actual_object = self.service.get_devices()[0].values[0].get_report_state()
     return actual_object
 
 
@@ -862,7 +862,7 @@ class TestReceiveThreadClass:
 
         """
         # Arrange
-        state = self.service.instance.network.devices[0].values[0].control_state
+        state = self.service.get_devices()[0].get_value("temp").control_state
         state.data = 1
         send_response(self, 'result', None, bulk, state.uuid, None, data, split_message)
 

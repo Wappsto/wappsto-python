@@ -162,16 +162,15 @@ class Handlers:
         """
         object = self.get_by_id(id)
         try:
-            if object is not None:
-                if trace_id:
-                    send_trace(
-                        sending_queue,
-                        id,
-                        trace_id,
-                        None,
-                        control_value_id=self.__get_random_id()
-                    )
-                return object.handle_delete()
+            if trace_id:
+                send_trace(
+                    sending_queue,
+                    id,
+                    trace_id,
+                    None,
+                    control_value_id=self.__get_random_id()
+                )
+            return object.handle_delete()
         except AttributeError:
             pass
 
