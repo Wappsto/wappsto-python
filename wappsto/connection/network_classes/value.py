@@ -6,11 +6,9 @@ methods.
 """
 import logging
 import warnings
-import time
 import datetime
 import decimal
-import re
-from math import fabs
+import threading
 from .. import message_data
 from .errors import wappsto_errors
 
@@ -39,8 +37,8 @@ class Value:
         string_max,
         blob_encoding,
         blob_max,
-        period=None,
-        delta=None
+        period,
+        delta
     ):
         """
         Initialize the Value class.
@@ -88,16 +86,17 @@ class Value:
         self.string_max = string_max
         self.blob_encoding = blob_encoding
         self.blob_max = blob_max
-        self.period = period
-        self.delta = delta
         self.report_state = None
         self.control_state = None
         self.callback = self.__callback_not_set
-        self.last_update_of_report = self.get_now()
-        self.reporting_thread = None
-        self.last_update_of_control = None
-        self.difference = 0
-        self.delta_report = 0
+
+        self.timer = threading.Timer(None, None)
+        self.last_update_of_report = None
+
+        if period is not None:
+            self.set_period(period)
+        if delta is not None:
+            self.set_delta(delta)
 
         msg = "Value {} debug: {}".format(name, str(self.__dict__))
         self.wapp_log.debug(msg)
@@ -121,21 +120,43 @@ class Value:
         """
         Set the value reporting period.
 
-        Sets the period to report a value to the server and starts a thread to
-        do so.
+        Sets the time defined in second to report a value to
+        the server and starts timer.
 
         Args:
             period: Reporting period.
 
         """
         try:
-            if self.get_report_state() is not None and int(period) > 0:
-                self.period = period
-
+            period = int(period)
+            if period > 0:
+                if self.get_report_state() is not None:
+                    self.period = period
+                    self.__set_timer()
+                    self.wapp_log.debug("Period successfully set.")
+                else:
+                    self.wapp_log.warning("Cannot set the period for this value.")
             else:
-                self.wapp_log.warning("Cannot set the period for this value.")
+                self.wapp_log.warning("Period value must be greater then 0.")
         except ValueError:
             self.wapp_log.error("Period value must be a number.")
+
+    def __set_timer(self):
+        """
+        Set timer.
+
+        Stop previous timer and sets new one if period value is not None.
+
+        """
+        self.timer.cancel()
+        if self.period is not None:
+            self.timer = threading.Timer(self.period, self.__timer_done)
+            self.timer.start()
+
+    def __timer_done(self):
+        self.__set_timer()
+        self.timer_elapsed = True
+        self.handle_refresh()
 
     def set_delta(self, delta):
         """
@@ -149,12 +170,15 @@ class Value:
 
         """
         try:
-            if (self.__is_number_type()
-                    and self.get_report_state()
-                    and float(delta) > 0):
-                self.delta = delta
+            delta = float(delta)
+            if delta > 0:
+                if self.__is_number_type() and self.get_report_state():
+                    self.delta = delta
+                    self.wapp_log.debug("Delta successfully set.")
+                else:
+                    self.wapp_log.warning("Cannot set the delta for this value.")
             else:
-                self.wapp_log.warning("Cannot set the delta for this value.")
+                self.wapp_log.warning("Delta value must be greater then 0.")
         except ValueError:
             self.wapp_log.error("Delta value must be a number")
 
@@ -244,29 +268,6 @@ class Value:
             msg = "Value {}  has no control state.".format(self.name)
             self.wapp_log.warning(msg)
 
-    def __send_report_delta(self, state):
-        """
-        Send report message when delta range reached.
-
-        Sends a report message with the current value when the delta range is
-        reached.
-
-        Args:
-            state: Reference to the report state
-
-        """
-        try:
-            result = int(self.difference) >= int(self.delta)
-            if result and self.delta_report == 1:
-                state.timestamp = self.get_now()
-                self.last_update_of_report = state.timestamp
-                self.parent.parent.conn.send_state(state)
-                self.wapp_log.info("Sent report [DELTA].")
-                self.delta_report = 0
-                return True
-        except AttributeError:
-            pass
-
     def get_now(self):
         """
         Retrieve current time.
@@ -278,50 +279,6 @@ class Value:
 
         """
         return datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-
-    def __send_report_thread(self):
-        """
-        Send report message.
-
-        Sends a report message with the current value to the server.
-        Unless state exists, runs a while loop. It is determined whether or
-        not set flag allowing send report because of delta attribute. If delta
-        exists: __send_report_delta method is called. If period exists it is
-        checked if the sum of period value and last time the value was
-        updated is greater than current time. If it does then a report is sent.
-        Method is running on separate thread which after each loop sleeps for
-        one second.
-        """
-        state = self.get_report_state()
-        if state is not None:
-            value = state.data
-            while True:
-                if (state.data is not None
-                        and self.__is_number_type()):
-                    value_check = state.data
-                    if value != value_check:
-                        self.difference = fabs(int(value) - int(value_check))
-                        value = value_check
-                        self.delta_report = 1
-                if self.delta is not None:
-                    self.__send_report_delta(state)
-                if self.period is not None:
-                    try:
-                        last_update_timestamp = self.__date_converter(
-                            self.last_update_of_report
-                        )
-                        now = self.get_now()
-                        now_timestamp = self.__date_converter(now)
-                        the_time = last_update_timestamp + self.period
-                        if the_time <= now_timestamp:
-                            self.wapp_log.info("Sending report [PERIOD].")
-                            state.timestamp = self.get_now()
-                            self.last_update_of_report = state.timestamp
-                            self.parent.parent.conn.send_state(state)
-                    except Exception as e:
-                        self.reporting_thread.join()
-                        self.wapp_log.error(e)
-                time.sleep(1)
 
     def set_callback(self, callback):
         """
@@ -348,27 +305,6 @@ class Value:
         except wappsto_errors.CallbackNotCallableException as e:
             self.wapp_log.error("Error setting callback: {}".format(e))
             raise
-
-    def __date_converter(self, date):
-        """
-        Convert date to timestamp.
-
-        Converts passed date to a timestamp, first removed Z and T charts
-        from the date, then using functionality of time and datetime
-        libraries, changes the date into timestamp and returns it.
-
-        Args:
-            date: string format date
-
-        Returns:
-            timestamp
-            integer
-
-        """
-        date_first = re.sub("Z", "", re.sub("T", " ", date))
-        date_format = '%Y-%m-%d %H:%M:%S.%f'
-        date_datetime = datetime.datetime.strptime(date_first, date_format)
-        return time.mktime(date_datetime.timetuple())
 
     def __validate_value_data(self, data_value):
         if self.__is_number_type():
@@ -448,7 +384,7 @@ class Value:
         Update value.
 
         Check if value has a state and validates the information in data_value
-        if both of these checks pass then method __send_logic is called.
+        if both of these checks pass then method send_state is called.
 
         Args:
             data_value: the new value.
@@ -458,6 +394,9 @@ class Value:
             True/False indicating the result of operation.
 
         """
+        if not self.check_delta_and_period(data_value):
+            return False
+
         state = self.get_report_state()
         if state is None:
             self.wapp_log.warning("Value is write only.")
@@ -471,12 +410,65 @@ class Value:
             state.timestamp = timestamp
         else:
             state.timestamp = self.get_now()
-        self.last_update_of_report = state.timestamp
 
         return self.parent.parent.conn.send_state(
             state,
             data_value=data_value,
         )
+
+    def check_delta_and_period(self, data_value):
+        """
+        Check if delta and period allows data to be sent.
+
+        Check if value has delta or period, if it has then if it passes
+        checks then True is returned, otherwise False is returned.
+
+        Args:
+            data_value: the new value.
+
+        Returns:
+            True/False indicating the result of operation.
+
+        """
+        if (self.delta is not None and self.__is_number_type()):
+            # delta should work
+            data_value = float(data_value)
+            if (self.last_update_of_report is None or abs(data_value - self.last_update_of_report) >= self.delta):
+                # delta exeeded
+                self.last_update_of_report = data_value
+                if self.period is not None:
+                    # timer should be reset if period exists
+                    self.__set_timer()
+                return True
+            else:
+                # delta not exeeded
+                return self.check_period(False)
+        return self.check_period(True)
+
+    def check_period(self, return_value):
+        """
+        Check if period allows data to be sent.
+
+        Check if value has period, if it has then if it passes
+        checks then True is returned, otherwise False is returned.
+
+        Args:
+            return_value: default return value.
+
+        Returns:
+            True/False indicating the result of operation.
+
+        """
+        if self.period is not None:
+            # period should work
+            if self.timer_elapsed:
+                # timer has elapsed
+                self.timer_elapsed = False
+                return True
+            else:
+                # timer is working
+                return False
+        return return_value
 
     def get_data(self):
         """
