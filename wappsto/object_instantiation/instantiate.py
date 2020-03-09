@@ -46,11 +46,9 @@ class Instantiator:
         """
         self.wapp_log = logging.getLogger(__name__)
         self.wapp_log.addHandler(logging.NullHandler())
-        self.path_to_calling_file = path_to_calling_file
-        self.load_from_state_file = load_from_state_file
         self.json_file_name = json_file_name
 
-        if self.load_from_state_file:
+        if load_from_state_file:
             object_saver = save_objects.SaveObjects(path_to_calling_file)
             json_file_name = object_saver.load_instance()
             if json_file_name is not None:
@@ -93,22 +91,24 @@ class Instantiator:
         self.wapp_log.debug("Opening file: {}".format(self.json_file_name))
 
         try:
-            self.json_container = json.loads(self.decoded.get('data'))
+            json_data = json.loads(self.decoded.get('data'))
+            self.wapp_log.debug("RAW JSON DATA:\n\n{}\n\n".format(
+                json_data)
+            )
+            self.build_network(json_data)
         except json.JSONDecodeError as jde:
             self.wapp_log.error("Error decoding: {}".format(jde))
             raise jde
 
-        self.wapp_log.debug("RAW JSON DATA:\n\n{}\n\n".format(
-            self.json_container)
-        )
-        self.build_network()
-
-    def build_network(self):
+    def build_network(self, json_data):
         """
         Create network instance.
 
         Builds a Network and the underlying classes by setting the attributes
         from the decoded JSON file.
+
+        Args:
+            json_data: decoded json file data
 
         """
         try:
@@ -132,7 +132,7 @@ class Instantiator:
 
         self.wapp_log.debug("Network {} built.".format(self.network))
 
-        for device_iterator in self.json_container.get('device', []):
+        for device_iterator in json_data.get('device', []):
             uuid = device_iterator.get('meta').get('id')
             name = device_iterator.get('name')
             product = device_iterator.get('product')
