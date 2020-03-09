@@ -110,7 +110,8 @@ def get_object(self, object_name):
     return actual_object
 
 
-def send_response(self, verb, trace_id, bulk, id, url, data, split_message):
+def send_response(self, verb, trace_id, bulk, message_id, element_id, url, data, split_message,
+                  control_id_exists=True, data_exists=True):
     """
     Sends response.
 
@@ -120,7 +121,8 @@ def send_response(self, verb, trace_id, bulk, id, url, data, split_message):
         verb: specifies if request is DELETE/PUT/POST/GET
         trace_id: id used for tracing messages
         bulk: Boolean value indicating if multiple messages should be sent at once.
-        id: specifies id used in message
+        message_id: id used to indicate the specific message
+        element_id: id used for indicating element
         url: url sent in message parameters
         data: data to be sent
         split_message: Boolean value indicating if message should be sent in parts
@@ -134,44 +136,44 @@ def send_response(self, verb, trace_id, bulk, id, url, data, split_message):
     if verb == "DELETE" or verb == "PUT" or verb == "GET":
         if trace_id is not None:
             trace = {"trace": str(trace_id)}
+        
+        if control_id_exists:
+            meta = {"id": element_id}
+        else:
+            meta = None
+            
+        if data_exists:
+            data = {"meta": meta, "data": data}
+        else:
+            data = None
 
         message = {"jsonrpc": "2.0",
-                   "id": "1",
+                   "id": message_id,
                    "params": {
                        "url": str(url),
                        "meta": trace,
-                       "data": {
-                           "meta": {
-                               "id": id},
-                           "data": data}},
+                       "data": data},
                    "method": verb}
-    else:
-        if verb == "error" or verb == "result":
-            if data:
-                message_value = {'data': data,
-                                 'type': 'Control',
-                                 'timestamp': '2020-01-20T09:20:21.092Z',
-                                 'meta': {
-                                     'type': 'state',
-                                     'version': '2.0',
-                                     'id': id,
-                                     'manufacturer': '31439b87-040b-4b41-b5b8-f3774b2a1c19',
-                                     'updated': '2020-02-18T09:14:12.880+00:00',
-                                     'created': '2020-01-20T09:20:21.290+00:00',
-                                     'revision': 1035,
-                                     'contract': [],
-                                     'owner': 'bb10f0f1-390f-478e-81c2-a67f58de88be'}}
-            else:
-                message_value = "True"
-            message = {"jsonrpc": "2.0",
-                       "id": str(id),
-                       verb: {
-                           "value": message_value,
-                           "meta": {
-                               "server_send_time": "2020-01-22T08:22:55.315Z"}}}
-            self.service.socket.packet_awaiting_confirm[str(id)] = message
+    elif verb == "error" or verb == "result":
+        if data:
+            message_value = {'data': data,
+                             'type': 'Control',
+                             'timestamp': '2020-01-20T09:20:21.092Z',
+                             'meta': {
+                                 'type': 'state',
+                                 'version': '2.0',
+                                 'id': element_id}}
         else:
-            message = {"jsonrpc": "2.0", "id": "1", "params": {}, "method": "??????"}
+            message_value = "True"
+        message = {"jsonrpc": "2.0",
+                   "id": message_id,
+                   verb: {
+                       "value": message_value,
+                       "meta": {
+                           "server_send_time": "2020-01-22T08:22:55.315Z"}}}
+        self.service.socket.packet_awaiting_confirm[message_id] = message
+    else:
+        message = {"jsonrpc": "2.0", "id": "1", "params": {}, "method": "??????"}
 
     if bulk:
         message = [message, message]
@@ -636,7 +638,7 @@ class TestReceiveThreadClass:
 
         """
         # Arrange
-        send_response(self, "wrong_verb", trace_id, bulk, None, None, None, split_message)
+        send_response(self, "wrong_verb", trace_id, bulk, None, None, None, None, split_message)
 
         # Act
         try:
@@ -660,9 +662,12 @@ class TestReceiveThreadClass:
     @pytest.mark.parametrize("bulk", [False, True])
     @pytest.mark.parametrize("data", ["44"])
     @pytest.mark.parametrize("split_message", [False, True])
+    @pytest.mark.parametrize("control_id_exists", [False, True])
+    @pytest.mark.parametrize("data_exists", [False, True])
     def test_receive_thread_Put(self, callback_exists, trace_id,
                                 expected_msg_id, object_name, object_exists,
-                                bulk, data, split_message):
+                                bulk, data, split_message, control_id_exists,
+                                data_exists):
         """
         Tests receiving message with PUT verb.
 
@@ -683,7 +688,6 @@ class TestReceiveThreadClass:
         actual_object = get_object(self, object_name)
         if actual_object:
             fix_object(callback_exists, actual_object)
-            actual_object.control_state.data = '1'
             id = str(actual_object.control_state.uuid)
             url = str(actual_object.report_state.uuid)
             if not object_exists:
@@ -694,7 +698,8 @@ class TestReceiveThreadClass:
             expected_msg_id = message_data.SEND_FAILED
             id = url = '1'
 
-        send_response(self, 'PUT', trace_id, bulk, id, url, data, split_message)
+        send_response(self, 'PUT', trace_id, bulk, '1', id, url, data, split_message,
+                      control_id_exists = control_id_exists, data_exists = data_exists)
 
         # Act
         try:
@@ -705,19 +710,22 @@ class TestReceiveThreadClass:
             pass
 
         # Assert
-        if trace_id and object_exists and actual_object:
-            assert any(message.msg_id == message_data.SEND_TRACE for message in self.service.socket.sending_queue.queue)
-        if actual_object and object_exists:
-            if callback_exists:
-                assert actual_object.callback.call_args[0][1] == 'set'
-        assert self.service.socket.sending_queue.qsize() > 0
-        while self.service.socket.sending_queue.qsize() > 0:
-            message = self.service.socket.sending_queue.get()
-            assert (message.msg_id == message_data.SEND_TRACE
-                    or message.msg_id == expected_msg_id)
-            if message.msg_id == message_data.SEND_TRACE:
-                assert message.trace_id == trace_id
-                assert message.data == data
+        if control_id_exists and data_exists:
+            if trace_id and object_exists and actual_object:
+                assert any(message.msg_id == message_data.SEND_TRACE for message in self.service.socket.sending_queue.queue)
+            if actual_object and object_exists:
+                if callback_exists:
+                    assert actual_object.callback.call_args[0][1] == 'set'
+            assert self.service.socket.sending_queue.qsize() > 0
+            while self.service.socket.sending_queue.qsize() > 0:
+                message = self.service.socket.sending_queue.get()
+                assert (message.msg_id == message_data.SEND_TRACE
+                        or message.msg_id == expected_msg_id)
+                if message.msg_id == message_data.SEND_TRACE:
+                    assert message.trace_id == trace_id
+                    assert message.data == data
+        else:
+            assert self.service.socket.sending_queue.qsize() == 0
 
     @pytest.mark.parametrize("callback_exists", [False, True])
     @pytest.mark.parametrize("trace_id", [None, '321'])
@@ -758,7 +766,7 @@ class TestReceiveThreadClass:
             expected_msg_id = message_data.SEND_FAILED
             id = url = '1'
 
-        send_response(self, 'GET', trace_id, bulk, id, url, "1", split_message)
+        send_response(self, 'GET', trace_id, bulk, '1', id, url, "1", split_message)
 
         # Act
         try:
@@ -820,7 +828,7 @@ class TestReceiveThreadClass:
             expected_msg_id = message_data.SEND_FAILED
             id = url = '1'
 
-        send_response(self, 'DELETE', trace_id, bulk, id, url, "1", split_message)
+        send_response(self, 'DELETE', trace_id, bulk, '1', id, url, "1", split_message)
 
         # Act
         try:
@@ -864,7 +872,7 @@ class TestReceiveThreadClass:
         # Arrange
         state = self.service.get_devices()[0].get_value("temp").control_state
         state.data = 1
-        send_response(self, 'result', None, bulk, state.uuid, None, data, split_message)
+        send_response(self, 'result', None, bulk, "1", state.uuid, None, data, split_message)
 
         # Act
         try:
@@ -893,7 +901,7 @@ class TestReceiveThreadClass:
 
         """
         # Arrange
-        send_response(self, 'error', None, bulk, "93043873", None, None, split_message)
+        send_response(self, 'error', None, bulk, "1", None, None, None, split_message)
 
         # Act
         try:

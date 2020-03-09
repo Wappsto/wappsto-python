@@ -123,9 +123,9 @@ class Device:
         for value in self.values:
             if value_name == value.name:
                 return value
-            else:
-                msg = "Value {} not found".format(value_name)
-                wappsto_errors.ValueNotFoundException(msg)
+        else:
+            msg = "Value {} not found".format(value_name)
+            wappsto_errors.ValueNotFoundException(msg)
 
     def set_callback(self, callback):
         """
