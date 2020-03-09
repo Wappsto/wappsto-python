@@ -86,21 +86,18 @@ class Handlers:
             True when successfully handling the request, False otherwise.
 
         """
-        random_id = None
-        if trace_id:
-            random_id = self.__get_random_id()
-
         object = self.get_by_id(control_id)
         try:
             if object.parent.control_state == object:
                 if object.parent.handle_control(data_value=incoming_value):
-                    send_trace(
-                        sending_queue,
-                        object.parent.uuid,
-                        trace_id,
-                        incoming_value,
-                        control_value_id=random_id
-                    )
+                    if trace_id:
+                        send_trace(
+                            sending_queue,
+                            object.parent.uuid,
+                            trace_id,
+                            incoming_value,
+                            control_value_id=self.__get_random_id()
+                        )
                     return True
                 else:
                     return False
@@ -129,21 +126,17 @@ class Handlers:
             True when successfully handling the request, False otherwise.
 
         """
-        random_id = None
-        if trace_id:
-            random_id = self.__get_random_id()
-
         object = self.get_by_id(id)
         try:
             if object.parent.report_state == object:
-                current_value = object.data
-                send_trace(
-                    sending_queue,
-                    object.parent.uuid,
-                    trace_id,
-                    current_value,
-                    control_value_id=random_id
-                )
+                if trace_id:
+                    send_trace(
+                        sending_queue,
+                        object.parent.uuid,
+                        trace_id,
+                        object.data,
+                        control_value_id=self.__get_random_id()
+                    )
                 object.parent.handle_refresh()
                 return True
         except AttributeError:
@@ -169,24 +162,23 @@ class Handlers:
             True or False, depending on the result received during execution.
 
         """
-        random_id = None
-        if trace_id:
-            random_id = self.__get_random_id()
-
-            send_trace(
-                sending_queue,
-                id,
-                trace_id,
-                None,
-                control_value_id=random_id
-            )
-
         object = self.get_by_id(id)
         try:
-            return object.handle_delete()
+            if object is not None:
+                if trace_id:
+                    send_trace(
+                        sending_queue,
+                        id,
+                        trace_id,
+                        None,
+                        control_value_id=self.__get_random_id()
+                    )
+                return object.handle_delete()
         except AttributeError:
-            self.wapp_log.warning("Unhandled delete for {}".format(id))
-            return False
+            pass
+
+        self.wapp_log.warning("Unhandled delete for {}".format(id))
+        return False
 
     def get_by_id(self, id):
         """
@@ -202,26 +194,27 @@ class Handlers:
 
         """
         message = "Found instance of {} object with id: {}"
-        if self.instance.network.uuid == id:
-            self.wapp_log.debug(message.format("network", id))
-            return self.instance.network
+        if self.instance.network is not None:
+            if self.instance.network.uuid == id:
+                self.wapp_log.debug(message.format("network", id))
+                return self.instance.network
 
-        for device in self.instance.network.devices:
-            if device.uuid == id:
-                self.wapp_log.debug(message.format("device", id))
-                return device
+            for device in self.instance.network.devices:
+                if device.uuid == id:
+                    self.wapp_log.debug(message.format("device", id))
+                    return device
 
-            for value in device.values:
-                if value.uuid == id:
-                    self.wapp_log.debug(message.format("value", id))
-                    return value
+                for value in device.values:
+                    if value.uuid == id:
+                        self.wapp_log.debug(message.format("value", id))
+                        return value
 
-                if value.control_state.uuid == id:
-                    self.wapp_log.debug(message.format("control state", id))
-                    return value.control_state
+                    if value.control_state is not None and value.control_state.uuid == id:
+                        self.wapp_log.debug(message.format("control state", id))
+                        return value.control_state
 
-                if value.report_state.uuid == id:
-                    self.wapp_log.debug(message.format("report state", id))
-                    return value.report_state
+                    if value.report_state is not None and value.report_state.uuid == id:
+                        self.wapp_log.debug(message.format("report state", id))
+                        return value.report_state
 
         self.wapp_log.warning("Failed to find object with id: {}".format(id))
