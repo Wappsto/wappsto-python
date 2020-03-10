@@ -238,7 +238,7 @@ class Value:
         """
         if self.report_state is not None:
             return self.report_state
-        else:  # pragma: no cover
+        else:
             msg = "Value {} has no report state.".format(self.name)
             self.wapp_log.warning(msg)
 
@@ -254,7 +254,7 @@ class Value:
         """
         if self.control_state is not None:
             return self.control_state
-        else:  # pragma: no cover
+        else:
             msg = "Value {}  has no control state.".format(self.name)
             self.wapp_log.warning(msg)
 
