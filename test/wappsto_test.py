@@ -16,7 +16,7 @@ from unittest.mock import patch
 
 from wappsto import status
 from wappsto.connection import message_data
-from wappsto.connection import message_log
+from wappsto.connection import event_storage
 from wappsto.connection.network_classes.errors import wappsto_errors
 
 ADDRESS = "wappsto.com"
@@ -376,13 +376,13 @@ class TestConnClass:
         if not valid_json:
             self.service.instance.network.uuid = None
 
-        file_name = self.service.message_log.get_log_name()
-        file_path = self.service.message_log.get_file_path(file_name)
-        log_location = self.service.message_log.log_location
+        file_name = self.service.event_storage.get_log_name()
+        file_path = self.service.event_storage.get_file_path(file_name)
+        log_location = self.service.event_storage.log_location
         set_up_log(log_location, log_file_exists, file_path, 1)
 
         def send_log():
-            self.service.message_log.send_log(self.service.socket)
+            self.service.event_storage.send_log(self.service.socket)
 
         # Act
         with patch("os.getenv", return_value=str(upgradable)), \
@@ -901,7 +901,7 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("connected", [True, False])
     @pytest.mark.parametrize("log_location", ["test_logs/logs"])
     @pytest.mark.parametrize("file_size", [2, 1, 0])
-    @pytest.mark.parametrize("limit_action", [message_log.REMOVE_OLD])
+    @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
     def test_send_thread_success(self, messages_in_queue, value, log_offline,
                                  connected, log_location, file_size, limit_action,
@@ -929,11 +929,9 @@ class TestSendThreadClass:
                                        log_location=log_location,
                                        log_data_limit=1,
                                        limit_action=limit_action,
-                                       compression_period=message_log.DAY_PERIOD)
+                                       compression_period=event_storage.DAY_PERIOD)
         fake_connect(self, ADDRESS, PORT)
-        i = 0
-        while i < messages_in_queue:
-            i += 1
+        for x in range(messages_in_queue):
             reply = message_data.MessageData(
                 message_data.SEND_SUCCESS,
                 rpc_id=value
@@ -941,9 +939,9 @@ class TestSendThreadClass:
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.connected = connected
-        file_name = self.service.message_log.get_log_name()
-        file_path = self.service.message_log.get_file_path(file_name)
-        set_up_log(self.service.message_log.log_location, log_file_exists, file_path, file_size)
+        file_name = self.service.event_storage.get_log_name()
+        file_path = self.service.event_storage.get_file_path(file_name)
+        set_up_log(self.service.event_storage.log_location, log_file_exists, file_path, file_size)
 
         # Act
         try:
@@ -956,7 +954,7 @@ class TestSendThreadClass:
             pass
 
         # Assert
-        assert os.path.isdir(self.service.message_log.log_location)
+        assert os.path.isdir(self.service.event_storage.log_location)
         if connected or log_offline:
             if connected:
                 args, kwargs = self.service.socket.my_socket.send.call_args
@@ -982,7 +980,7 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("connected", [True, False])
     @pytest.mark.parametrize("log_location", ["test_logs/logs"])
     @pytest.mark.parametrize("file_size", [2, 1, 0])
-    @pytest.mark.parametrize("limit_action", [message_log.REMOVE_OLD])
+    @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
     def test_send_thread_report(self, messages_in_queue, value, log_offline,
                                 connected, log_location, file_size, limit_action,
@@ -1010,11 +1008,9 @@ class TestSendThreadClass:
                                        log_location=log_location,
                                        log_data_limit=1,
                                        limit_action=limit_action,
-                                       compression_period=message_log.DAY_PERIOD)
+                                       compression_period=event_storage.DAY_PERIOD)
         fake_connect(self, ADDRESS, PORT)
-        i = 0
-        while i < messages_in_queue:
-            i += 1
+        for x in range(messages_in_queue):
             reply = message_data.MessageData(
                 message_data.SEND_REPORT,
                 state_id=self.service.get_network().uuid,
@@ -1023,9 +1019,9 @@ class TestSendThreadClass:
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.connected = connected
-        file_name = self.service.message_log.get_log_name()
-        file_path = self.service.message_log.get_file_path(file_name)
-        set_up_log(self.service.message_log.log_location, log_file_exists, file_path, file_size)
+        file_name = self.service.event_storage.get_log_name()
+        file_path = self.service.event_storage.get_file_path(file_name)
+        set_up_log(self.service.event_storage.log_location, log_file_exists, file_path, file_size)
 
         # Act
         try:
@@ -1038,7 +1034,7 @@ class TestSendThreadClass:
             pass
 
         # Assert
-        assert os.path.isdir(self.service.message_log.log_location)
+        assert os.path.isdir(self.service.event_storage.log_location)
         if connected or log_offline:
             if connected:
                 args, kwargs = self.service.socket.my_socket.send.call_args
@@ -1065,7 +1061,7 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("connected", [True, False])
     @pytest.mark.parametrize("log_location", ["test_logs/logs"])
     @pytest.mark.parametrize("file_size", [2, 1, 0])
-    @pytest.mark.parametrize("limit_action", [message_log.REMOVE_OLD])
+    @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
     def test_send_thread_failed(self, messages_in_queue, value, log_offline,
                                 connected, log_location, file_size, limit_action,
@@ -1093,11 +1089,9 @@ class TestSendThreadClass:
                                        log_location=log_location,
                                        log_data_limit=1,
                                        limit_action=limit_action,
-                                       compression_period=message_log.DAY_PERIOD)
+                                       compression_period=event_storage.DAY_PERIOD)
         fake_connect(self, ADDRESS, PORT)
-        i = 0
-        while i < messages_in_queue:
-            i += 1
+        for x in range(messages_in_queue):
             reply = message_data.MessageData(
                 message_data.SEND_FAILED,
                 rpc_id=value
@@ -1105,9 +1099,9 @@ class TestSendThreadClass:
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.connected = connected
-        file_name = self.service.message_log.get_log_name()
-        file_path = self.service.message_log.get_file_path(file_name)
-        set_up_log(self.service.message_log.log_location, log_file_exists, file_path, file_size)
+        file_name = self.service.event_storage.get_log_name()
+        file_path = self.service.event_storage.get_file_path(file_name)
+        set_up_log(self.service.event_storage.log_location, log_file_exists, file_path, file_size)
 
         # Act
         try:
@@ -1120,7 +1114,7 @@ class TestSendThreadClass:
             pass
 
         # Assert
-        assert os.path.isdir(self.service.message_log.log_location)
+        assert os.path.isdir(self.service.event_storage.log_location)
         if connected or log_offline:
             if connected:
                 args, kwargs = self.service.socket.my_socket.send.call_args
@@ -1146,7 +1140,7 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("connected", [True, False])
     @pytest.mark.parametrize("log_location", ["test_logs/logs"])
     @pytest.mark.parametrize("file_size", [2, 1, 0])
-    @pytest.mark.parametrize("limit_action", [message_log.REMOVE_OLD])
+    @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
     def test_send_thread_reconnect(self, messages_in_queue, valid_message, log_offline,
                                    connected, log_location, file_size, limit_action,
@@ -1174,24 +1168,22 @@ class TestSendThreadClass:
                                        log_location=log_location,
                                        log_data_limit=1,
                                        limit_action=limit_action,
-                                       compression_period=message_log.DAY_PERIOD)
+                                       compression_period=event_storage.DAY_PERIOD)
         fake_connect(self, ADDRESS, PORT)
         if valid_message:
             value = self.service.get_network().uuid
         else:
             value = self.service.get_network().uuid = 1
-        i = 0
-        while i < messages_in_queue:
-            i += 1
+        for x in range(messages_in_queue):
             reply = message_data.MessageData(
                 message_data.SEND_RECONNECT
             )
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.connected = connected
-        file_name = self.service.message_log.get_log_name()
-        file_path = self.service.message_log.get_file_path(file_name)
-        set_up_log(self.service.message_log.log_location, log_file_exists, file_path, file_size)
+        file_name = self.service.event_storage.get_log_name()
+        file_path = self.service.event_storage.get_file_path(file_name)
+        set_up_log(self.service.event_storage.log_location, log_file_exists, file_path, file_size)
 
         # Act
         try:
@@ -1204,7 +1196,7 @@ class TestSendThreadClass:
             pass
 
         # Assert
-        assert os.path.isdir(self.service.message_log.log_location)
+        assert os.path.isdir(self.service.event_storage.log_location)
         if connected or log_offline:
             if connected:
                 args, kwargs = self.service.socket.my_socket.send.call_args
@@ -1231,7 +1223,7 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("connected", [True, False])
     @pytest.mark.parametrize("log_location", ["test_logs/logs"])
     @pytest.mark.parametrize("file_size", [2, 1, 0])
-    @pytest.mark.parametrize("limit_action", [message_log.REMOVE_OLD])
+    @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
     def test_send_thread_control(self, messages_in_queue, valid_message, log_offline,
                                  connected, log_location, file_size, limit_action,
@@ -1259,15 +1251,13 @@ class TestSendThreadClass:
                                        log_location=log_location,
                                        log_data_limit=1,
                                        limit_action=limit_action,
-                                       compression_period=message_log.DAY_PERIOD)
+                                       compression_period=event_storage.DAY_PERIOD)
         fake_connect(self, ADDRESS, PORT)
         if valid_message:
             value = self.service.get_network().uuid
         else:
             value = 1
-        i = 0
-        while i < messages_in_queue:
-            i += 1
+        for x in range(messages_in_queue):
             reply = message_data.MessageData(
                 message_data.SEND_CONTROL,
                 state_id=value,
@@ -1276,9 +1266,9 @@ class TestSendThreadClass:
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.connected = connected
-        file_name = self.service.message_log.get_log_name()
-        file_path = self.service.message_log.get_file_path(file_name)
-        set_up_log(self.service.message_log.log_location, log_file_exists, file_path, file_size)
+        file_name = self.service.event_storage.get_log_name()
+        file_path = self.service.event_storage.get_file_path(file_name)
+        set_up_log(self.service.event_storage.log_location, log_file_exists, file_path, file_size)
 
         # Act
         try:
@@ -1291,7 +1281,7 @@ class TestSendThreadClass:
             pass
 
         # Assert
-        assert os.path.isdir(self.service.message_log.log_location)
+        assert os.path.isdir(self.service.event_storage.log_location)
         if connected or log_offline:
             if connected:
                 args, kwargs = self.service.socket.my_socket.send.call_args
@@ -1318,7 +1308,7 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("connected", [True, False])
     @pytest.mark.parametrize("log_location", ["test_logs/logs"])
     @pytest.mark.parametrize("file_size", [2, 1, 0])
-    @pytest.mark.parametrize("limit_action", [message_log.REMOVE_OLD])
+    @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
     def test_send_thread_delete(self, object_name, messages_in_queue, log_offline,
                                 connected, log_location, file_size, limit_action,
@@ -1346,7 +1336,7 @@ class TestSendThreadClass:
                                        log_location=log_location,
                                        log_data_limit=1,
                                        limit_action=limit_action,
-                                       compression_period=message_log.DAY_PERIOD)
+                                       compression_period=event_storage.DAY_PERIOD)
         fake_connect(self, ADDRESS, PORT)
         actual_object = get_object(self, object_name)
 
@@ -1377,17 +1367,15 @@ class TestSendThreadClass:
                 network_id=actual_object.uuid
             )
 
-        i = 0
-        while i < messages_in_queue:
-            i += 1
+        for x in range(messages_in_queue):
             self.service.socket.sending_queue.put(reply)
 
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.add_id_to_confirm_list = Mock()
         self.service.socket.connected = connected
-        file_name = self.service.message_log.get_log_name()
-        file_path = self.service.message_log.get_file_path(file_name)
-        set_up_log(self.service.message_log.log_location, log_file_exists, file_path, file_size)
+        file_name = self.service.event_storage.get_log_name()
+        file_path = self.service.event_storage.get_file_path(file_name)
+        set_up_log(self.service.event_storage.log_location, log_file_exists, file_path, file_size)
 
         # Act
         try:
@@ -1400,7 +1388,7 @@ class TestSendThreadClass:
             pass
 
         # Assert
-        assert os.path.isdir(self.service.message_log.log_location)
+        assert os.path.isdir(self.service.event_storage.log_location)
         if connected or log_offline:
             if connected:
                 args, kwargs = self.service.socket.my_socket.send.call_args

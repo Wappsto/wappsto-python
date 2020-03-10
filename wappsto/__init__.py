@@ -10,7 +10,7 @@ import inspect
 from .connection import handlers
 from .connection import seluxit_rpc
 from .connection import communication
-from .connection import message_log
+from .connection import event_storage
 from .connection.network_classes.errors import wappsto_errors
 from . import status
 from .object_instantiation import instantiate
@@ -31,8 +31,8 @@ class Wappsto:
 
     def __init__(self, json_file_name=None, load_from_state_file=False,
                  save_init=False, log_offline=False, log_location="logs",
-                 log_data_limit=10, limit_action=message_log.REMOVE_OLD,
-                 compression_period=message_log.DAY_PERIOD):
+                 log_data_limit=10, limit_action=event_storage.REMOVE_OLD,
+                 compression_period=event_storage.DAY_PERIOD):
         # TODO(Dimitar): Come up with a better description.
         """
         Initialize wappsto class.
@@ -65,7 +65,7 @@ class Wappsto:
 
         self.connecting = True
         self.rpc = seluxit_rpc.SeluxitRpc(save_init)
-        self.message_log = message_log.MessageLog(
+        self.event_storage = event_storage.OfflineEventStorage(
             log_offline, log_location,
             log_data_limit,
             limit_action,
@@ -194,7 +194,7 @@ class Wappsto:
             path_to_calling_file=self.path_to_calling_file,
             wappsto_status=self.status,
             handler=self.handler,
-            message_log=self.message_log
+            event_storage=self.event_storage
         )
 
         self.status.set_status(status.CONNECTING)

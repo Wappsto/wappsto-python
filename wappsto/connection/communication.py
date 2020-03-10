@@ -41,7 +41,7 @@ class ClientSocket:
     """
 
     def __init__(self, rpc, instance, address, port, path_to_calling_file,
-                 wappsto_status, handler, message_log):
+                 wappsto_status, handler, event_storage):
         """
         Create a client socket.
 
@@ -58,7 +58,7 @@ class ClientSocket:
             path_to_calling_file: path to OS directory of calling file.
             wappsto_status: status object.
             handler: instance of handlers.
-            message_log: instance of message log.
+            event_storage: instance of event log.
 
         """
         self.wapp_log = logging.getLogger(__name__)
@@ -87,7 +87,7 @@ class ClientSocket:
         self.sending_thread.setDaemon(True)
         self.rpc = rpc
         self.handler = handler
-        self.message_log = message_log
+        self.event_storage = event_storage
         self.packet_awaiting_confirm = {}
         self.add_trace_to_report_list = {}
         self.bulk_send_list = []
@@ -220,7 +220,7 @@ class ClientSocket:
 
         Makes a thread that sends all of the logged data.
         """
-        processThread = threading.Thread(target=self.message_log.send_log, args=(self,))
+        processThread = threading.Thread(target=self.event_storage.send_log, args=(self,))
         processThread.start()
 
     def initialize_all(self):
@@ -544,7 +544,7 @@ class ClientSocket:
                 self.wapp_log.debug('Raw Send Json: {}'.format(data))
                 self.my_socket.send(data)
         else:
-            self.message_log.add_message(data)
+            self.event_storage.add_message(data)
 
     def get_object_without_none_values(self, encoded_object):
         """

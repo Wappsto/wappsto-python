@@ -33,16 +33,16 @@ MONTH_PERIOD = 1
 TIME_BETWEEN_LOG_SEND = 0.1  # time to wait before sending next logged message (seconds)
 
 
-class MessageLog:
+class OfflineEventStorage:
     """
-    Message logger.
+    Offline event storage.
 
     Saves data not being sent due to not having connection.
     """
 
     def __init__(self, log_offline, log_location, log_data_limit, limit_action, compression_period):
         """
-        Initialize MessageLog class.
+        Initialize OfflineEventStorage class.
 
         Sets up message logging enviroment.
 
@@ -189,14 +189,16 @@ class MessageLog:
 
         """
         file_path = self.get_file_path(file_name)
-        if re.search(".txt$", file_name):
-            with open(file_path, "r") as file:
-                lines = file.readlines()
-            if len(lines) > 1:
-                with open(file_path, "w") as file:
-                    file.writelines(lines[1:])
-            else:
-                os.remove(file_path)
+        if not re.search(".txt$", file_name):
+            os.remove(file_path)
+            self.wapp_log.debug("Removed old data")
+            return
+
+        with open(file_path, "r") as file:
+            lines = file.readlines()
+        if len(lines) > 1:
+            with open(file_path, "w") as file:
+                file.writelines(lines[1:])
         else:
             os.remove(file_path)
         self.wapp_log.debug("Removed old data")
@@ -211,32 +213,33 @@ class MessageLog:
             data: JSON message data.
 
         """
-        if self.log_offline:
-            try:
-                string_data = json.dumps(data)
-                if (self.log_data_limit * 1000000) >= self.get_size(string_data):
-                    file_name = self.get_log_name()
-                    file_path = self.get_file_path(file_name)
-                    if not os.path.isfile(file_path):
-                        # compact data if log for this period doesnt exist
-                        self.compact_logs()
-                    file = open(file_path, "a")
-                    file.write(string_data + " \n")
-                    file.close()
-                    self.wapp_log.debug("Raw log Json: {}".format(string_data))
-                else:
-                    self.wapp_log.debug("Log limit exeeded.")
-                    if self.limit_action == REMOVE_OLD:
-                        file_name = self.get_oldest_log_name()
-                        self.remove_data(file_name)
-                        self.add_message(data)
-                    elif self.limit_action == REMOVE_RECENT:
-                        self.wapp_log.debug("Not adding data")
-            except FileNotFoundError:
-                msg = "No log file could be created in: {}".format(self.log_location)
-                self.wapp_log.error(msg)
-        else:
+        if not self.log_offline:
             self.wapp_log.error("Sending while not connected")
+            return
+
+        try:
+            string_data = json.dumps(data)
+            if (self.log_data_limit * 1000000) >= self.get_size(string_data):
+                file_name = self.get_log_name()
+                file_path = self.get_file_path(file_name)
+                if not os.path.isfile(file_path):
+                    # compact data if log for this period doesnt exist
+                    self.compact_logs()
+                file = open(file_path, "a")
+                file.write(string_data + " \n")
+                file.close()
+                self.wapp_log.debug("Raw log Json: {}".format(string_data))
+            else:
+                self.wapp_log.debug("Log limit exeeded.")
+                if self.limit_action == REMOVE_OLD:
+                    file_name = self.get_oldest_log_name()
+                    self.remove_data(file_name)
+                    self.add_message(data)
+                elif self.limit_action == REMOVE_RECENT:
+                    self.wapp_log.debug("Not adding data")
+        except FileNotFoundError:
+            msg = "No log file could be created in: {}".format(self.log_location)
+            self.wapp_log.error(msg)
 
     def get_size(self, data):
         """
@@ -281,7 +284,9 @@ class MessageLog:
                     file_name = self.get_text_log(file_name)
                     file_path = self.get_file_path(file_name)
                     file = open(file_path, "r")
-                    for line in file.readlines():
+                    lines = file.readlines()
+                    file.close()
+                    for line in lines:
                         try:
                             data = json.loads(line)
                             for data_element in data:
@@ -293,7 +298,6 @@ class MessageLog:
                         except JSONDecodeError:
                             error = "Json decoding error while reading : {}".format(line)
                             self.wapp_log.error(error)
-                    file.close()
                     self.wapp_log.debug("Data sent from file: " + file_path)
                     os.remove(file_path)
             except FileNotFoundError:
