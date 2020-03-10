@@ -959,7 +959,8 @@ class TestSendThreadClass:
         message_data.SEND_REPORT,
         message_data.SEND_FAILED,
         message_data.SEND_RECONNECT,
-        message_data.SEND_CONTROL])
+        message_data.SEND_CONTROL,
+        -1])
     @pytest.mark.parametrize("valid_message", [True, False])
     @pytest.mark.parametrize("messages_in_queue", [1, 2, 20])
     @pytest.mark.parametrize("upgradable", [True, False])
@@ -1006,41 +1007,46 @@ class TestSendThreadClass:
         try:
             # runs until mock object is run and its side_effect raises
             # exception
-            with patch('os.getenv', return_value=str(upgradable)):
+            with patch('os.getenv', return_value=str(upgradable)), \
+                    patch("logging.Logger.warning", side_effect=KeyboardInterrupt) as logger:
                 self.service.socket.send_thread()
         except KeyboardInterrupt:
-            args, kwargs = self.service.socket.my_socket.send.call_args
-            arg = json.loads(args[0].decode('utf-8'))
+            if logger.called is not True:
+                args, kwargs = self.service.socket.my_socket.send.call_args
+                arg = json.loads(args[0].decode('utf-8'))
 
         # Assert
-        assert len(arg) <= bulk_size
-        assert self.service.socket.sending_queue.qsize() == max(messages_in_queue - bulk_size, 0)
-        for request in arg:
-            if type == message_data.SEND_SUCCESS:
-                assert request.get('id', None) == rpc_id
-                assert validate_json("successResponse", arg) == valid_message
-                assert bool(request['result']) is True
-            elif type == message_data.SEND_FAILED:
-                assert request.get('id', None) == rpc_id
-                assert validate_json("errorResponse", arg) == valid_message
-                assert request['error'] == {"code": -32020}
-            elif type == message_data.SEND_REPORT:
-                assert validate_json("request", arg) == valid_message
-                assert request['params']['data'].get('data', None) == value
-                assert request['params']['data']['type'] == "Report"
-                assert request['method'] == "PUT"
-            elif type == message_data.SEND_RECONNECT:
-                assert validate_json("request", arg) == valid_message
-                assert request['params']['data'].get('name', None) == value
-                assert request['params']['data']['meta']['type'] == "network"
-                assert request['method'] == "POST"
-                assert (upgradable and 'upgradable' in str(request['params']['data']['meta'])
-                        or not upgradable and 'upgradable' not in str(request['params']['data']['meta']))
-            elif type == message_data.SEND_CONTROL:
-                assert validate_json("request", arg) == valid_message
-                assert request['params']['data'].get('data', None) == value
-                assert request['params']['data']['type'] == "Control"
-                assert request['method'] == "PUT"
+        if logger.called:
+            assert 'Unhandled send' == logger.call_args[0][0]
+        else:
+            assert len(arg) <= bulk_size
+            assert self.service.socket.sending_queue.qsize() == max(messages_in_queue - bulk_size, 0)
+            for request in arg:
+                if type == message_data.SEND_SUCCESS:
+                    assert request.get('id', None) == rpc_id
+                    assert validate_json("successResponse", arg) == valid_message
+                    assert bool(request['result']) is True
+                elif type == message_data.SEND_FAILED:
+                    assert request.get('id', None) == rpc_id
+                    assert validate_json("errorResponse", arg) == valid_message
+                    assert request['error'] == {"code": -32020}
+                elif type == message_data.SEND_REPORT:
+                    assert validate_json("request", arg) == valid_message
+                    assert request['params']['data'].get('data', None) == value
+                    assert request['params']['data']['type'] == "Report"
+                    assert request['method'] == "PUT"
+                elif type == message_data.SEND_RECONNECT:
+                    assert validate_json("request", arg) == valid_message
+                    assert request['params']['data'].get('name', None) == value
+                    assert request['params']['data']['meta']['type'] == "network"
+                    assert request['method'] == "POST"
+                    assert (upgradable and 'upgradable' in str(request['params']['data']['meta'])
+                            or not upgradable and 'upgradable' not in str(request['params']['data']['meta']))
+                elif type == message_data.SEND_CONTROL:
+                    assert validate_json("request", arg) == valid_message
+                    assert request['params']['data'].get('data', None) == value
+                    assert request['params']['data']['type'] == "Control"
+                    assert request['method'] == "PUT"
 
     @pytest.mark.parametrize("object_name", ["network", "device", "value", "control_state", "report_state"])
     @pytest.mark.parametrize("messages_in_queue", [1, 2])
@@ -1113,6 +1119,7 @@ class TestSendThreadClass:
         reply = message_data.MessageData(
             message_data.SEND_TRACE,
             trace_id=expected_trace_id,
+            control_value_id=1,
             rpc_id=93043873
         )
         self.service.socket.sending_queue.put(reply)
