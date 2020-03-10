@@ -834,7 +834,7 @@ class ClientSocket:
             self.wapp_log.error(msg, exc_info=True)
             self.reconnect()
 
-        except OSError as oe:
+        except OSError as oe:  # pragma: no cover
             msg = "Received OS Error: {}".format(oe)
             self.wapp_log.error(msg, exc_info=True)
             self.reconnect()
@@ -852,42 +852,34 @@ class ClientSocket:
         """
         if decoded:
             decoded_id = decoded.get('id')
-            try:
-                self.wapp_log.debug('Raw received Json: {}'
-                                    .format(decoded))
-                if decoded.get('method', False) == 'PUT':
-                    self.incoming_control(decoded)
+            self.wapp_log.debug('Raw received Json: {}'
+                                .format(decoded))
+            if decoded.get('method', False) == 'PUT':
+                self.incoming_control(decoded)
 
-                elif decoded.get('method', False) == 'GET':
-                    self.incoming_report_request(decoded)
+            elif decoded.get('method', False) == 'GET':
+                self.incoming_report_request(decoded)
 
-                elif decoded.get('method', False) == 'DELETE':
-                    self.incoming_delete_request(decoded)
+            elif decoded.get('method', False) == 'DELETE':
+                self.incoming_delete_request(decoded)
 
-                elif decoded.get('error', False):
-                    decoded_error = decoded.get('error')
-                    msg = "Error: {}".format(decoded_error.get('message'))
-                    self.wapp_log.error(msg)
-                    self.remove_id_from_confirm_list(decoded_id)
+            elif decoded.get('error', False):
+                decoded_error = decoded.get('error')
+                msg = "Error: {}".format(decoded_error.get('message'))
+                self.wapp_log.error(msg)
+                self.remove_id_from_confirm_list(decoded_id)
 
-                elif decoded.get('result', False):
-                    result_value = decoded['result'].get('value', True)
-                    if result_value is not True:
-                        uuid = result_value['meta']['id']
-                        data = result_value['data']
-                        object = self.handler.get_by_id(uuid)
-                        if object is not None and object.parent.control_state == object:
-                            object.parent.handle_control(data_value=data)
-                    self.remove_id_from_confirm_list(decoded_id)
+            elif decoded.get('result', False):
+                result_value = decoded['result'].get('value', False)
+                if result_value:
+                    uuid = result_value.get('meta').get('id')
+                    data = result_value.get('data')
+                    object = self.handler.get_by_id(uuid)
+                    if object is not None and object.parent.control_state == object:
+                        object.parent.handle_control(data_value=data)
+                self.remove_id_from_confirm_list(decoded_id)
 
-                else:
-                    self.wapp_log.warning("Unhandled method")
-                    error_str = 'Unknown method'
-                    self.send_error(error_str, decoded_id)
-
-            except ValueError:
-                error_str = 'Value error'
-                self.wapp_log.error("{} [{}]: {}".format(error_str,
-                                                         decoded_id,
-                                                         decoded))
+            else:
+                self.wapp_log.warning("Unhandled method")
+                error_str = 'Unknown method'
                 self.send_error(error_str, decoded_id)

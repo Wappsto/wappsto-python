@@ -599,6 +599,15 @@ class TestValueSendClass:
         # Assert
         assert result == expected
 
+    def teardown_module(self):
+        """
+        Teardown each method.
+
+        Stops connection.
+
+        """
+        self.service.socket.close()
+
 
 class TestReceiveThreadClass:
     """
