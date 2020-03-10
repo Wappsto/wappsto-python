@@ -857,19 +857,19 @@ class ClientSocket:
                                     .format(decoded))
                 if decoded.get('method', False) == 'PUT':
                     self.incoming_control(decoded)
-    
+
                 elif decoded.get('method', False) == 'GET':
                     self.incoming_report_request(decoded)
-    
+
                 elif decoded.get('method', False) == 'DELETE':
                     self.incoming_delete_request(decoded)
-    
+
                 elif decoded.get('error', False):
                     decoded_error = decoded.get('error')
                     msg = "Error: {}".format(decoded_error.get('message'))
                     self.wapp_log.error(msg)
                     self.remove_id_from_confirm_list(decoded_id)
-    
+
                 elif decoded.get('result', False):
                     result_value = decoded['result'].get('value', False)
                     if result_value:
@@ -879,7 +879,7 @@ class ClientSocket:
                         if object is not None and object.parent.control_state == object:
                             object.parent.handle_control(data_value=data)
                     self.remove_id_from_confirm_list(decoded_id)
-    
+
                 else:
                     self.wapp_log.warning("Unhandled method")
                     error_str = 'Unknown method'
