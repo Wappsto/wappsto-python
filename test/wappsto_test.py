@@ -131,27 +131,28 @@ def send_response(self, verb, trace_id, bulk, message_id, element_id, url, data,
 
     """
     if verb == "DELETE" or verb == "PUT" or verb == "GET":
-        if trace_id is None:
-            trace = None
-        else:
-            trace = {"trace": str(trace_id)}
-
-        if element_id is None:
-            meta = None
-        else:
-            meta = {"id": element_id}
-
         if data is None:
-            data = None
+            params = None
         else:
-            data = {"meta": meta, "data": data}
+            if trace_id is None:
+                trace = None
+            else:
+                trace = {"trace": str(trace_id)}
+
+            if element_id is None:
+                meta = None
+            else:
+                meta = {"id": element_id}
+
+            params = {"url": url,
+                      "meta": trace,
+                      "data": {
+                          "meta": meta,
+                          "data": data}}
 
         message = {"jsonrpc": "2.0",
                    "id": message_id,
-                   "params": {
-                       "url": url,
-                       "meta": trace,
-                       "data": data},
+                   "params": params,
                    "method": verb}
     elif verb == "error" or verb == "result":
         if data:
