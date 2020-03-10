@@ -273,18 +273,13 @@ class ClientSocket:
         return_id = data.get('id')
         try:
             control_id = data.get('params').get('data').get('meta').get('id')
+            local_data = data.get('params').get('data').get('data')
         except AttributeError:
             error_str = 'Error received incorrect format in put: {}'.format(str(data))
             self.wapp_log.error(error_str, exc_info=True)
             return
         self.wapp_log.debug("Control Request from control id: " + control_id)
 
-        try:
-            local_data = data.get('params').get('data').get('data')
-        except AttributeError:
-            error = 'Error received incorrect format in put, data missing'
-            self.send_error(error, return_id)
-            return
         try:
             trace_id = data.get('params').get('meta').get('trace')
             if trace_id:
