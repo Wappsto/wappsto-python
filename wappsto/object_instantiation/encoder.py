@@ -27,31 +27,17 @@ class WappstoEncoder:
         self.wapp_log = logging.getLogger(__name__)
         self.wapp_log.addHandler(logging.NullHandler())
 
-    def encode(self, instance):
-        """
-        Encode instance.
-
-        Encodes objects from the runtime instances and returns the result so
-        it can be saved.
-
-        Args:
-            instance: Reference to the instance class that holds the object
-                instances.
-
-        Returns:
-            An encoded JSON result.
-
-        """
+    def encode_network(self, network):
         encoded_devices = []
-        for device in instance.network.devices:
+        for device in network.devices:
             encoded_device = self.encode_device(device)
             encoded_devices.append(encoded_device)
 
         encoded_network = {
-            'name': instance.network.name,
+            'name': network.name,
             'device': encoded_devices,
             'meta': {
-                'id': instance.network.uuid,
+                'id': network.uuid,
                 'version': '2.0',
                 'type': 'network'
             }
@@ -61,7 +47,6 @@ class WappstoEncoder:
             encoded_network.get('meta').update({'upgradable': True})
 
         self.wapp_log.debug("Network JSON: {}".format(encoded_network))
-
         return encoded_network
 
     def encode_device(self, device):
@@ -102,7 +87,6 @@ class WappstoEncoder:
         }
 
         self.wapp_log.debug("Device JSON: {}".format(encoded_device))
-
         return encoded_device
 
     def encode_value(self, value):
@@ -165,7 +149,6 @@ class WappstoEncoder:
         }
 
         self.wapp_log.debug("Value JSON: {}".format(encoded_value))
-
         return encoded_value
 
     def encode_state(self, state):
@@ -196,5 +179,4 @@ class WappstoEncoder:
         }
 
         self.wapp_log.debug("State JSON: {}".format(encoded_state))
-
         return encoded_state
