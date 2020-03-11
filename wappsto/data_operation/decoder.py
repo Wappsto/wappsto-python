@@ -1,9 +1,8 @@
-import json
 import logging
-from ..connection.network_classes import network as network_module
-from ..connection.network_classes import device as device_module
-from ..connection.network_classes import value as value_module
-from ..connection.network_classes import state as state_module
+from ..modules import network as network_module
+from ..modules import device as device_module
+from ..modules import value as value_module
+from ..modules import state as state_module
 
 
 class WappstoDecoder:
@@ -12,13 +11,13 @@ class WappstoDecoder:
         self.wapp_log = logging.getLogger(__name__)
         self.wapp_log.addHandler(logging.NullHandler())
 
-    def decode_network(self, json_container, instance):
+    def decode_network(self, json_container, data_manager):
         network = network_module.Network(
             uuid=json_container.get('meta').get('id'),
             version=json_container.get('meta').get('version'),
             name=json_container.get('name'),
             devices=[],
-            instance=instance
+            data_manager=data_manager
         )
         network.devices = self.decode_device(json_container, network)
 

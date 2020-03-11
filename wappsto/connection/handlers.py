@@ -42,7 +42,7 @@ class Handlers:
     Processes incoming and outgoing PUT, POST and GET messages.
     """
 
-    def __init__(self, instance):
+    def __init__(self, data_manager):#
         """
         Initialize the Handler class.
 
@@ -55,10 +55,10 @@ class Handlers:
         """
         self.wapp_log = logging.getLogger(__name__)
         self.wapp_log.addHandler(logging.NullHandler())
-        self.instance = instance
+        self.data_manager = data_manager
 
     def __get_random_id(self):
-        network_n = self.instance.network.name
+        network_n = self.data_manager.network.name
         random_int = random.randint(1, 25000)
         return "{}{}".format(network_n, random_int)
 
@@ -194,12 +194,12 @@ class Handlers:
 
         """
         message = "Found instance of {} object with id: {}"
-        if self.instance.network is not None:
-            if self.instance.network.uuid == id:
+        if self.data_manager.network is not None:
+            if self.data_manager.network.uuid == id:
                 self.wapp_log.debug(message.format("network", id))
-                return self.instance.network
+                return self.data_manager.network
 
-            for device in self.instance.network.devices:
+            for device in self.data_manager.network.devices:
                 if device.uuid == id:
                     self.wapp_log.debug(message.format("device", id))
                     return device
