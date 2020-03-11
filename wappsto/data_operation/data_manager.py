@@ -1,7 +1,7 @@
 """
-The raspberrypi object instantiation module.
+The raspberrypi object data managing module.
 
-Represents raspberrypi components from JSON to class instances.
+Saves and loads data from json files.
 """
 import os
 import json
@@ -13,22 +13,21 @@ from . import decoder
 
 class DataManager:
     """
-    Create class instances from JSON file.
+    The data manager class.
 
-    Creates instances of network, devices, values and states by parsing a
-    given JSON file.
+    Reads data from Json file and saves current state of the whole network.
     """
 
     def __init__(
             self,
             json_file_name,
             load_from_state_file,
-            path_to_calling_file):#
+            path_to_calling_file):
         """
-        Initialize the Instantiator class.
+        Initialize the DataManager class.
 
-        Initializes the Instatiator class which creates and holds instances of
-        the network, devices, values and their states.
+        Initializes the DataManager class which reads data from Json file and
+        saves the state of the whole network.
 
         Args:
             json_file_name: The name of the JSON file to parse.
@@ -46,7 +45,7 @@ class DataManager:
         self.json_file_name = json_file_name
 
         if load_from_state_file:
-            json_file_name = self.load_latest_instance()
+            json_file_name = self.get_latest_instance()
             if json_file_name is not None:
                 self.json_file_name = json_file_name
         self.read_file()
@@ -56,7 +55,7 @@ class DataManager:
         Get attribute value.
 
         When trying to get value from outdated attribute warning is raised about
-        it being deprecated and calls newest information instead.
+        it being deprecated and the new variable is used instead.
 
         Returns:
             data stored in the new location
@@ -69,7 +68,16 @@ class DataManager:
             warnings.warn("Property %s is deprecated" % attr)
             return self.network
 
-    def load_latest_instance(self):
+    def get_latest_instance(self):
+        """
+        Gets latest saved instance.
+
+        Gets all files from instance folder and returns the most recently changed.
+
+        Returns:
+            name of the most recently changed file
+
+        """
         path = os.path.join(self.path_to_calling_file, 'saved_instances/')
 
         file_paths = []
@@ -84,6 +92,12 @@ class DataManager:
         return latest_file
 
     def read_file(self):
+        """
+        Reads file.
+
+        Reads file with the provided name and calls method which parses it.
+
+        """
         try:
             with open(self.json_file_name) as data_file:
                 file_data = data_file.read()
@@ -94,6 +108,16 @@ class DataManager:
             raise fnfe
 
     def parse_json_file(self, file_data):
+        """
+        Parses json file.
+
+        Retrieves the necessary data from the file and calls decode_network,
+        results of which are saved in network variable.
+
+        Args:
+            file_data: string data read from the file.
+
+        """
         try:
             self.decoded = json.loads(file_data)
             json_container = json.loads(self.decoded.get('data'))
@@ -106,6 +130,12 @@ class DataManager:
         self.network = self.wappsto_decoder.decode_network(json_container, self)
 
     def save_instance(self):
+        """
+        Saves current instance of the whole network.
+
+        Encodes the whole network and saves it in the saved instance folder.
+
+        """
         encoded_string = str(self.get_encoded_network())
         encoded_string = encoded_string.replace("\'", "\\\"")
         encoded_string = '{"data":"' + encoded_string + '"}'
@@ -121,4 +151,10 @@ class DataManager:
         self.wapp_log.debug(msg)
 
     def get_encoded_network(self):
+        """
+        Gets encoded network.
+
+        Gets dictionary representing current state of the whole network.
+
+        """
         return self.wappsto_encoder.encode_network(self.network)

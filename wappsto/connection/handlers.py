@@ -42,7 +42,7 @@ class Handlers:
     Processes incoming and outgoing PUT, POST and GET messages.
     """
 
-    def __init__(self, data_manager):#
+    def __init__(self, data_manager):
         """
         Initialize the Handler class.
 
@@ -50,7 +50,7 @@ class Handlers:
         outgoing communication with the server.
 
         Args:
-            instance: Reference to the object instance class.
+            data_manager: Reference to the DataManager class.
 
         """
         self.wapp_log = logging.getLogger(__name__)

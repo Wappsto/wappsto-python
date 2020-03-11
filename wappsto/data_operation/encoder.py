@@ -1,8 +1,7 @@
 """
-The wappsto Encoding module.
+The wappsto encoding module.
 
-Handles encoding object instances to a JSON file for the purpose of saving
-them and any modifications made to them.
+Handles encoding object instances to a JSON file.
 """
 import logging
 from ..connection.seluxit_rpc import SeluxitRpc
@@ -19,15 +18,27 @@ class WappstoEncoder:
 
     def __init__(self):
         """
-        Initialize WappstoEncoding.
+        Initialize WappstoEncoder.
 
-        Initializes the WappstoEncoding class, which handles encoding the
-        various parts of the system into a JSON file.
+        Initializes the WappstoEncoder class.
         """
         self.wapp_log = logging.getLogger(__name__)
         self.wapp_log.addHandler(logging.NullHandler())
 
     def encode_network(self, network):
+        """
+        Encode instance of Network class.
+
+        Handles the encoding of the network instance, contains a template to
+        encode the network with.
+
+        Args:
+            network: Reference to the instance of the Network class.
+
+        Returns:
+            The dictionary.
+
+        """
         encoded_devices = []
         for device in network.devices:
             encoded_device = self.encode_device(device)
@@ -53,14 +64,14 @@ class WappstoEncoder:
         """
         Encode instance of Device class.
 
-        Handles the encondoing of the device instance, contains a template to
+        Handles the encoding of the device instance, contains a template to
         encode the device with.
 
         Args:
             device: Reference to the instance of the Device class.
 
         Returns:
-            The encoded JSON result.
+            The dictionary.
 
         """
         encoded_values = []
@@ -93,14 +104,14 @@ class WappstoEncoder:
         """
         Encode instance of Value class.
 
-        Handles the encodoing of the value instance, contains a template to
+        Handles the encoding of the value instance, contains a template to
         encode the value with.
 
         Args:
             value: Reference to the instance of the Value class.
 
         Returns:
-            The encoded JSON result.
+            The dictionary.
 
         """
         states = []
@@ -155,14 +166,14 @@ class WappstoEncoder:
         """
         Encode instance of State class.
 
-        Handles the encodoing of the value instance, contains a template to
-        encode the value with.
+        Handles the encoding of the state instance, contains a template to
+        encode the state with.
 
         Args:
             state: Reference to the instance of the State class.
 
         Returns:
-            The encoded JSON result.
+            The dictionary.
 
         """
         encoded_state = {

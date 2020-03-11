@@ -52,7 +52,7 @@ class ClientSocket:
 
         Args:
             rpc: Sending/receiving queue processing instance.
-            instance: Instance of network, devices, values and states.
+            data_manager: data_manager of DataManager.
             address: Server address.
             port: Server port.
             path_to_calling_file: path to OS directory of calling file.
@@ -62,7 +62,6 @@ class ClientSocket:
         """
         self.wapp_log = logging.getLogger(__name__)
         self.wapp_log.addHandler(logging.NullHandler())
-        self.network = data_manager.network
         self.data_manager = data_manager
         self.path_to_calling_file = path_to_calling_file
         self.ssl_server_cert = os.path.join(path_to_calling_file,
@@ -92,8 +91,8 @@ class ClientSocket:
         self.lock_await = threading.Lock()
         self.set_sockets()
 
-        self.network.rpc = self.rpc
-        self.network.conn = self
+        self.data_manager.network.rpc = self.rpc
+        self.data_manager.network.conn = self
 
     def send_state(self, state, data_value=None):
         """
@@ -757,8 +756,8 @@ class ClientSocket:
         self.wapp_log.info("Sending reconnect data")
         try:
             rpc_network = self.rpc.get_rpc_network(
-                self.network.uuid,
-                self.network.name,
+                self.data_manager.network.uuid,
+                self.data_manager.network.name,
                 put=False
             )
             self.create_bulk(rpc_network)
@@ -854,7 +853,7 @@ class ClientSocket:
         """
         self.wapp_log.info("Closing connection...")
 
-        for device in self.network.devices:
+        for device in self.data_manager.network.devices:
             for value in device.values:
                 if value.timer.is_alive():
                     msg = "Value: {} is no longer periodically sending updates."

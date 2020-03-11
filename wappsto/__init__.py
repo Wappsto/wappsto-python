@@ -157,9 +157,6 @@ class Wappsto:
                 (default: {"wappsto.com"})
             port: Port to connect the address to. (default: {11006})
 
-        Raises:
-            ServerConnectionException: "Unable to connect to the server.
-
         """
         self.status.set_status(status.STARTING)
 

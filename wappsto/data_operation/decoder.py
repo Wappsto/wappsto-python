@@ -1,3 +1,8 @@
+"""
+The wappsto decoding module.
+
+Handles decoding object instances from a JSON file.
+"""
 import logging
 from ..modules import network as network_module
 from ..modules import device as device_module
@@ -6,29 +11,68 @@ from ..modules import state as state_module
 
 
 class WappstoDecoder:
+    """
+    The wappsto decoding class.
+
+    Handles decoding JSON information into object instances. This
+    allows the system to use the provided information.
+    """
 
     def __init__(self):
+        """
+        Initialize WappstoDecoder.
+
+        Initializes the WappstoDecoder class.
+        """
         self.wapp_log = logging.getLogger(__name__)
         self.wapp_log.addHandler(logging.NullHandler())
 
-    def decode_network(self, json_container, data_manager):
+    def decode_network(self, json_data, data_manager):
+        """
+        Decode instance of Network class.
+
+        Handles the decoding of the network instance, contains a template to
+        decode the network with.
+
+        Args:
+            json_data: Dictionary object from what data must be extracted.
+            data_manager: Reference to the instance of the DataManager class.
+
+        Returns:
+            Network object.
+
+        """
         network = network_module.Network(
-            uuid=json_container.get('meta').get('id'),
-            version=json_container.get('meta').get('version'),
-            name=json_container.get('name'),
+            uuid=json_data.get('meta').get('id'),
+            version=json_data.get('meta').get('version'),
+            name=json_data.get('name'),
             devices=[],
             data_manager=data_manager
         )
-        network.devices = self.decode_device(json_container, network)
+        network.devices = self.decode_device(json_data, network)
 
         self.wapp_log.debug("Network {} built.".format(network))
         return network
 
-    def decode_device(self, json_container, network):
+    def decode_device(self, json_data, parent):
+        """
+        Decode instance of Device class.
+
+        Handles the decoding of the device instance, contains a template to
+        decode the device with.
+
+        Args:
+            json_data: Dictionary object used for data extraction.
+            parent: Reference to the instance of the Network class.
+
+        Returns:
+            List of devices.
+
+        """
         devices = []
-        for device_iterator in json_container.get('device', []):
+        for device_iterator in json_data.get('device', []):
             device = device_module.Device(
-                parent=network,
+                parent=parent,
                 uuid=device_iterator.get('meta').get('id'),
                 name=device_iterator.get('name'),
                 product=device_iterator.get('product'),
@@ -45,9 +89,23 @@ class WappstoDecoder:
             self.wapp_log.debug("Device {} appended to {}".format(device, devices))
         return devices
 
-    def decode_value(self, device_iterator, device):
+    def decode_value(self, json_data, parent):
+        """
+        Decode instance of Value class.
+
+        Handles the decoding of the value instance, contains a template to
+        decode the value with.
+
+        Args:
+            json_data: Dictionary object used for data extraction.
+            parent: Reference to the instance of the Device class.
+
+        Returns:
+            List of values.
+
+        """
         values = []
-        for value_iterator in device_iterator.get('value', []):
+        for value_iterator in json_data.get('value', []):
             data_type = None
             number_min = None
             number_max = None
@@ -74,7 +132,7 @@ class WappstoDecoder:
                 number_unit = value_iterator.get('number').get('unit')
 
             value = value_module.Value(
-                parent=device,
+                parent=parent,
                 uuid=value_iterator.get('meta').get('id'),
                 name=value_iterator.get('name'),
                 type_of_value=value_iterator.get('type'),
@@ -101,11 +159,25 @@ class WappstoDecoder:
             self.wapp_log.debug("Value {} appended to {}".format(value, values))
         return values
 
-    def decode_state(self, value_iterator, value):
+    def decode_state(self, json_data, parent):
+        """
+        Decode instance of State class.
+
+        Handles the decoding of the state instance, contains a template to
+        decode the state with.
+
+        Args:
+            json_data: Dictionary object used for data extraction.
+            parent: Reference to the instance of the Value class.
+
+        Returns:
+            List of states.
+
+        """
         states = []
-        for state_iterator in value_iterator.get('state', []):
+        for state_iterator in json_data.get('state', []):
             state = state_module.State(
-                parent=value,
+                parent=parent,
                 uuid=state_iterator.get('meta').get('id'),
                 state_type=state_iterator.get('type'),
                 timestamp=state_iterator.get('timestamp'),

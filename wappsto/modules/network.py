@@ -26,7 +26,7 @@ class Network:
             version: Version of a network
             name: Name of a network
             devices: list of devices in network
-            instance: Instance of Instantiator
+            data_manager: Instance of DataManager
 
         """
         self.wapp_log = logging.getLogger(__name__)
