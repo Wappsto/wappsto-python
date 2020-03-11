@@ -283,9 +283,8 @@ class OfflineEventStorage:
                 for file_name in log_list:
                     file_name = self.get_text_log(file_name)
                     file_path = self.get_file_path(file_name)
-                    file = open(file_path, "r")
-                    lines = file.readlines()
-                    file.close()
+                    with open(file_path, "r") as file:
+                        lines = file.readlines()
                     for line in lines:
                         try:
                             data = json.loads(line)
