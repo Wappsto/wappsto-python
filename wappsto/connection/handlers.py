@@ -62,52 +62,6 @@ class Handlers:
         random_int = random.randint(1, 25000)
         return "{}{}".format(network_n, random_int)
 
-    def handle_incoming_put(
-            self,
-            control_id,
-            incoming_value,
-            sending_queue,
-            trace_id
-    ):
-        """
-        Process an incoming PUT request.
-
-        Handles an incoming PUT request and changes the specific value to
-        the incoming value.
-
-        Args:
-            control_id: UUID of the Control state.
-            incoming_value: Value received from the server.
-            sending_queue: The queue requests are being added to.
-            trace_id: Trace ID used to create a URL for debugging.
-                (default: {None})
-
-        Returns:
-            True when successfully handling the request, False otherwise.
-
-        """
-        object = self.get_by_id(control_id)
-        try:
-            if object.parent.control_state == object:
-                if object.parent.handle_control(data_value=incoming_value):
-                    if trace_id:
-                        send_trace(
-                            sending_queue,
-                            object.parent.uuid,
-                            trace_id,
-                            incoming_value,
-                            control_value_id=self.__get_random_id()
-                        )
-                    return True
-                else:
-                    return False
-        except AttributeError:
-            pass
-
-        msg = "Unhandled put {} : {}".format(control_id, incoming_value)
-        self.wapp_log.warning(msg)
-        return False
-
     def handle_incoming_get(self, id, sending_queue, trace_id):
         """
         Process an incoming GET request.

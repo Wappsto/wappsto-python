@@ -9,6 +9,7 @@ import os
 import sys
 import socket
 import threading
+import random
 import time
 import json
 import queue
@@ -282,44 +283,57 @@ class ClientSocket:
         return_id = data.get('id')
         try:
             uuid = data.get('params').get('data').get('meta').get('id')
+            meta_type = data.get('params').get('data').get('meta').get('type')
+            self.wapp_log.debug("Put request from id: " + uuid)
         except AttributeError as e:
             error_str = 'Error received incorrect format in put'
             return self.handle_incoming_error(data, e, error_str, return_id)
-        self.wapp_log.debug("Control Request from control id: " + uuid)
 
         try:
             trace_id = data.get('params').get('meta').get('trace')
             if trace_id:
-                self.wapp_log.debug("Control found trace id: " + trace_id)
+                self.wapp_log.debug("Found trace id: " + trace_id)
         except AttributeError:
-            # ignore
             trace_id = None
 
-        meta_type = data.get('params').get('data').get('meta').get('type')
-        if meta_type == "value":
-            value = self.handler.get_by_id(uuid)
-            if value is None:
-                error = 'None existing id provided'
-                self.send_error(error, return_id)
-            else:
+        obj = self.handler.get_by_id(uuid)
+        if obj is None:
+            self.send_error('None existing uuid provided', return_id)
+            return
+
+        try:
+            if meta_type == "value":
                 period = data.get('params').get('data').get('period')
-                value.set_period(period)
+                obj.set_period(period)
                 delta = data.get('params').get('data').get('delta')
-                value.set_delta(delta)
-                self.sending_queue_add_trace(value.parent.uuid, trace_id, None)
+                obj.set_delta(delta)
+                self.sending_queue_add_trace(
+                    obj.parent.uuid,
+                    trace_id,
+                    None,
+                    control_value_id=self.__get_random_id()
+                )
                 self.send_success_reply(return_id)
-        elif meta_type == "state":
-            local_data = data.get('params').get('data').get('data')
-            if self.handler.handle_incoming_put(
-                    uuid,
-                    local_data,
-                    self.sending_queue,
-                    trace_id
-            ):
-                self.send_success_reply(return_id)
-            else:
-                error = 'Invalid value range or non-existing ID'
-                self.send_error(error, return_id)
+            elif meta_type == "state":
+                local_data = data.get('params').get('data').get('data')
+                if obj.state_type == "Control":
+                    obj.parent.handle_control(data_value=local_data)
+                    self.sending_queue_add_trace(
+                        obj.parent.uuid,
+                        trace_id,
+                        local_data,
+                        control_value_id=self.__get_random_id()
+                    )
+                    self.send_success_reply(return_id)
+                else:
+                    self.send_error('Element is not control state', return_id)
+        except AttributeError:
+            self.send_error('Attribute error encountered', return_id)
+
+    def __get_random_id(self):
+        network_n = self.instance.network.name
+        random_int = random.randint(1, 25000)
+        return "{}{}".format(network_n, random_int)
 
     def sending_queue_add_trace(self, parent, trace_id, data, control_value_id=None):
         """
