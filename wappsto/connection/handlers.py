@@ -4,36 +4,7 @@ Receive and send handling module.
 Handles building sending and receiving data messages and adding them to the
 sending queue.
 """
-import random
 import logging
-from . import message_data
-
-
-def send_trace(sending_queue, parent, trace_id, data, control_value_id=None):
-    """
-    Add a trace to the sending queue.
-
-    Adds a trace URL to the sending queue for debugging purposes.
-
-    Args:
-        sending_queue: The queue requests are being added to.
-        parent: Owner of the trace URL.
-        trace_id: ID of the trace message.
-        data: Trace message data.
-        control_value_id: ID of the control state of the value
-            (default: {None})
-
-    """
-    if trace_id:
-        trace = message_data.MessageData(
-            message_data.SEND_TRACE,
-            parent=parent,
-            trace_id=trace_id,
-            data=data,
-            text="ok",
-            control_value_id=control_value_id)
-        sending_queue.put(trace)
-
 
 class Handlers:
     """
@@ -56,83 +27,6 @@ class Handlers:
         self.wapp_log = logging.getLogger(__name__)
         self.wapp_log.addHandler(logging.NullHandler())
         self.instance = instance
-
-    def __get_random_id(self):
-        network_n = self.instance.network.name
-        random_int = random.randint(1, 25000)
-        return "{}{}".format(network_n, random_int)
-
-    def handle_incoming_get(self, id, sending_queue, trace_id):
-        """
-        Process an incoming GET request.
-
-        Handles an incoming GET request and sends the current value to the
-        server.
-
-        Args:
-            id: UUID of the Report state.
-            sending_queue: The queue requests are being added to.
-            trace_id: Trace ID used to create a URL for debugging.
-                (default: {None})
-
-
-        Returns:
-            True when successfully handling the request, False otherwise.
-
-        """
-        object = self.get_by_id(id)
-        try:
-            if object.parent.report_state == object:
-                if trace_id:
-                    send_trace(
-                        sending_queue,
-                        object.parent.uuid,
-                        trace_id,
-                        object.data,
-                        control_value_id=self.__get_random_id()
-                    )
-                object.parent.handle_refresh()
-                return True
-        except AttributeError:
-            pass
-
-        self.wapp_log.warning("Unhandled get for {}".format(id))
-        return False
-
-    def handle_incoming_delete(self, id, sending_queue, trace_id):
-        """
-        Handle incoming request to delete.
-
-        Deals with requests to delete network/device/value/state, depending on
-        the information provided in arguments.
-
-        Args:
-            id: ID of element to perform delete action to.
-            sending_queue: Reference to queue where alements to be sent are
-            saved.
-            trace_id: ID used for tracing the performed actions.
-
-        Returns:
-            True or False, depending on the result received during execution.
-
-        """
-        object = self.get_by_id(id)
-        try:
-            if object is not None:
-                if trace_id:
-                    send_trace(
-                        sending_queue,
-                        id,
-                        trace_id,
-                        None,
-                        control_value_id=self.__get_random_id()
-                    )
-                return object.handle_delete()
-        except AttributeError:
-            pass
-
-        self.wapp_log.warning("Unhandled delete for {}".format(id))
-        return False
 
     def get_by_id(self, id):
         """

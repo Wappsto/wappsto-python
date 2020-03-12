@@ -298,7 +298,7 @@ class ClientSocket:
 
         obj = self.handler.get_by_id(uuid)
         if obj is None:
-            self.send_error('None existing uuid provided', return_id)
+            self.send_error('Non-existing uuid provided', return_id)
             return
 
         try:
@@ -425,31 +425,38 @@ class ClientSocket:
         """
         return_id = data.get('id')
         try:
-            get_url_id = data.get('params').get('url').split('/')
-            get_url_id = get_url_id[-1]
+            uuid = data.get('params').get('data').get('meta').get('id')
+            self.wapp_log.debug("Put request from id: " + uuid)
         except AttributeError as e:
             error_str = 'Error received incorrect format in get'
-            msg = "Report Request from url ID: {}".format(get_url_id)
-            self.wapp_log.error(msg)
             return self.handle_incoming_error(data, e, error_str, return_id)
 
         try:
             trace_id = data.get('params').get('meta').get('trace')
             if trace_id:
-                self.wapp_log.debug("Report GET found trace id: {}"
-                                    .format(trace_id))
+                self.wapp_log.debug("Found trace id: " + trace_id)
         except AttributeError:
             trace_id = None
 
-        if self.handler.handle_incoming_get(
-                get_url_id,
-                self.sending_queue,
-                trace_id
-        ):
-            self.send_success_reply(return_id)
-        else:
-            error = 'Non-existing ID for get'
-            self.send_error(error, return_id)
+        obj = self.handler.get_by_id(uuid)
+        if obj is None:
+            self.send_error('Non-existing uuid provided', return_id)
+            return
+
+        try:
+            if obj.state_type == "Report":
+                self.sending_queue_add_trace(
+                    obj.parent.uuid,
+                    trace_id,
+                    obj.data,
+                    control_value_id=self.__get_random_id()
+                )
+                obj.parent.handle_refresh()
+                self.send_success_reply(return_id)
+            else:
+                self.send_error('Element is not control state', return_id)
+        except AttributeError:
+            self.send_error('Attribute error encountered', return_id)
 
     def incoming_delete_request(self, data):
         """
@@ -467,31 +474,35 @@ class ClientSocket:
         """
         return_id = data.get('id')
         try:
-            get_url_id = data.get('params').get('url').split('/')
-            get_url_id = get_url_id[-1]
+            uuid = data.get('params').get('data').get('meta').get('id')
+            self.wapp_log.debug("Put request from id: " + uuid)
         except AttributeError as e:
             error_str = 'Error received incorrect format in delete'
-            msg = "Report Request from url ID: {}".format(get_url_id)
-            self.wapp_log.error(msg)
             return self.handle_incoming_error(data, e, error_str, return_id)
 
         try:
             trace_id = data.get('params').get('meta').get('trace')
-            self.wapp_log.debug(
-                "Report DELETE found trace id: {}".format(trace_id)
-            )
+            if trace_id:
+                self.wapp_log.debug("Found trace id: " + trace_id)
         except AttributeError:
             trace_id = None
 
-        if self.handler.handle_incoming_delete(
-                get_url_id,
-                self.sending_queue,
-                trace_id
-        ):
+        obj = self.handler.get_by_id(uuid)
+        if obj is None:
+            self.send_error('Non-existing uuid provided', return_id)
+            return
+
+        try:
+            self.sending_queue_add_trace(
+                obj.uuid,
+                trace_id,
+                None,
+                control_value_id=self.__get_random_id()
+            )
+            obj.handle_delete()
             self.send_success_reply(return_id)
-        else:
-            error = 'Delete failed'
-            self.send_error(error, return_id)
+        except AttributeError:
+            self.send_error('Attribute error encountered', return_id)
 
     def receive_thread(self):
         """

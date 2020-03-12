@@ -113,7 +113,6 @@ def send_response(self,
                   trace_id=None,
                   bulk=None,
                   id=None,
-                  url=None,
                   data=None,
                   split_message=None,
                   type=None,
@@ -129,7 +128,6 @@ def send_response(self,
         trace_id: id used for tracing messages
         bulk: Boolean value indicating if multiple messages should be sent at once.
         id: specifies id used in message
-        url: url sent in message parameters
         data: data to be sent
         split_message: Boolean value indicating if message should be sent in parts
         type: type of module being used.
@@ -149,7 +147,6 @@ def send_response(self,
         message = {"jsonrpc": "2.0",
                    "id": "1",
                    "params": {
-                       "url": str(url),
                        "meta": trace,
                        "data": {
                            "meta": {
@@ -729,17 +726,15 @@ class TestReceiveThreadClass:
         actual_object = get_object(self, object_name)
         if actual_object:
             fix_object(callback_exists, actual_object)
-            id = str(actual_object.control_state.uuid)
-            url = str(actual_object.report_state.uuid)
+            id = str(actual_object.report_state.uuid)
             if not object_exists:
-                with patch('queue.Queue.put'):
-                    actual_object.report_state.delete()
+                self.service.instance.network = None
                 expected_msg_id = message_data.SEND_FAILED
         else:
             expected_msg_id = message_data.SEND_FAILED
-            id = url = '1'
+            id = '1'
 
-        send_response(self, 'GET', trace_id=trace_id, bulk=bulk, id=id, url=url,
+        send_response(self, 'GET', trace_id=trace_id, bulk=bulk, id=id,
                       split_message=split_message)
 
         # Act
@@ -793,16 +788,15 @@ class TestReceiveThreadClass:
         actual_object = get_object(self, object_name)
         if actual_object:
             fix_object(callback_exists, actual_object)
-            id = url = str(actual_object.uuid)
+            id = str(actual_object.uuid)
             if not object_exists:
-                with patch('queue.Queue.put'):
-                    actual_object.delete()
+                self.service.instance.network = None
                 expected_msg_id = message_data.SEND_FAILED
         else:
             expected_msg_id = message_data.SEND_FAILED
-            id = url = '1'
+            id = '1'
 
-        send_response(self, 'DELETE', trace_id=trace_id, bulk=bulk, id=id, url=url,
+        send_response(self, 'DELETE', trace_id=trace_id, bulk=bulk, id=id,
                       split_message=split_message)
 
         # Act
