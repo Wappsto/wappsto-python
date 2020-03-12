@@ -93,10 +93,8 @@ class Value:
         self.timer = threading.Timer(None, None)
         self.last_update_of_report = None
 
-        if period is not None:
-            self.set_period(period)
-        if delta is not None:
-            self.set_delta(delta)
+        self.set_period(period)
+        self.set_delta(delta)
 
         msg = "Value {} debug: {}".format(name, str(self.__dict__))
         self.wapp_log.debug(msg)
@@ -127,19 +125,20 @@ class Value:
             period: Reporting period.
 
         """
-        try:
-            period = int(period)
-            if period > 0:
-                if self.get_report_state() is not None:
-                    self.period = period
-                    self.__set_timer()
-                    self.wapp_log.debug("Period successfully set.")
+        if period is not None:
+            try:
+                period = int(period)
+                if period > 0:
+                    if self.get_report_state() is not None:
+                        self.period = period
+                        self.__set_timer()
+                        self.wapp_log.debug("Period successfully set.")
+                    else:
+                        self.wapp_log.warning("Cannot set the period for this value.")
                 else:
-                    self.wapp_log.warning("Cannot set the period for this value.")
-            else:
-                self.wapp_log.warning("Period value must be greater then 0.")
-        except ValueError:
-            self.wapp_log.error("Period value must be a number.")
+                    self.wapp_log.warning("Period value must be greater then 0.")
+            except ValueError:
+                self.wapp_log.error("Period value must be a number.")
 
     def __set_timer(self):
         """
@@ -169,18 +168,19 @@ class Value:
             delta: Range to report between.
 
         """
-        try:
-            delta = float(delta)
-            if delta > 0:
-                if self.__is_number_type() and self.get_report_state():
-                    self.delta = delta
-                    self.wapp_log.debug("Delta successfully set.")
+        if delta is not None:
+            try:
+                delta = float(delta)
+                if delta > 0:
+                    if self.__is_number_type() and self.get_report_state():
+                        self.delta = delta
+                        self.wapp_log.debug("Delta successfully set.")
+                    else:
+                        self.wapp_log.warning("Cannot set the delta for this value.")
                 else:
-                    self.wapp_log.warning("Cannot set the delta for this value.")
-            else:
-                self.wapp_log.warning("Delta value must be greater then 0.")
-        except ValueError:
-            self.wapp_log.error("Delta value must be a number")
+                    self.wapp_log.warning("Delta value must be greater then 0.")
+            except ValueError:
+                self.wapp_log.error("Delta value must be a number")
 
     def __callback_not_set(self, value, type):
         """
@@ -531,7 +531,7 @@ class Value:
 
     def __call_callback(self, event):
         if self.callback is not None:
-            return self.callback(self, event)
+            self.callback(self, event)
         return True
 
     def handle_control(self, data_value):

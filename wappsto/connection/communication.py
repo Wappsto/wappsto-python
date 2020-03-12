@@ -281,18 +281,12 @@ class ClientSocket:
         """
         return_id = data.get('id')
         try:
-            control_id = data.get('params').get('data').get('meta').get('id')
+            uuid = data.get('params').get('data').get('meta').get('id')
         except AttributeError as e:
             error_str = 'Error received incorrect format in put'
             return self.handle_incoming_error(data, e, error_str, return_id)
-        self.wapp_log.debug("Control Request from control id: " + control_id)
+        self.wapp_log.debug("Control Request from control id: " + uuid)
 
-        try:
-            local_data = data.get('params').get('data').get('data')
-        except AttributeError:
-            error = 'Error received incorrect format in put, data missing'
-            self.send_error(error, return_id)
-            return
         try:
             trace_id = data.get('params').get('meta').get('trace')
             if trace_id:
@@ -301,16 +295,55 @@ class ClientSocket:
             # ignore
             trace_id = None
 
-        if self.handler.handle_incoming_put(
-                control_id,
-                local_data,
-                self.sending_queue,
-                trace_id
-        ):
-            self.send_success_reply(return_id)
-        else:
-            error = 'Invalid value range or non-existing ID'
-            self.send_error(error, return_id)
+        meta_type = data.get('params').get('data').get('meta').get('type')
+        if meta_type == "value":
+            value = self.handler.get_by_id(uuid)
+            if value is None:
+                error = 'None existing id provided'
+                self.send_error(error, return_id)
+            else:
+                period = data.get('params').get('data').get('period')
+                value.set_period(period)
+                delta = data.get('params').get('data').get('delta')
+                value.set_delta(delta)
+                self.sending_queue_add_trace(value.parent.uuid, trace_id, None)
+                self.send_success_reply(return_id)
+        elif meta_type == "state":
+            local_data = data.get('params').get('data').get('data')
+            if self.handler.handle_incoming_put(
+                    uuid,
+                    local_data,
+                    self.sending_queue,
+                    trace_id
+            ):
+                self.send_success_reply(return_id)
+            else:
+                error = 'Invalid value range or non-existing ID'
+                self.send_error(error, return_id)
+
+    def sending_queue_add_trace(self, parent, trace_id, data, control_value_id=None):
+        """
+        Add a trace to the sending queue.
+
+        Adds a trace URL to the sending queue for debugging purposes.
+
+        Args:
+            parent: Owner of the trace URL.
+            trace_id: ID of the trace message.
+            data: Trace message data.
+            control_value_id: ID of the control state of the value
+                (default: {None})
+
+        """
+        if trace_id:
+            trace = message_data.MessageData(
+                message_data.SEND_TRACE,
+                parent=parent,
+                trace_id=trace_id,
+                data=data,
+                text="ok",
+                control_value_id=control_value_id)
+            self.sending_queue.put(trace)
 
     def handle_incoming_error(self, data, error_str, return_id):
         """
@@ -501,7 +534,9 @@ class ClientSocket:
             data: JSON communication message data.
 
         """
-        self.bulk_send_list.append(data)
+        if data is not None:
+            self.bulk_send_list.append(data)
+            self.wapp_log.debug('Data added to bulk message: {}'.format(data))
         if ((self.sending_queue.qsize() == 0 and len(self.packet_awaiting_confirm) == 0)
                 or len(self.bulk_send_list) >= MAX_BULK_SIZE):
             self.send_data(self.bulk_send_list)
@@ -896,6 +931,9 @@ class ClientSocket:
                     self.receive(decoded_data)
             else:
                 self.receive(decoded)
+
+            if len(self.packet_awaiting_confirm) == 0:
+                self.create_bulk(None)
 
         except JSONDecodeError:
             self.wapp_log.error("Json error: {}".format(decoded))

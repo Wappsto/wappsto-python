@@ -112,5 +112,5 @@ class Network:
 
     def __call_callback(self, event):
         if self.callback is not None:
-            return self.callback(self, event)
+            self.callback(self, event)
         return True
