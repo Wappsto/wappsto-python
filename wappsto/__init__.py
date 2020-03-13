@@ -129,6 +129,44 @@ class Wappsto:
 
         """
         return self.handler.get_by_id(id)
+        
+    def set_status_callback(self, callback):
+        """
+        Sets callback for status.
+
+        Sets the provided callback to the instance of status.
+
+        Args:
+            callback: reference to callback
+
+        """
+        self.status.set_callback(callback)
+
+    def set_network_callback(self, callback):
+        """
+        Sets callback for network.
+
+        Sets the provided callback to the instance of network.
+
+        Args:
+            callback: reference to callback
+
+        """
+        self.instance.network.set_callback(callback)
+
+    def set_value_callback(self, callback):
+        """
+        Sets callback for values.
+
+        Sets the provided callback to all instances of value.
+
+        Args:
+            callback: reference to callback
+
+        """
+        for device in self.instance.network.devices:
+            for value in device.values:
+                value.set_callback(callback)
 
     def get_device(self, name):
         """
