@@ -422,7 +422,7 @@ class ClientSocket:
         return_id = data.get('id')
         try:
             uuid = data.get('params').get('data').get('meta').get('id')
-            self.wapp_log.debug("Put request from id: " + uuid)
+            self.wapp_log.debug("Get request from id: " + uuid)
         except AttributeError as e:
             error_str = 'Error received incorrect format in get'
             return self.handle_incoming_error(data, e, error_str, return_id)
@@ -470,7 +470,7 @@ class ClientSocket:
         return_id = data.get('id')
         try:
             uuid = data.get('params').get('data').get('meta').get('id')
-            self.wapp_log.debug("Put request from id: " + uuid)
+            self.wapp_log.debug("Delete request from id: " + uuid)
         except AttributeError as e:
             error_str = 'Error received incorrect format in delete'
             return self.handle_incoming_error(data, e, error_str, return_id)
@@ -556,7 +556,6 @@ class ClientSocket:
         """
         if data is not None:
             self.bulk_send_list.append(data)
-            self.wapp_log.debug('Data added to bulk message: {}'.format(data))
         if ((self.sending_queue.qsize() == 0 and len(self.packet_awaiting_confirm) == 0)
                 or len(self.bulk_send_list) >= MAX_BULK_SIZE):
             self.send_data(self.bulk_send_list)

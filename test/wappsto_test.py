@@ -658,7 +658,7 @@ class TestReceiveThreadClass:
             actual_object.control_state.data = '1'
             if type == "state":
                 id = str(actual_object.control_state.uuid)
-            else:
+            elif type == "value":
                 id = str(actual_object.uuid)
             if not object_exists:
                 self.service.instance.network = None
