@@ -129,7 +129,7 @@ class Wappsto:
 
         """
         return self.handler.get_by_id(id)
-        
+
     def set_status_callback(self, callback):
         """
         Sets callback for status.
