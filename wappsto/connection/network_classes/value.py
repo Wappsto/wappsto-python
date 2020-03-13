@@ -411,7 +411,7 @@ class Value:
         else:
             state.timestamp = self.get_now()
 
-        return self.parent.parent.conn.send_state(
+        return self.parent.parent.conn.send_data.send_state(
             state,
             data_value=data_value,
         )

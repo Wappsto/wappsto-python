@@ -179,7 +179,7 @@ def send_response(self, verb, trace_id, bulk, id, url, data, split_message):
         message_size = math.ceil(len(message) / 2)
         message1 = message[:message_size]
         message2 = message[message_size:]
-        wappsto.connection.communication.RECEIVE_SIZE = message_size
+        wappsto.connection.communication.receive_data.RECEIVE_SIZE = message_size
         self.service.socket.my_socket.recv = Mock(side_effect=[message1.encode('utf-8'),
                                                                message2.encode('utf-8'),
                                                                KeyboardInterrupt])
@@ -595,7 +595,7 @@ class TestReceiveThreadClass:
         try:
             # runs until mock object is run and its side_effect raises
             # exception
-            self.service.socket.receive_thread()
+            self.service.socket.receive_data.receive_thread()
         except KeyboardInterrupt:
             pass
 
@@ -653,7 +653,7 @@ class TestReceiveThreadClass:
         try:
             # runs until mock object is run and its side_effect raises
             # exception
-            self.service.socket.receive_thread()
+            self.service.socket.receive_data.receive_thread()
         except KeyboardInterrupt:
             pass
 
@@ -717,7 +717,7 @@ class TestReceiveThreadClass:
         try:
             # runs until mock object is run and its side_effect raises
             # exception
-            self.service.socket.receive_thread()
+            self.service.socket.receive_data.receive_thread()
         except KeyboardInterrupt:
             pass
 
@@ -779,7 +779,7 @@ class TestReceiveThreadClass:
         try:
             # runs until mock object is run and its side_effect raises
             # exception
-            self.service.socket.receive_thread()
+            self.service.socket.receive_data.receive_thread()
         except KeyboardInterrupt:
             pass
 
@@ -823,7 +823,7 @@ class TestReceiveThreadClass:
         try:
             # runs until mock object is run and its side_effect raises
             # exception
-            self.service.socket.receive_thread()
+            self.service.socket.receive_data.receive_thread()
         except KeyboardInterrupt:
             pass
 
@@ -852,7 +852,7 @@ class TestReceiveThreadClass:
         try:
             # runs until mock object is run and its side_effect raises
             # exception
-            self.service.socket.receive_thread()
+            self.service.socket.receive_data.receive_thread()
         except KeyboardInterrupt:
             pass
 
@@ -922,13 +922,13 @@ class TestSendThreadClass:
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.add_id_to_confirm_list = Mock()
-        bulk_size = wappsto.connection.communication.MAX_BULK_SIZE
+        bulk_size = wappsto.connection.communication.send_data.MAX_BULK_SIZE
 
         # Act
         try:
             # runs until mock object is run and its side_effect raises
             # exception
-            self.service.socket.send_thread()
+            self.service.socket.send_data.send_thread()
         except KeyboardInterrupt:
             args, kwargs = self.service.socket.my_socket.send.call_args
             arg = json.loads(args[0].decode('utf-8'))
@@ -1005,7 +1005,7 @@ class TestSendThreadClass:
         try:
             # runs until mock object is run and its side_effect raises
             # exception
-            self.service.socket.send_thread()
+            self.service.socket.send_data.send_thread()
         except KeyboardInterrupt:
             args, kwargs = self.service.socket.my_socket.send.call_args
             arg = args[0].decode('utf-8')
@@ -1041,7 +1041,7 @@ class TestSendThreadClass:
             try:
                 # runs until mock object is run and its side_effect raises
                 # exception
-                self.service.socket.send_thread()
+                self.service.socket.send_data.send_thread()
             except KeyboardInterrupt:
                 args, kwargs = urlopen.call_args
                 arg = urllib.parse.parse_qs(args[0])
