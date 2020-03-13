@@ -14,14 +14,14 @@ MAX_BULK_SIZE = 10
 t_url = 'https://tracer.iot.seluxit.com/trace?id={}&parent={}&name={}&status={}'  # noqa: E501
 
 
-class Send:
-    """The Send class that handles sending information."""
+class SendData:
+    """The SendData class that handles sending information."""
 
     def __init__(self, client_socket):
         """
-        Initialize the Send class.
+        Initialize the SendData class.
 
-        Initializes an object of Send class by passing required
+        Initializes an object of SendData class by passing required
         parameters. While initialization, wapp_log is created.
 
         Args:
@@ -32,6 +32,7 @@ class Send:
         self.wapp_log.addHandler(logging.NullHandler())
 
         self.client_socket = client_socket
+        self.add_trace_to_report_list = {}
         self.bulk_send_list = []
 
     def send_state(self, state, data_value=None):
@@ -246,7 +247,7 @@ class Send:
         """
         if package.control_value_id:
             control_value_id = package.control_value_id
-            self.client_socket.add_trace_to_report_list[control_value_id] = package.trace_id
+            self.add_trace_to_report_list[control_value_id] = package.trace_id
 
         attempt = str(t_url).format(
             package.trace_id,
@@ -347,9 +348,9 @@ class Send:
         """
         try:
             if not package.trace_id:
-                if package.value_id in self.client_socket.add_trace_to_report_list.keys():
+                if package.value_id in self.add_trace_to_report_list.keys():
                     package.trace_id = (
-                        self.client_socket.add_trace_to_report_list.pop(package.value_id)
+                        self.add_trace_to_report_list.pop(package.value_id)
                     )
             local_data = self.client_socket.rpc.get_rpc_state(
                 package.data,

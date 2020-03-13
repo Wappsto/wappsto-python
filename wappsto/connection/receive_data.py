@@ -13,14 +13,14 @@ RECEIVE_SIZE = 1024
 MESSAGE_SIZE_BYTES = 1000000
 
 
-class Receive:
-    """The Receive class that handles receiving information."""
+class ReceiveData:
+    """The ReceiveData class that handles receiving information."""
 
     def __init__(self, client_socket):
         """
-        Initialize the Receive class.
+        Initialize the ReceiveData class.
 
-        Initializes an object of Receive class by passing required
+        Initializes an object of ReceiveData class by passing required
         parameters. While initialization, wapp_log is created.
 
         Args:

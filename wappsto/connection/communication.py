@@ -66,11 +66,11 @@ class ClientSocket:
         self.ssl_context.load_verify_locations(self.ssl_server_cert)
         self.wappsto_status = wappsto_status
 
-        self.receive_data = receive_data.Receive(self)
+        self.receive_data = receive_data.ReceiveData(self)
         self.receiving_thread = threading.Thread(target=self.receive_data.receive_thread)
         self.receiving_thread.setDaemon(True)
 
-        self.send_data = send_data.Send(self)
+        self.send_data = send_data.SendData(self)
         self.sending_thread = threading.Thread(target=self.send_data.send_thread)
         self.sending_thread.setDaemon(True)
 
@@ -79,7 +79,6 @@ class ClientSocket:
         self.rpc = rpc
         self.handler = handler
         self.packet_awaiting_confirm = {}
-        self.add_trace_to_report_list = {}
         self.lock_await = threading.Lock()
         self.set_sockets()
 
