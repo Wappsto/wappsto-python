@@ -7,7 +7,6 @@ Stores the Wappsto class functionality.
 import os
 import logging
 import inspect
-from .connection import handlers
 from .connection import seluxit_rpc
 from .connection import communication
 from .connection.network_classes.errors import wappsto_errors
@@ -70,7 +69,6 @@ class Wappsto:
                 load_from_state_file=load_from_state_file,
                 path_to_calling_file=self.path_to_calling_file
             )
-            self.handler = handlers.Handlers(self.instance)
         # When the file fails to open a FileNotFoundError is raised and
         # the service is stopped
         except FileNotFoundError as fnfe:
@@ -128,7 +126,7 @@ class Wappsto:
             A reference to the network/device/value/state object instance.
 
         """
-        return self.handler.get_by_id(id)
+        return self.instance.get_by_id(id)
 
     def get_device(self, name):
         """
@@ -179,8 +177,7 @@ class Wappsto:
             address=address,
             port=port,
             path_to_calling_file=self.path_to_calling_file,
-            wappsto_status=self.status,
-            handler=self.handler
+            wappsto_status=self.status
         )
 
         self.status.set_status(status.CONNECTING)

@@ -42,7 +42,7 @@ class ClientSocket:
     """
 
     def __init__(self, rpc, instance, address, port, path_to_calling_file,
-                 wappsto_status, handler):
+                 wappsto_status):
         """
         Create a client socket.
 
@@ -58,7 +58,6 @@ class ClientSocket:
             port: Server port.
             path_to_calling_file: path to OS directory of calling file.
             wappsto_status: status object.
-            handler: instance of handlers.
 
         """
         self.wapp_log = logging.getLogger(__name__)
@@ -86,7 +85,6 @@ class ClientSocket:
         self.sending_thread = threading.Thread(target=self.send_thread)
         self.sending_thread.setDaemon(True)
         self.rpc = rpc
-        self.handler = handler
         self.packet_awaiting_confirm = {}
         self.add_trace_to_report_list = {}
         self.bulk_send_list = []
@@ -270,8 +268,7 @@ class ClientSocket:
         """
         Incoming data handler.
 
-        Sends the data from incoming control messages to the appropriate
-        handler method.
+        Gets the data from incoming control messages and performs the expected changes.
 
         Args:
             data: JSON communication message data.
@@ -296,7 +293,7 @@ class ClientSocket:
         except AttributeError:
             trace_id = None
 
-        obj = self.handler.get_by_id(uuid)
+        obj = self.instance.get_by_id(uuid)
         if obj is None:
             self.send_error('Non-existing uuid provided', return_id)
             return
@@ -413,8 +410,7 @@ class ClientSocket:
         """
         Incoming data handler.
 
-        Sends the data from incoming report messages to the appropriate handler
-        method.
+        Gets the data from incoming report messages and performs the expected changes.
 
         Args:
             data: JSON communication message data.
@@ -438,7 +434,7 @@ class ClientSocket:
         except AttributeError:
             trace_id = None
 
-        obj = self.handler.get_by_id(uuid)
+        obj = self.instance.get_by_id(uuid)
         if obj is None:
             self.send_error('Non-existing uuid provided', return_id)
             return
@@ -462,8 +458,7 @@ class ClientSocket:
         """
         Incoming delete handler.
 
-        Sends the event from incoming delete messages to the
-        appropriate handler method.
+        Gets the data from incoming delete messages and performs the expected changes.
 
         Args:
             data: JSON communication message data.
@@ -487,7 +482,7 @@ class ClientSocket:
         except AttributeError:
             trace_id = None
 
-        obj = self.handler.get_by_id(uuid)
+        obj = self.instance.get_by_id(uuid)
         if obj is None:
             self.send_error('Non-existing uuid provided', return_id)
             return
@@ -743,8 +738,7 @@ class ClientSocket:
         """
         Send data handler.
 
-        Sends the data from outgoing control messages to the appropriate
-        handler method.
+        Sends control message for the data.
 
         Args:
             package: Sending queue item.
@@ -957,9 +951,6 @@ class ClientSocket:
             else:
                 self.receive(decoded)
 
-            if len(self.packet_awaiting_confirm) == 0:
-                self.create_bulk(None)
-
         except JSONDecodeError:
             self.wapp_log.error("Json error: {}".format(decoded))
             # TODO send json rpc error, parse error
@@ -1010,7 +1001,7 @@ class ClientSocket:
                     if result_value is not True:
                         uuid = result_value['meta']['id']
                         data = result_value['data']
-                        object = self.handler.get_by_id(uuid)
+                        object = self.instance.get_by_id(uuid)
                         if object is not None and object.parent.control_state == object:
                             object.parent.handle_control(data_value=data)
                     self.remove_id_from_confirm_list(decoded_id)

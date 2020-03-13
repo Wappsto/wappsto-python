@@ -675,7 +675,8 @@ class TestReceiveThreadClass:
         try:
             # runs until mock object is run and its side_effect raises
             # exception
-            self.service.socket.receive_thread()
+            with patch('threading.Timer.start'):
+                self.service.socket.receive_thread()
         except KeyboardInterrupt:
             pass
 
