@@ -10,6 +10,7 @@ import inspect
 from .connection import handlers
 from .connection import seluxit_rpc
 from .connection import communication
+from .connection import event_storage
 from .connection.network_classes.errors import wappsto_errors
 from . import status
 from .object_instantiation import instantiate
@@ -29,7 +30,9 @@ class Wappsto:
     __version__ = "1.1.0"
 
     def __init__(self, json_file_name=None, load_from_state_file=False,
-                 save_init=False):
+                 save_init=False, log_offline=False, log_location="logs",
+                 log_data_limit=10, limit_action=event_storage.REMOVE_OLD,
+                 compression_period=event_storage.DAY_PERIOD):
         # TODO(Dimitar): Come up with a better description.
         """
         Initialize wappsto class.
@@ -46,6 +49,11 @@ class Wappsto:
                 saved files (default: {False})
             save_init: Determines whether or not save json data
                 (default: {False})
+            log_offline: boolean indicating if data should be logged (default: {False})
+            log_location: location of the logs (default: {"logs"})
+            log_data_limit: limit of data to be saved in log [in Megabytes] (default: {10})
+            limit_action: action to take when limit is reached (default: {REMOVE_OLD})
+            compression_period: period for compressing data [day, hour] (default: {DAY_PERIOD})
 
         """
         self.wapp_log = logging.getLogger(__name__)
@@ -57,10 +65,15 @@ class Wappsto:
 
         self.connecting = True
         self.rpc = seluxit_rpc.SeluxitRpc(save_init)
+        self.event_storage = event_storage.OfflineEventStorage(
+            log_offline, log_location,
+            log_data_limit,
+            limit_action,
+            compression_period
+        )
         self.socket = None
         self.receive_thread = None
         self.send_thread = None
-        self.connected = False
         self.status = status.Status()
         self.object_saver = save_objects.SaveObjects(self.path_to_calling_file)
         # Instantiate the objects from JSON
@@ -182,7 +195,8 @@ class Wappsto:
             path_to_calling_file=self.path_to_calling_file,
             wappsto_status=self.status,
             automatic_trace=automatic_trace,
-            handler=self.handler
+            handler=self.handler,
+            event_storage=self.event_storage
         )
 
         self.status.set_status(status.CONNECTING)
