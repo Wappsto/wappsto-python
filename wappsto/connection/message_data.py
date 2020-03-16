@@ -41,7 +41,8 @@ class MessageData:
             text=None,
             parent=None,
             trace_id=None,
-            control_value_id=None
+            control_value_id=None,
+            get=False
     ):
         """
         Initialize the MessageData class.
@@ -61,7 +62,8 @@ class MessageData:
             text: The message to send. (default: {None})
             parent: The parent object. (default: {None})
             trace_id: The trace ID used to debug. (default: {None})
-            control_value_id: The control data ID (default: {None})
+            control_value_id: The control data ID. (default: {None})
+            get: Boolean indication if verb should be GET. (default: {False})
 
         """
         self.msg_id = msg_id
@@ -75,3 +77,4 @@ class MessageData:
         self.parent = parent
         self.trace_id = trace_id
         self.control_value_id = control_value_id
+        self.get = get

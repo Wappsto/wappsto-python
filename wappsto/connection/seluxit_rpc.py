@@ -166,8 +166,7 @@ class SeluxitRpc:
             set_type,
             get=False,
             put=True,
-            trace_id=None,
-            state_obj=None
+            trace_id=None
     ):
         """
         Retrieve state of the value.
@@ -186,8 +185,6 @@ class SeluxitRpc:
             get: Defines if the request is of type GET. (default: {False})
             put: Defines if the request is of type PUT. (default: {True})
             trace_id: ID of the debug trace. (default: {None})
-            state_obj: Reference to the value instance's state instance.
-                (default: {None})
 
         Returns:
             JSON formatted data of the state.
@@ -201,9 +198,6 @@ class SeluxitRpc:
             'data': data,
             'timestamp': update
         }
-
-        if state_obj is not None:
-            state_obj.timestamp = update
 
         url = '/network/{}/device/{}/value/{}/state'
         url = url.format(network_id, device_id, value_id)

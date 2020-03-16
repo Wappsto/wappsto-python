@@ -7,6 +7,7 @@ Handles incoming data from the server.
 import sys
 import json
 import logging
+from . import message_data
 from json.decoder import JSONDecodeError
 
 RECEIVE_SIZE = 1024
@@ -147,13 +148,13 @@ class ReceiveData:
                     return_id = decoded.get('id')
                     self.wapp_log.warning("Unhandled method")
                     error_str = 'Unknown method'
-                    self.client_socket.send_data.send_error(error_str, return_id)
+                    self.error_reply(error_str, return_id)
 
             except ValueError:
                 return_id = decoded.get('id')
                 error_str = 'Value error'
                 self.wapp_log.error("{} [{}]: {}".format(error_str, return_id, decoded))
-                self.client_socket.send_data.send_error(error_str, return_id)
+                self.error_reply(error_str, return_id)
 
     def incoming_put(self, data):
         """
@@ -183,7 +184,7 @@ class ReceiveData:
             local_data = data.get('params').get('data').get('data')
         except AttributeError:
             error = 'Error received incorrect format in put, data missing'
-            self.client_socket.send_data.send_error(error, return_id)
+            self.error_reply(error, return_id)
             return
         try:
             trace_id = data.get('params').get('meta').get('trace')
@@ -198,10 +199,10 @@ class ReceiveData:
                 self.client_socket.sending_queue,
                 trace_id
         ):
-            self.client_socket.send_data.send_success_reply(return_id)
+            self.success_reply(return_id)
         else:
             error = 'Invalid value range or non-existing ID'
-            self.client_socket.send_data.send_error(error, return_id)
+            self.error_reply(error, return_id)
 
     def incoming_get(self, data):
         """
@@ -240,10 +241,10 @@ class ReceiveData:
                 self.client_socket.sending_queue,
                 trace_id
         ):
-            self.client_socket.send_data.send_success_reply(return_id)
+            self.success_reply(return_id)
         else:
             error = 'Non-existing ID for get'
-            self.client_socket.send_data.send_error(error, return_id)
+            self.error_reply(error, return_id)
 
     def incoming_delete(self, data):
         """
@@ -282,10 +283,10 @@ class ReceiveData:
                 self.client_socket.sending_queue,
                 trace_id
         ):
-            self.client_socket.send_data.send_success_reply(return_id)
+            self.success_reply(return_id)
         else:
             error = 'Delete failed'
-            self.client_socket.send_data.send_error(error, return_id)
+            self.error_reply(error, return_id)
 
     def incoming_error(self, data):
         """
@@ -321,3 +322,37 @@ class ReceiveData:
             if object is not None and object.parent.control_state == object:
                 object.parent.handle_control(data_value=data)
         self.client_socket.remove_id_from_confirm_list(return_id)
+
+    def success_reply(self, return_id):
+        """
+        Handle successful replies on the receive thread.
+
+        Adds success message to the sending_queue.
+
+        Args:
+            return_id: ID of the success message.
+
+        """
+        success_reply = message_data.MessageData(
+            message_data.SEND_SUCCESS,
+            rpc_id=return_id
+        )
+        self.client_socket.sending_queue.put(success_reply)
+
+    def error_reply(self, error_str, return_id):
+        """
+        Handle error replies on the receive thread.
+
+        Adds error message to the sending_queue.
+
+        Args:
+            error_str: Error message contents.
+            return_id: ID of the error message.
+
+        """
+        error_reply = message_data.MessageData(
+            message_data.SEND_FAILED,
+            rpc_id=return_id,
+            text=error_str
+        )
+        self.client_socket.sending_queue.put(error_reply)

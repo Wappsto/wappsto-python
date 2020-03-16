@@ -180,7 +180,16 @@ class ClientSocket:
             for value in device.values:
                 state = value.get_control_state()
                 if state is not None:
-                    self.send_data.get_control(state)
+                    msg = message_data.MessageData(
+                        message_data.SEND_CONTROL,
+                        data=None,
+                        network_id=state.parent.parent.parent.uuid,
+                        device_id=state.parent.parent.uuid,
+                        value_id=state.parent.uuid,
+                        state_id=state.uuid,
+                        get=True
+                    )
+                    self.send_data.send_control(msg)
 
         message = self.rpc.get_rpc_whole_json(self.instance.build_json())
         self.rpc.send_init_json(self.send_data, message)
