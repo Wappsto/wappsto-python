@@ -28,7 +28,7 @@ class ClientSocket:
     """
 
     def __init__(self, rpc, instance, address, port, path_to_calling_file,
-                 wappsto_status, handler):
+                 wappsto_status, handler, event_storage):
         """
         Create a client socket.
 
@@ -45,6 +45,7 @@ class ClientSocket:
             path_to_calling_file: path to OS directory of calling file.
             wappsto_status: status object.
             handler: instance of handlers.
+            event_storage: instance of event log.
 
         """
         self.wapp_log = logging.getLogger(__name__)
@@ -78,6 +79,7 @@ class ClientSocket:
         self.sending_queue = queue.Queue(maxsize=0)
         self.rpc = rpc
         self.handler = handler
+        self.event_storage = event_storage
         self.packet_awaiting_confirm = {}
         self.lock_await = threading.Lock()
         self.set_sockets()
@@ -164,11 +166,21 @@ class ClientSocket:
             self.connected = True
             self.my_socket.settimeout(None)
             self.wappsto_status.set_status(status.CONNECTED)
+            self.send_logged_data()
             return True
 
         except Exception as e:
             self.wapp_log.error("Failed to connect: {}".format(e))
             return False
+
+    def send_logged_data(self):
+        """
+        Sends logged data.
+
+        Makes a thread that sends all of the logged data.
+        """
+        processThread = threading.Thread(target=self.event_storage.send_log, args=(self,))
+        processThread.start()
 
     def initialize_all(self):
         """
@@ -256,7 +268,7 @@ class ClientSocket:
                 self.wapp_log.error(msg, exc_info=True)
 
         if self.connected is True:
-            self.wapp_log.info("Reconnected with " + attempt + " attempts")
+            self.wapp_log.info("Reconnected with " + str(attempt) + " attempts")
             if send_reconnect:
                 reconnect = message_data.MessageData(
                     message_data.SEND_RECONNECT)
