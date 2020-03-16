@@ -41,7 +41,7 @@ class ClientSocket:
     """
 
     def __init__(self, rpc, data_manager, address, port, path_to_calling_file,
-                 wappsto_status, handler):
+                 wappsto_status, handler, event_storage):
         """
         Create a client socket.
 
@@ -58,6 +58,7 @@ class ClientSocket:
             path_to_calling_file: path to OS directory of calling file.
             wappsto_status: status object.
             handler: instance of handlers.
+            event_storage: instance of event log.
 
         """
         self.wapp_log = logging.getLogger(__name__)
@@ -85,6 +86,7 @@ class ClientSocket:
         self.sending_thread.setDaemon(True)
         self.rpc = rpc
         self.handler = handler
+        self.event_storage = event_storage
         self.packet_awaiting_confirm = {}
         self.add_trace_to_report_list = {}
         self.bulk_send_list = []
@@ -204,11 +206,21 @@ class ClientSocket:
             self.connected = True
             self.my_socket.settimeout(None)
             self.wappsto_status.set_status(status.CONNECTED)
+            self.send_logged_data()
             return True
 
         except Exception as e:
             self.wapp_log.error("Failed to connect: {}".format(e))
             return False
+
+    def send_logged_data(self):
+        """
+        Sends logged data.
+
+        Makes a thread that sends all of the logged data.
+        """
+        processThread = threading.Thread(target=self.event_storage.send_log, args=(self,))
+        processThread.start()
 
     def initialize_all(self):
         """
@@ -478,7 +490,7 @@ class ClientSocket:
                 self.wapp_log.error(msg, exc_info=True)
 
         if self.connected is True:
-            self.wapp_log.info("Reconnected with " + attempt + " attempts")
+            self.wapp_log.info("Reconnected with " + str(attempt) + " attempts")
             if send_reconnect:
                 reconnect = message_data.MessageData(
                     message_data.SEND_RECONNECT)
@@ -516,23 +528,22 @@ class ClientSocket:
             data: JSON communication message data.
 
         """
+        for data_element in data:
+            self.get_object_without_none_values(data_element)
+            if len(data_element) == 0:
+                data.remove(data_element)
+
         if self.connected:
             for data_element in data:
-                self.get_object_without_none_values(data_element)
-                if len(data_element) == 0:
-                    data.remove(data_element)
-                else:
-                    if (data_element.get("method", "") == "PUT"
-                            or data_element.get("method", "") == "POST"
-                            or data_element.get("method", "") == "DELETE"):
-                        self.add_id_to_confirm_list(data_element)
+                if data_element.get("method", "") in ["PUT", "POST", "DELETE"]:
+                    self.add_id_to_confirm_list(data_element)
             if len(data) > 0:
                 data = json.dumps(data)
                 data = data.encode('utf-8')
                 self.wapp_log.debug('Raw Send Json: {}'.format(data))
                 self.my_socket.send(data)
         else:
-            self.wapp_log.error('Sending while not connected')
+            self.event_storage.add_message(data)
 
     def get_object_without_none_values(self, encoded_object):
         """
@@ -570,30 +581,29 @@ class ClientSocket:
 
         while True:
             package = self.sending_queue.get()
-            if self.connected:
-                if package.msg_id == message_data.SEND_SUCCESS:
-                    self.send_success(package)
+            if package.msg_id == message_data.SEND_SUCCESS:
+                self.send_success(package)
 
-                elif package.msg_id == message_data.SEND_REPORT:
-                    self.send_report(package)
+            elif package.msg_id == message_data.SEND_REPORT:
+                self.send_report(package)
 
-                elif package.msg_id == message_data.SEND_FAILED:
-                    self.send_failed(package)
+            elif package.msg_id == message_data.SEND_FAILED:
+                self.send_failed(package)
 
-                elif package.msg_id == message_data.SEND_RECONNECT:
-                    self.send_reconnect()
+            elif package.msg_id == message_data.SEND_RECONNECT:
+                self.send_reconnect()
 
-                elif package.msg_id == message_data.SEND_CONTROL:
-                    self.send_control(package)
+            elif package.msg_id == message_data.SEND_CONTROL:
+                self.send_control(package)
 
-                elif package.msg_id == message_data.SEND_TRACE:
-                    self.send_trace(package)
+            elif package.msg_id == message_data.SEND_TRACE:
+                self.send_trace(package)
 
-                elif package.msg_id == message_data.SEND_DELETE:
-                    self.send_delete(package)
+            elif package.msg_id == message_data.SEND_DELETE:
+                self.send_delete(package)
 
-                else:
-                    self.wapp_log.warning("Unhandled send")
+            else:
+                self.wapp_log.warning("Unhandled send")
 
             self.sending_queue.task_done()
 
@@ -783,7 +793,6 @@ class ClientSocket:
             package.rpc_id,
             package.text
         )
-        self.wapp_log.debug(rpc_fail_response)
         try:
             self.create_bulk(rpc_fail_response)
         except OSError as e:
