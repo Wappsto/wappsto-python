@@ -32,152 +32,6 @@ class ReceiveData:
 
         self.client_socket = client_socket
 
-    def incoming_control(self, data):
-        """
-        Incoming data handler.
-
-        Sends the data from incoming control messages to the appropriate
-        handler method.
-
-        Args:
-            data: JSON communication message data.
-
-        Returns:
-            Results of the incoming control handling.
-
-        """
-        return_id = data.get('id')
-        try:
-            control_id = data.get('params').get('data').get('meta').get('id')
-        except AttributeError as e:
-            error_str = 'Error received incorrect format in put'
-            return self.handle_incoming_error(data, e, error_str, return_id)
-        self.wapp_log.debug("Control Request from control id: " + control_id)
-
-        try:
-            local_data = data.get('params').get('data').get('data')
-        except AttributeError:
-            error = 'Error received incorrect format in put, data missing'
-            self.client_socket.send_data.send_error(error, return_id)
-            return
-        try:
-            trace_id = data.get('params').get('meta').get('trace')
-            if trace_id:
-                self.wapp_log.debug("Control found trace id: " + trace_id)
-        except AttributeError:
-            trace_id = None
-
-        if self.client_socket.handler.handle_incoming_put(
-                control_id,
-                local_data,
-                self.client_socket.sending_queue,
-                trace_id
-        ):
-            self.client_socket.send_data.send_success_reply(return_id)
-        else:
-            error = 'Invalid value range or non-existing ID'
-            self.client_socket.send_data.send_error(error, return_id)
-
-    def handle_incoming_error(self, data, error_str, return_id):
-        """
-        Handle errors on the receive thread.
-
-        Receives an error message and delivers it to the appropriate method.
-
-        Args:
-            data: JSON communication message data.
-            error_str: Error contents.
-            return_id: ID of the error message.
-
-        """
-        self.wapp_log.error(data)
-        self.wapp_log.error(error_str, exc_info=True)
-        return
-
-    def incoming_report_request(self, data):
-        """
-        Incoming data handler.
-
-        Sends the data from incoming report messages to the appropriate handler
-        method.
-
-        Args:
-            data: JSON communication message data.
-
-        Returns:
-            Results of the incoming report handling.
-
-        """
-        return_id = data.get('id')
-        try:
-            get_url_id = data.get('params').get('url').split('/')
-            get_url_id = get_url_id[-1]
-        except AttributeError as e:
-            error_str = 'Error received incorrect format in get'
-            msg = "Report Request from url ID: {}".format(get_url_id)
-            self.wapp_log.error(msg)
-            return self.handle_incoming_error(data, e, error_str, return_id)
-
-        try:
-            trace_id = data.get('params').get('meta').get('trace')
-            if trace_id:
-                self.wapp_log.debug("Report GET found trace id: {}"
-                                    .format(trace_id))
-        except AttributeError:
-            trace_id = None
-
-        if self.client_socket.handler.handle_incoming_get(
-                get_url_id,
-                self.client_socket.sending_queue,
-                trace_id
-        ):
-            self.client_socket.send_data.send_success_reply(return_id)
-        else:
-            error = 'Non-existing ID for get'
-            self.client_socket.send_data.send_error(error, return_id)
-
-    def incoming_delete_request(self, data):
-        """
-        Incoming delete handler.
-
-        Sends the event from incoming delete messages to the
-        appropriate handler method.
-
-        Args:
-            data: JSON communication message data.
-
-        Returns:
-            Results of the incoming report handling.
-
-        """
-        return_id = data.get('id')
-        try:
-            get_url_id = data.get('params').get('url').split('/')
-            get_url_id = get_url_id[-1]
-        except AttributeError as e:
-            error_str = 'Error received incorrect format in delete'
-            msg = "Report Request from url ID: {}".format(get_url_id)
-            self.wapp_log.error(msg)
-            return self.handle_incoming_error(data, e, error_str, return_id)
-
-        try:
-            trace_id = data.get('params').get('meta').get('trace')
-            self.wapp_log.debug(
-                "Report DELETE found trace id: {}".format(trace_id)
-            )
-        except AttributeError:
-            trace_id = None
-
-        if self.client_socket.handler.handle_incoming_delete(
-                get_url_id,
-                self.client_socket.sending_queue,
-                trace_id
-        ):
-            self.client_socket.send_data.send_success_reply(return_id)
-        else:
-            error = 'Delete failed'
-            self.client_socket.send_data.send_error(error, return_id)
-
     def receive_thread(self):
         """
         Create the receive thread.
@@ -272,43 +126,198 @@ class ReceiveData:
 
         """
         if decoded:
-            decoded_id = decoded.get('id')
             try:
-                self.wapp_log.debug('Raw received Json: {}'
-                                    .format(decoded))
+                self.wapp_log.debug('Raw received Json: {}'.format(decoded))
                 if decoded.get('method', False) == 'PUT':
-                    self.incoming_control(decoded)
+                    self.incoming_put(decoded)
 
                 elif decoded.get('method', False) == 'GET':
-                    self.incoming_report_request(decoded)
+                    self.incoming_get(decoded)
 
                 elif decoded.get('method', False) == 'DELETE':
-                    self.incoming_delete_request(decoded)
+                    self.incoming_delete(decoded)
 
                 elif decoded.get('error', False):
-                    decoded_error = decoded.get('error')
-                    msg = "Error: {}".format(decoded_error.get('message'))
-                    self.wapp_log.error(msg)
-                    self.client_socket.remove_id_from_confirm_list(decoded_id)
+                    self.incoming_error(decoded)
 
                 elif decoded.get('result', False):
-                    result_value = decoded['result'].get('value', True)
-                    if result_value is not True:
-                        uuid = result_value['meta']['id']
-                        data = result_value['data']
-                        object = self.client_socket.handler.get_by_id(uuid)
-                        if object is not None and object.parent.control_state == object:
-                            object.parent.handle_control(data_value=data)
-                    self.client_socket.remove_id_from_confirm_list(decoded_id)
+                    self.incoming_result(decoded)
 
                 else:
+                    return_id = decoded.get('id')
                     self.wapp_log.warning("Unhandled method")
                     error_str = 'Unknown method'
-                    self.client_socket.send_data.send_error(error_str, decoded_id)
+                    self.client_socket.send_data.send_error(error_str, return_id)
 
             except ValueError:
+                return_id = decoded.get('id')
                 error_str = 'Value error'
-                self.wapp_log.error("{} [{}]: {}".format(error_str,
-                                                         decoded_id,
-                                                         decoded))
-                self.client_socket.send_data.send_error(error_str, decoded_id)
+                self.wapp_log.error("{} [{}]: {}".format(error_str, return_id, decoded))
+                self.client_socket.send_data.send_error(error_str, return_id)
+
+    def incoming_put(self, data):
+        """
+        Incoming data handler.
+
+        Sends the data from incoming control messages to the appropriate
+        handler method.
+
+        Args:
+            data: JSON communication message data.
+
+        Returns:
+            Results of the incoming control handling.
+
+        """
+        return_id = data.get('id')
+        try:
+            control_id = data.get('params').get('data').get('meta').get('id')
+        except AttributeError:
+            error_str = 'Error received incorrect format in put'
+            self.wapp_log.error(data)
+            self.wapp_log.error(error_str, exc_info=True)
+            return
+        self.wapp_log.debug("Control Request from control id: " + control_id)
+
+        try:
+            local_data = data.get('params').get('data').get('data')
+        except AttributeError:
+            error = 'Error received incorrect format in put, data missing'
+            self.client_socket.send_data.send_error(error, return_id)
+            return
+        try:
+            trace_id = data.get('params').get('meta').get('trace')
+            if trace_id:
+                self.wapp_log.debug("Control found trace id: " + trace_id)
+        except AttributeError:
+            trace_id = None
+
+        if self.client_socket.handler.handle_incoming_put(
+                control_id,
+                local_data,
+                self.client_socket.sending_queue,
+                trace_id
+        ):
+            self.client_socket.send_data.send_success_reply(return_id)
+        else:
+            error = 'Invalid value range or non-existing ID'
+            self.client_socket.send_data.send_error(error, return_id)
+
+    def incoming_get(self, data):
+        """
+        Incoming data handler.
+
+        Sends the data from incoming report messages to the appropriate handler
+        method.
+
+        Args:
+            data: JSON communication message data.
+
+        Returns:
+            Results of the incoming report handling.
+
+        """
+        return_id = data.get('id')
+        try:
+            get_url_id = data.get('params').get('url').split('/')
+            get_url_id = get_url_id[-1]
+        except AttributeError:
+            error_str = 'Error received incorrect format in get'
+            self.wapp_log.error(data)
+            self.wapp_log.error(error_str, exc_info=True)
+            return
+
+        try:
+            trace_id = data.get('params').get('meta').get('trace')
+            if trace_id:
+                self.wapp_log.debug("Report GET found trace id: {}"
+                                    .format(trace_id))
+        except AttributeError:
+            trace_id = None
+
+        if self.client_socket.handler.handle_incoming_get(
+                get_url_id,
+                self.client_socket.sending_queue,
+                trace_id
+        ):
+            self.client_socket.send_data.send_success_reply(return_id)
+        else:
+            error = 'Non-existing ID for get'
+            self.client_socket.send_data.send_error(error, return_id)
+
+    def incoming_delete(self, data):
+        """
+        Incoming delete handler.
+
+        Sends the event from incoming delete messages to the
+        appropriate handler method.
+
+        Args:
+            data: JSON communication message data.
+
+        Returns:
+            Results of the incoming report handling.
+
+        """
+        return_id = data.get('id')
+        try:
+            get_url_id = data.get('params').get('url').split('/')
+            get_url_id = get_url_id[-1]
+        except AttributeError:
+            error_str = 'Error received incorrect format in delete'
+            self.wapp_log.error(data)
+            self.wapp_log.error(error_str, exc_info=True)
+            return
+
+        try:
+            trace_id = data.get('params').get('meta').get('trace')
+            self.wapp_log.debug(
+                "Report DELETE found trace id: {}".format(trace_id)
+            )
+        except AttributeError:
+            trace_id = None
+
+        if self.client_socket.handler.handle_incoming_delete(
+                get_url_id,
+                self.client_socket.sending_queue,
+                trace_id
+        ):
+            self.client_socket.send_data.send_success_reply(return_id)
+        else:
+            error = 'Delete failed'
+            self.client_socket.send_data.send_error(error, return_id)
+
+    def incoming_error(self, data):
+        """
+        Incoming error handler.
+
+        Deals with incoming error message.
+
+        Args:
+            data: JSON communication message data.
+
+        """
+        return_id = data.get('id')
+        msg = "Error: {}".format(data.get('error').get('message'))
+        self.wapp_log.error(msg)
+        self.client_socket.remove_id_from_confirm_list(return_id)
+
+    def incoming_result(self, data):
+        """
+        Incoming result handler.
+
+        Deals with incoming result message.
+
+        Args:
+            data: JSON communication message data.
+
+        """
+        return_id = data.get('id')
+        result_value = data['result'].get('value', True)
+        if result_value is not True:
+            uuid = result_value['meta']['id']
+            data = result_value['data']
+            object = self.client_socket.handler.get_by_id(uuid)
+            if object is not None and object.parent.control_state == object:
+                object.parent.handle_control(data_value=data)
+        self.client_socket.remove_id_from_confirm_list(return_id)
