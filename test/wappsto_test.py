@@ -949,7 +949,7 @@ class TestSendThreadClass:
             # exception
             with patch("logging.Logger.error", side_effect=check_for_logged_info), \
                     patch("logging.Logger.debug", side_effect=check_for_logged_info):
-                self.service.socket.send_thread()
+                self.service.socket.send_data.send_thread()
         except KeyboardInterrupt:
             pass
 
@@ -1029,7 +1029,7 @@ class TestSendThreadClass:
             # exception
             with patch("logging.Logger.error", side_effect=check_for_logged_info), \
                     patch("logging.Logger.debug", side_effect=check_for_logged_info):
-                self.service.socket.send_thread()
+                self.service.socket.send_data.send_thread()
         except KeyboardInterrupt:
             pass
 
@@ -1109,7 +1109,7 @@ class TestSendThreadClass:
             # exception
             with patch("logging.Logger.error", side_effect=check_for_logged_info), \
                     patch("logging.Logger.debug", side_effect=check_for_logged_info):
-                self.service.socket.send_thread()
+                self.service.socket.send_data.send_thread()
         except KeyboardInterrupt:
             pass
 
@@ -1276,7 +1276,7 @@ class TestSendThreadClass:
             # exception
             with patch("logging.Logger.error", side_effect=check_for_logged_info), \
                     patch("logging.Logger.debug", side_effect=check_for_logged_info):
-                self.service.socket.send_thread()
+                self.service.socket.send_data.send_thread()
         except KeyboardInterrupt:
             pass
 

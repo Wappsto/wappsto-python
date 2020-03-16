@@ -62,23 +62,22 @@ class SendData:
             data: JSON communication message data.
 
         """
+        for data_element in data:
+            self.client_socket.get_object_without_none_values(data_element)
+            if len(data_element) == 0:
+                data.remove(data_element)
+
         if self.client_socket.connected:
             for data_element in data:
-                self.client_socket.get_object_without_none_values(data_element)
-                if len(data_element) == 0:
-                    data.remove(data_element)
-                else:
-                    if (data_element.get("method", "") == "PUT"
-                            or data_element.get("method", "") == "POST"
-                            or data_element.get("method", "") == "DELETE"):
-                        self.client_socket.add_id_to_confirm_list(data_element)
+                if data_element.get("method", "") in ["PUT", "POST", "DELETE"]:
+                    self.client_socket.add_id_to_confirm_list(data_element)
             if len(data) > 0:
                 data = json.dumps(data)
                 data = data.encode('utf-8')
                 self.wapp_log.debug('Raw Send Json: {}'.format(data))
                 self.client_socket.my_socket.send(data)
         else:
-            self.wapp_log.error('Sending while not connected')
+            self.client_socket.event_storage.add_message(data)
 
     def send_thread(self):
         """
@@ -127,12 +126,12 @@ class SendData:
             package: A sending queue item.
 
         """
+        self.wapp_log.info("Sending success")
         try:
             rpc_success_response = self.client_socket.rpc.get_rpc_success_response(
                 package.rpc_id
             )
             self.create_bulk(rpc_success_response)
-
         except OSError as e:
             self.client_socket.connected = False
             msg = "Error sending response: {}".format(e)
@@ -149,12 +148,11 @@ class SendData:
 
         """
         self.wapp_log.info("Sending failed")
-        rpc_fail_response = self.client_socket.rpc.get_rpc_fail_response(
-            package.rpc_id,
-            package.text
-        )
-        self.wapp_log.debug(rpc_fail_response)
         try:
+            rpc_fail_response = self.client_socket.rpc.get_rpc_fail_response(
+                package.rpc_id,
+                package.text
+            )
             self.create_bulk(rpc_fail_response)
         except OSError as e:
             self.client_socket.connected = False
@@ -171,6 +169,7 @@ class SendData:
             package: A sending queue item.
 
         """
+        self.wapp_log.info("Sending report message")
         try:
             if not package.trace_id:
                 if package.value_id in self.add_trace_to_report_list.keys():
