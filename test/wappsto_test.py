@@ -254,7 +254,9 @@ def check_for_logged_info(*args, **kwargs):
 
     """
     if (re.search("^Raw log Json:", args[0])
-            or re.search("^Sending while not connected$", args[0])):
+            or re.search("^Sending while not connected$", args[0])
+            or re.search("^Received message exeeds size limit.$", args[0])
+            or re.search("^Unhandled send$", args[0])):
         raise KeyboardInterrupt
 
 
@@ -955,7 +957,8 @@ class TestReceiveThreadClass:
 
     @pytest.mark.parametrize("bulk", [False, True])
     @pytest.mark.parametrize("split_message", [False, True])
-    def test_receive_thread_error(self, bulk, split_message):
+    @pytest.mark.parametrize("message_size_exeeded", [False, True])
+    def test_receive_thread_error(self, bulk, split_message, message_size_exeeded):
         """
         Tests receiving error message.
 
@@ -965,9 +968,15 @@ class TestReceiveThreadClass:
             id: id of the message
             bulk: Boolean value indicating if multiple messages should be sent at once
             split_message: Boolean value indicating if message should be sent in parts
+            message_size_exeeded: Boolean indicating if message received is too big
 
         """
         # Arrange
+        if message_size_exeeded:
+            wappsto.communication.MESSAGE_SIZE_BYTES = 0
+            messages_in_list = 1
+        else:
+            messages_in_list = 0
         send_response(self, "error", None, bulk, "1", "93043873", None, None, split_message)
 
         # Act
@@ -979,7 +988,7 @@ class TestReceiveThreadClass:
             pass
 
         # Assert
-        assert len(self.service.socket.packet_awaiting_confirm) == 0
+        assert len(self.service.socket.packet_awaiting_confirm) == messages_in_list
 
 
 class TestSendThreadClass:
@@ -989,6 +998,39 @@ class TestSendThreadClass:
     Tests sending messages to wappsto server.
 
     """
+
+    @pytest.mark.parametrize("messages_in_queue", [1, 2, 20])
+    def test_send_thread_unhandled(self, messages_in_queue):
+        """
+        Tests sending message.
+
+        Tests what would happen when sending message.
+
+        Args:
+            messages_in_queue: How many messages should be sent
+
+        """
+        # Arrange
+        test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
+        self.service = wappsto.Wappsto(json_file_name=test_json_location)
+        fake_connect(self, ADDRESS, PORT)
+        for x in range(messages_in_queue):
+            reply = message_data.MessageData(
+                -1
+            )
+            self.service.socket.sending_queue.put(reply)
+
+        # Act
+        try:
+            # runs until mock object is run and its side_effect raises
+            # exception
+            with patch("logging.Logger.warning", side_effect=check_for_logged_info):
+                self.service.socket.send_thread()
+        except KeyboardInterrupt:
+            pass
+
+        # Assert
+        assert self.service.socket.sending_queue.qsize() == messages_in_queue - 1
 
     @pytest.mark.parametrize("value", [1, None])
     @pytest.mark.parametrize("messages_in_queue", [1, 2, 20])

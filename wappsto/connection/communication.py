@@ -484,7 +484,7 @@ class ClientSocket:
                     or len(self.bulk_send_list) >= MAX_BULK_SIZE):
                 self.send_data(self.bulk_send_list)
                 self.bulk_send_list.clear()
-        except OSError as e:
+        except OSError as e:  # pragma: no cover
             self.connected = False
             msg = "Error sending message: {}".format(e)
             self.wapp_log.error(msg, exc_info=True)
@@ -743,12 +743,7 @@ class ClientSocket:
             package.rpc_id,
             package.text
         )
-        try:
-            self.create_bulk(rpc_fail_response)
-        except OSError as e:
-            self.connected = False
-            msg = "Error sending failed response: {}".format(e)
-            self.wapp_log.error(msg, exc_info=True)
+        self.create_bulk(rpc_fail_response)
 
     def send_report(self, package):
         """
@@ -849,7 +844,7 @@ class ClientSocket:
             self.wapp_log.error(msg, exc_info=True)
             self.reconnect()
 
-        except OSError as oe:
+        except OSError as oe:  # pragma: no cover
             msg = "Received OS Error: {}".format(oe)
             self.wapp_log.error(msg, exc_info=True)
             self.reconnect()
