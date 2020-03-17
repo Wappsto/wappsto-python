@@ -163,7 +163,7 @@ def send_response(self, verb, trace_id, bulk, message_id, element_id, url, data,
                        "value": message_value,
                        "meta": {
                            "server_send_time": "2020-01-22T08:22:55.315Z"}}}
-        self.service.socket.packet_awaiting_confirm[str(id)] = message
+        self.service.socket.packet_awaiting_confirm[message_id] = message
     else:
         message = {"jsonrpc": "2.0", "id": "1", "params": {}, "method": "??????"}
 
@@ -397,7 +397,7 @@ class TestConnClass:
         # Arrange
         test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
         self.service = wappsto.Wappsto(json_file_name=test_json_location,
-                                       load_from_state_file=load_from_state_file)
+                                       load_from_state_file=load_from_state_file,
                                        log_offline=log_offline,
                                        log_location=log_location)
         status_service = self.service.get_status()
@@ -747,7 +747,7 @@ class TestReceiveThreadClass:
         if not control_id_exists:
             id = None
 
-        send_response(self, "PUT", trace_id, bulk, id, url, data, split_message)
+        send_response(self, "PUT", trace_id, bulk, "1", id, url, data, split_message)
 
         # Act
         try:
@@ -820,7 +820,7 @@ class TestReceiveThreadClass:
         if not url_exists:
             url = None
 
-        send_response(self, "GET", trace_id, bulk, id, url, "1", split_message)
+        send_response(self, "GET", trace_id, bulk, "1", id, url, "1", split_message)
 
         # Act
         try:
@@ -891,7 +891,7 @@ class TestReceiveThreadClass:
         if not url_exists:
             url = None
 
-        send_response(self, "DELETE", trace_id, bulk, id, url, "1", split_message)
+        send_response(self, "DELETE", trace_id, bulk, "1", id, url, "1", split_message)
 
         # Act
         try:
@@ -939,7 +939,7 @@ class TestReceiveThreadClass:
         # Arrange
         state = self.service.get_devices()[0].get_value("temp").control_state
         state.data = 1
-        send_response(self, "result", None, bulk, state.uuid, None, data, split_message)
+        send_response(self, "result", None, bulk, "1", state.uuid, None, data, split_message)
 
         # Act
         try:
@@ -968,7 +968,7 @@ class TestReceiveThreadClass:
 
         """
         # Arrange
-        send_response(self, "error", None, bulk, "93043873", None, None, split_message)
+        send_response(self, "error", None, bulk, "1", "93043873", None, None, split_message)
 
         # Act
         try:
@@ -1274,10 +1274,7 @@ class TestSendThreadClass:
         for x in range(messages_in_queue):
             reply = message_data.MessageData(
                 message_data.SEND_RECONNECT,
-                state_id=state_id,
-                rpc_id=rpc_id,
-                data=value,
-                trace_id=1
+                data=value
             )
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
@@ -1291,12 +1288,12 @@ class TestSendThreadClass:
             # runs until mock object is run and its side_effect raises
             # exception
             with patch('os.getenv', return_value=str(upgradable)), \
-                with patch("logging.Logger.error", side_effect=check_for_logged_info), \
+                patch("logging.Logger.error", side_effect=check_for_logged_info), \
                     patch("logging.Logger.debug", side_effect=check_for_logged_info):
                 self.service.socket.send_thread()
         except KeyboardInterrupt:
             pass
-        
+
         # Assert
         assert os.path.isdir(self.service.event_storage.log_location)
         if connected or log_offline:

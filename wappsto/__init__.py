@@ -64,7 +64,8 @@ class Wappsto:
         self.connecting = True
         self.rpc = seluxit_rpc.SeluxitRpc()
         self.event_storage = event_storage.OfflineEventStorage(
-            log_offline, log_location,
+            log_offline,
+            log_location,
             log_data_limit,
             limit_action,
             compression_period
