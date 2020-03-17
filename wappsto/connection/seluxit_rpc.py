@@ -236,7 +236,8 @@ class SeluxitRpc:
                        network_id,
                        device_id,
                        value_id,
-                       state_id):
+                       state_id,
+                       trace_id=None):
         """
         Creates delete request.
 
@@ -248,6 +249,7 @@ class SeluxitRpc:
             device_id: id of the device to delete/modify
             value_id: id of the value to delete/modify
             state_id: id of the state to delete
+            trace_id: ID of the debug trace. (default: {None})
 
         Returns:
             JSON formatted data of delete message
@@ -261,6 +263,9 @@ class SeluxitRpc:
                     url += '/value/{}'.format(value_id)
                     if state_id:
                         url += '/state/{}'.format(state_id)
+
+        if trace_id:
+            url = '{}?trace={}'.format(url, trace_id)
 
         data_json_rpc = requests.Request('DELETE',
                                          url=url)

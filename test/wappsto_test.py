@@ -973,7 +973,7 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("log_offline", [True, False])
     @pytest.mark.parametrize("connected", [True, False])
     @pytest.mark.parametrize("log_location", ["test_logs/logs"])
-    @pytest.mark.parametrize("file_size", [2, 1, 0])
+    @pytest.mark.parametrize("file_size", [2, 0])
     @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
     def test_send_thread_success(self, messages_in_queue, value, log_offline,
@@ -1052,12 +1052,13 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("log_offline", [True, False])
     @pytest.mark.parametrize("connected", [True, False])
     @pytest.mark.parametrize("log_location", ["test_logs/logs"])
-    @pytest.mark.parametrize("file_size", [2, 1, 0])
+    @pytest.mark.parametrize("file_size", [2, 0])
     @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
+    @pytest.mark.parametrize("send_trace", [True, False])
     def test_send_thread_report(self, messages_in_queue, value, log_offline,
                                 connected, log_location, file_size, limit_action,
-                                log_file_exists):
+                                log_file_exists, send_trace):
         """
         Tests sending message.
 
@@ -1072,6 +1073,7 @@ class TestSendThreadClass:
             file_size: how big is the current size of the folder
             limit_action: action to perform when limit is exeeded
             log_file_exists: boolean indicating if log file exist
+            send_trace: Boolean indicating if trace should be automatically sent
 
         """
         # Arrange
@@ -1092,19 +1094,22 @@ class TestSendThreadClass:
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.connected = connected
+        self.service.socket.automatic_trace = send_trace
+        urlopen_trace_id = sent_json_trace_id = ''
         file_name = self.service.event_storage.get_log_name()
         file_path = self.service.event_storage.get_file_path(file_name)
         set_up_log(self.service.event_storage.log_location, log_file_exists, file_path, file_size)
 
         # Act
-        try:
-            # runs until mock object is run and its side_effect raises
-            # exception
-            with patch("logging.Logger.error", side_effect=check_for_logged_info), \
-                    patch("logging.Logger.debug", side_effect=check_for_logged_info):
-                self.service.socket.send_thread()
-        except KeyboardInterrupt:
-            pass
+        with patch('urllib.request.urlopen') as urlopen:
+            try:
+                # runs until mock object is run and its side_effect raises
+                # exception
+                with patch("logging.Logger.error", side_effect=check_for_logged_info), \
+                        patch("logging.Logger.debug", side_effect=check_for_logged_info):
+                    self.service.socket.send_thread()
+            except KeyboardInterrupt:
+                pass
 
         # Assert
         assert os.path.isdir(self.service.event_storage.log_location)
@@ -1116,6 +1121,19 @@ class TestSendThreadClass:
                 with open(file_path, "r") as file:
                     args = file.readlines()[-1]
             arg = json.loads(args)
+            if urlopen.called:
+                urlopen_args, urlopen_kwargs = urlopen.call_args
+
+                parsed_urlopen = urlparse.urlparse(urlopen_args[0])
+                urlopen_trace_id = parse_qs(parsed_urlopen.query)['id']
+
+                parsed_sent_json = urlparse.urlparse(arg[-1]['params']['url'])
+                sent_json_trace_id = parse_qs(parsed_sent_json.query)['trace']
+            assert urlopen_trace_id == sent_json_trace_id
+            if send_trace:
+                assert urlopen_trace_id != ''
+            else:
+                assert urlopen_trace_id == ''
             assert len(arg) <= wappsto.connection.communication.MAX_BULK_SIZE
             assert self.service.socket.sending_queue.qsize() == max(
                 messages_in_queue - wappsto.connection.communication.MAX_BULK_SIZE, 0)
@@ -1133,7 +1151,7 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("log_offline", [True, False])
     @pytest.mark.parametrize("connected", [True, False])
     @pytest.mark.parametrize("log_location", ["test_logs/logs"])
-    @pytest.mark.parametrize("file_size", [2, 1, 0])
+    @pytest.mark.parametrize("file_size", [2, 0])
     @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
     def test_send_thread_failed(self, messages_in_queue, value, log_offline,
@@ -1207,23 +1225,18 @@ class TestSendThreadClass:
             # Message not being sent or saved
             pass
 
-    @pytest.mark.parametrize("send_trace", [True, False])
-    @pytest.mark.parametrize("value,expected_value", [
-        ('test_value', 'test_value'),
-        ('', ''),
-        (None, None),
-        ([], None)])
     @pytest.mark.parametrize("valid_message", [True, False])
     @pytest.mark.parametrize("messages_in_queue", [1, 2, 20])
     @pytest.mark.parametrize("log_offline", [True, False])
     @pytest.mark.parametrize("connected", [True, False])
     @pytest.mark.parametrize("log_location", ["test_logs/logs"])
-    @pytest.mark.parametrize("file_size", [2, 1, 0])
+    @pytest.mark.parametrize("file_size", [2, 0])
     @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
+    @pytest.mark.parametrize("send_trace", [True, False])
     def test_send_thread_reconnect(self, messages_in_queue, valid_message, log_offline,
                                    connected, log_location, file_size, limit_action,
-                                   log_file_exists, value, expected_value, send_trace):
+                                   log_file_exists, send_trace):
         """
         Tests sending message.
 
@@ -1232,15 +1245,13 @@ class TestSendThreadClass:
         Args:
             messages_in_queue: How many messages should be sent
             valid_message: Boolean indicating if the sent json should be valid
-            value: value to be sent
-            expected_value: sent value
-            send_trace: Boolean indicating if trace should be automatically sent
             log_offline: boolean indicating if data should be logged
             connected: boolean indicating if the is connection to server
             log_location: location of the logs
             file_size: how big is the current size of the folder
             limit_action: action to perform when limit is exeeded
             log_file_exists: boolean indicating if log file exist
+            send_trace: Boolean indicating if trace should be automatically sent
 
         """
         # Arrange
@@ -1263,6 +1274,8 @@ class TestSendThreadClass:
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.connected = connected
+        self.service.socket.automatic_trace = send_trace
+        urlopen_trace_id = sent_json_trace_id = ''
         file_name = self.service.event_storage.get_log_name()
         file_path = self.service.event_storage.get_file_path(file_name)
         set_up_log(self.service.event_storage.log_location, log_file_exists, file_path, file_size)
@@ -1276,14 +1289,7 @@ class TestSendThreadClass:
                         patch("logging.Logger.debug", side_effect=check_for_logged_info):
                     self.service.socket.send_thread()
             except KeyboardInterrupt:
-                if urlopen.called:
-                    urlopen_args, urlopen_kwargs = urlopen.call_args
-
-                    parsed_urlopen = urlparse.urlparse(urlopen_args[0])
-                    urlopen_trace_id = parse_qs(parsed_urlopen.query)['id']
-
-                    parsed_sent_json = urlparse.urlparse(arg[-1]['params']['url'])
-                    sent_json_trace_id = parse_qs(parsed_sent_json.query)['trace']
+                pass
 
         # Assert
         assert os.path.isdir(self.service.event_storage.log_location)
@@ -1294,51 +1300,20 @@ class TestSendThreadClass:
             else:
                 with open(file_path, "r") as file:
                     args = file.readlines()[-1]
+            arg = json.loads(args)
+            if urlopen.called:
+                urlopen_args, urlopen_kwargs = urlopen.call_args
 
+                parsed_urlopen = urlparse.urlparse(urlopen_args[0])
+                urlopen_trace_id = parse_qs(parsed_urlopen.query)['id']
+
+                parsed_sent_json = urlparse.urlparse(arg[-1]['params']['url'])
+                sent_json_trace_id = parse_qs(parsed_sent_json.query)['trace']
             assert urlopen_trace_id == sent_json_trace_id
             if send_trace:
-                assert urlopen_trace_id != ""
+                assert urlopen_trace_id != ''
             else:
-                assert urlopen_trace_id == ""
-
-            arg = json.loads(args)
-            assert len(arg) <= wappsto.connection.communication.MAX_BULK_SIZE
-            assert self.service.socket.sending_queue.qsize() == max(
-                messages_in_queue - wappsto.connection.communication.MAX_BULK_SIZE, 0)
-            assert validate_json("request", arg) == valid_message
-            for request in arg:
-                assert request["params"]["data"]["meta"].get("id", None) == value
-                assert request["params"]["data"]["meta"]["type"] == "network"
-                assert request["method"] == "POST"
-        else:
-            # Message not being sent or saved
-            pass
-
-        self.service.socket.connected = connected
-        file_name = self.service.event_storage.get_log_name()
-        file_path = self.service.event_storage.get_file_path(file_name)
-        set_up_log(self.service.event_storage.log_location, log_file_exists, file_path, file_size)
-
-        # Act
-        try:
-            # runs until mock object is run and its side_effect raises
-            # exception
-            with patch("logging.Logger.error", side_effect=check_for_logged_info), \
-                    patch("logging.Logger.debug", side_effect=check_for_logged_info):
-                self.service.socket.send_thread()
-        except KeyboardInterrupt:
-            pass
-
-        # Assert
-        assert os.path.isdir(self.service.event_storage.log_location)
-        if connected or log_offline:
-            if connected:
-                args, kwargs = self.service.socket.my_socket.send.call_args
-                args = args[0].decode("utf-8")
-            else:
-                with open(file_path, "r") as file:
-                    args = file.readlines()[-1]
-            arg = json.loads(args)
+                assert urlopen_trace_id == ''
             assert len(arg) <= wappsto.connection.communication.MAX_BULK_SIZE
             assert self.service.socket.sending_queue.qsize() == max(
                 messages_in_queue - wappsto.connection.communication.MAX_BULK_SIZE, 0)
@@ -1356,12 +1331,13 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("log_offline", [True, False])
     @pytest.mark.parametrize("connected", [True, False])
     @pytest.mark.parametrize("log_location", ["test_logs/logs"])
-    @pytest.mark.parametrize("file_size", [2, 1, 0])
+    @pytest.mark.parametrize("file_size", [2, 0])
     @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
+    @pytest.mark.parametrize("send_trace", [True, False])
     def test_send_thread_control(self, messages_in_queue, valid_message, log_offline,
                                  connected, log_location, file_size, limit_action,
-                                 log_file_exists):
+                                 log_file_exists, send_trace):
         """
         Tests sending message.
 
@@ -1376,6 +1352,7 @@ class TestSendThreadClass:
             file_size: how big is the current size of the folder
             limit_action: action to perform when limit is exeeded
             log_file_exists: boolean indicating if log file exist
+            send_trace: Boolean indicating if trace should be automatically sent
 
         """
         # Arrange
@@ -1400,19 +1377,22 @@ class TestSendThreadClass:
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.connected = connected
+        self.service.socket.automatic_trace = send_trace
+        urlopen_trace_id = sent_json_trace_id = ''
         file_name = self.service.event_storage.get_log_name()
         file_path = self.service.event_storage.get_file_path(file_name)
         set_up_log(self.service.event_storage.log_location, log_file_exists, file_path, file_size)
 
         # Act
-        try:
-            # runs until mock object is run and its side_effect raises
-            # exception
-            with patch("logging.Logger.error", side_effect=check_for_logged_info), \
-                    patch("logging.Logger.debug", side_effect=check_for_logged_info):
-                self.service.socket.send_thread()
-        except KeyboardInterrupt:
-            pass
+        with patch('urllib.request.urlopen') as urlopen:
+            try:
+                # runs until mock object is run and its side_effect raises
+                # exception
+                with patch("logging.Logger.error", side_effect=check_for_logged_info), \
+                        patch("logging.Logger.debug", side_effect=check_for_logged_info):
+                    self.service.socket.send_thread()
+            except KeyboardInterrupt:
+                pass
 
         # Assert
         assert os.path.isdir(self.service.event_storage.log_location)
@@ -1424,6 +1404,19 @@ class TestSendThreadClass:
                 with open(file_path, "r") as file:
                     args = file.readlines()[-1]
             arg = json.loads(args)
+            if urlopen.called:
+                urlopen_args, urlopen_kwargs = urlopen.call_args
+
+                parsed_urlopen = urlparse.urlparse(urlopen_args[0])
+                urlopen_trace_id = parse_qs(parsed_urlopen.query)['id']
+
+                parsed_sent_json = urlparse.urlparse(arg[-1]['params']['url'])
+                sent_json_trace_id = parse_qs(parsed_sent_json.query)['trace']
+            assert urlopen_trace_id == sent_json_trace_id
+            if send_trace:
+                assert urlopen_trace_id != ''
+            else:
+                assert urlopen_trace_id == ''
             assert len(arg) <= wappsto.connection.communication.MAX_BULK_SIZE
             assert self.service.socket.sending_queue.qsize() == max(
                 messages_in_queue - wappsto.connection.communication.MAX_BULK_SIZE, 0)
@@ -1441,12 +1434,13 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("log_offline", [True, False])
     @pytest.mark.parametrize("connected", [True, False])
     @pytest.mark.parametrize("log_location", ["test_logs/logs"])
-    @pytest.mark.parametrize("file_size", [2, 1, 0])
+    @pytest.mark.parametrize("file_size", [2, 0])
     @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
+    @pytest.mark.parametrize("send_trace", [True, False])
     def test_send_thread_delete(self, object_name, messages_in_queue, log_offline,
                                 connected, log_location, file_size, limit_action,
-                                log_file_exists):
+                                log_file_exists, send_trace):
         """
         Tests sending DELETE message.
 
@@ -1461,6 +1455,7 @@ class TestSendThreadClass:
             file_size: how big is the current size of the folder
             limit_action: action to perform when limit is exeeded
             log_file_exists: boolean indicating if log file exist
+            send_trace: Boolean indicating if trace should be automatically sent
 
         """
         # Arrange
@@ -1507,19 +1502,22 @@ class TestSendThreadClass:
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.add_id_to_confirm_list = Mock()
         self.service.socket.connected = connected
+        self.service.socket.automatic_trace = send_trace
+        urlopen_trace_id = sent_json_trace_id = ''
         file_name = self.service.event_storage.get_log_name()
         file_path = self.service.event_storage.get_file_path(file_name)
         set_up_log(self.service.event_storage.log_location, log_file_exists, file_path, file_size)
 
         # Act
-        try:
-            # runs until mock object is run and its side_effect raises
-            # exception
-            with patch("logging.Logger.error", side_effect=check_for_logged_info), \
-                    patch("logging.Logger.debug", side_effect=check_for_logged_info):
-                self.service.socket.send_thread()
-        except KeyboardInterrupt:
-            pass
+        with patch('urllib.request.urlopen') as urlopen:
+            try:
+                # runs until mock object is run and its side_effect raises
+                # exception
+                with patch("logging.Logger.error", side_effect=check_for_logged_info), \
+                        patch("logging.Logger.debug", side_effect=check_for_logged_info):
+                    self.service.socket.send_thread()
+            except KeyboardInterrupt:
+                pass
 
         # Assert
         assert os.path.isdir(self.service.event_storage.log_location)
@@ -1531,6 +1529,19 @@ class TestSendThreadClass:
                 with open(file_path, "r") as file:
                     args = file.readlines()[-1]
             arg = json.loads(args)
+            if urlopen.called:
+                urlopen_args, urlopen_kwargs = urlopen.call_args
+
+                parsed_urlopen = urlparse.urlparse(urlopen_args[0])
+                urlopen_trace_id = parse_qs(parsed_urlopen.query)['id']
+
+                parsed_sent_json = urlparse.urlparse(arg[-1]['params']['url'])
+                sent_json_trace_id = parse_qs(parsed_sent_json.query)['trace']
+            assert urlopen_trace_id == sent_json_trace_id
+            if send_trace:
+                assert urlopen_trace_id != ''
+            else:
+                assert urlopen_trace_id == ''
             assert len(arg) <= wappsto.connection.communication.MAX_BULK_SIZE
             assert self.service.socket.sending_queue.qsize() == max(
                 messages_in_queue - wappsto.connection.communication.MAX_BULK_SIZE, 0)
@@ -1540,8 +1551,7 @@ class TestSendThreadClass:
             # Message not being sent or saved
             pass
 
-    @pytest.mark.parametrize("trace_id", [
-        (332)])
+    @pytest.mark.parametrize("trace_id", [(332)])
     def test_send_thread_send_trace(self, trace_id):
         """
         Tests sending trace message.

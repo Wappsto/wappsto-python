@@ -241,7 +241,7 @@ class ClientSocket:
                 if state is not None:
                     self.get_control(state)
 
-        trace_id = self.create_trace(self.instance.network_cl.uuid)
+        trace_id = self.create_trace(self.instance.network.uuid)
         message = self.rpc.get_rpc_whole_json(self.instance.build_json(), trace_id)
         self.rpc.send_init_json(self, message)
 
@@ -627,11 +627,15 @@ class ClientSocket:
         """
         self.wapp_log.info("Sending delete message")
         try:
+            package.trace_id = self.create_trace(
+                package.network_id, package.trace_id)
+
             local_data = self.rpc.get_rpc_delete(
                 package.network_id,
                 package.device_id,
                 package.value_id,
-                package.state_id
+                package.state_id,
+                package.trace_id
             )
             self.create_bulk(local_data)
         except OSError as e:
@@ -713,7 +717,7 @@ class ClientSocket:
         """
         if self.automatic_trace and trace_id is None:
             random_int = random.randint(1, 25000)
-            control_value_id = "{}{}".format(self.instance.network_cl.name,
+            control_value_id = "{}{}".format(self.instance.network.name,
                                              random_int)
 
             trace_id = random_int
