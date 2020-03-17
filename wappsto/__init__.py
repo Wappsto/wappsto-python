@@ -191,7 +191,6 @@ class Wappsto:
             port=port,
             path_to_calling_file=self.path_to_calling_file,
             wappsto_status=self.status,
-            handler=self.handler,
             event_storage=self.event_storage
         )
 
