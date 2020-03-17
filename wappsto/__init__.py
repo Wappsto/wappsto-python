@@ -5,6 +5,8 @@ Stores the Wappsto class functionality.
 """
 
 import os
+import sys
+import time
 import logging
 import inspect
 from .connection import handlers
@@ -55,6 +57,7 @@ class Wappsto:
         stack = inspect.stack()[1][1]
         self.path_to_calling_file = os.path.dirname(os.path.abspath(stack))
 
+        self.exit_code = 0
         self.connecting = True
         self.rpc = seluxit_rpc.SeluxitRpc(save_init)
         self.socket = None
@@ -253,6 +256,10 @@ class Wappsto:
 
         self.status.set_status(status.RUNNING)
 
+        # keeps wappsto running
+        while True:
+            time.sleep(1)
+
     def stop(self, save=True):
         """
         Stop the Wappsto service.
@@ -274,3 +281,4 @@ class Wappsto:
         if save:
             self.object_saver.save_instance(self.instance)
         self.wapp_log.info("Exiting...")
+        sys.exit(self.exit_code)
