@@ -58,7 +58,9 @@ def fake_connect(self, address, port):
             patch('threading.Thread'), \
             patch('threading.Timer'), \
             patch('wappsto.communication.ClientSocket.add_id_to_confirm_list'), \
-                patch('socket.socket'), \
+            patch('wappsto.Wappsto.keep_running'), \
+            patch('socket.socket'), \
+            patch('sys.exit'), \
                 patch('ssl.SSLContext.wrap_socket', return_value=context):
             self.service.start(address=address, port=port)
 

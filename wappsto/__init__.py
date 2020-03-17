@@ -256,7 +256,15 @@ class Wappsto:
 
         self.status.set_status(status.RUNNING)
 
-        # keeps wappsto running
+        self.keep_running()
+
+    def keep_running(self):
+        """
+        Keeps wappsto running.
+
+        Creates infinite loop, that doesn't allow for this thread to be closed.
+
+        """
         while True:
             time.sleep(1)
 
