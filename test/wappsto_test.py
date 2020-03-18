@@ -9,6 +9,7 @@ import math
 import json
 import pytest
 import wappsto
+import zipfile
 import jsonschema
 import urllib.parse
 from mock import Mock
@@ -246,10 +247,15 @@ def set_up_log(self, log_file_exists, file_size):
             string = "0" * num_chars + "\n"
             file.write(string)
 
+        with zipfile.ZipFile(file_path.replace(".txt", ".zip"), "w") as zip_file:
+            zip_file.write(file_path, file_name)
+        os.remove(file_path)
+
     with open(self.service.event_storage.get_file_path("2000-1.txt"), "w") as file:
         file.write("")
 
     return file_path
+
 
 def check_for_logged_info(*args, **kwargs):
     """

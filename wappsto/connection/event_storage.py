@@ -137,9 +137,8 @@ class OfflineEventStorage:
         text_logs = [file_name for id, file_name in enumerate(all_logs) if re.search(".txt$", file_name)]
         for file_name in text_logs:
             file_path = self.get_file_path(file_name)
-            zip_file = zipfile.ZipFile(file_path.replace(".txt", ".zip"), "w")
-            zip_file.write(file_path, file_name)
-            zip_file.close()
+            with zipfile.ZipFile(file_path.replace(".txt", ".zip"), "w") as zip_file:
+                zip_file.write(file_path, file_name)
             os.remove(file_path)
 
     def get_oldest_log_name(self):
