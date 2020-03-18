@@ -1066,7 +1066,7 @@ class TestSendThreadClass:
                                        log_location=log_location,
                                        log_data_limit=1,
                                        limit_action=limit_action,
-                                       compression_period=event_storage.DAY_PERIOD)
+                                       compression_period=event_storage.HOUR_PERIOD)
         fake_connect(self, ADDRESS, PORT)
         for x in range(messages_in_queue):
             reply = message_data.MessageData(
@@ -1145,7 +1145,7 @@ class TestSendThreadClass:
                                        log_location=log_location,
                                        log_data_limit=1,
                                        limit_action=limit_action,
-                                       compression_period=event_storage.DAY_PERIOD)
+                                       compression_period=event_storage.HOUR_PERIOD)
         fake_connect(self, ADDRESS, PORT)
         for x in range(messages_in_queue):
             reply = message_data.MessageData(
@@ -1226,7 +1226,7 @@ class TestSendThreadClass:
                                        log_location=log_location,
                                        log_data_limit=1,
                                        limit_action=limit_action,
-                                       compression_period=event_storage.DAY_PERIOD)
+                                       compression_period=event_storage.HOUR_PERIOD)
         fake_connect(self, ADDRESS, PORT)
         for x in range(messages_in_queue):
             reply = message_data.MessageData(
@@ -1307,7 +1307,7 @@ class TestSendThreadClass:
                                        log_location=log_location,
                                        log_data_limit=1,
                                        limit_action=limit_action,
-                                       compression_period=event_storage.DAY_PERIOD)
+                                       compression_period=event_storage.HOUR_PERIOD)
         fake_connect(self, ADDRESS, PORT)
         if valid_message:
             value = self.service.get_network().uuid
@@ -1392,7 +1392,7 @@ class TestSendThreadClass:
                                        log_location=log_location,
                                        log_data_limit=1,
                                        limit_action=limit_action,
-                                       compression_period=event_storage.DAY_PERIOD)
+                                       compression_period=event_storage.HOUR_PERIOD)
         fake_connect(self, ADDRESS, PORT)
         if valid_message:
             value = self.service.get_network().uuid
@@ -1402,7 +1402,8 @@ class TestSendThreadClass:
             reply = message_data.MessageData(
                 message_data.SEND_CONTROL,
                 state_id=value,
-                data=""
+                data="",
+                trace_id=1
             )
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
@@ -1477,7 +1478,7 @@ class TestSendThreadClass:
                                        log_location=log_location,
                                        log_data_limit=1,
                                        limit_action=limit_action,
-                                       compression_period=event_storage.DAY_PERIOD)
+                                       compression_period=event_storage.HOUR_PERIOD)
         fake_connect(self, ADDRESS, PORT)
         actual_object = get_object(self, object_name)
 

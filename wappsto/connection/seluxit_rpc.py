@@ -206,8 +206,6 @@ class SeluxitRpc:
             else:
                 verb = 'PUT'
             url = '{}/{}'.format(url, state_id)
-        else:
-            verb = 'POST'
 
         if trace_id:
             url = '{}?trace={}'.format(url, trace_id)

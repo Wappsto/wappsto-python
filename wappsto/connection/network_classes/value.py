@@ -306,13 +306,11 @@ class Value:
                         str(data_value)
                     )
                     self.wapp_log.warning(msg)
-                    return None
             except ValueError:
                 msg = "Invalid type of value. Must be a number: {}".format(
                     str(data_value)
                 )
                 self.wapp_log.error(msg)
-                return None
         elif self.__is_string_type():
             if (self.string_max is None
                     or len(str(data_value)) <= int(self.string_max)):
@@ -321,7 +319,6 @@ class Value:
                 msg = ("Value {} not in correct range for {}"
                        .format(data_value, self.name))
                 self.wapp_log.warning(msg)
-                return None
         elif self.__is_blob_type():
             if (self.blob_max is None
                     or len(str(data_value)) <= int(self.blob_max)):
@@ -330,11 +327,9 @@ class Value:
                 msg = ("Value {} not in correct range for {}"
                        .format(data_value, self.name))
                 self.wapp_log.warning(msg)
-                return None
         else:
             msg = ("Value type {} is invalid".format(self.date_type))
             self.wapp_log.error(msg)
-            return None
 
     def ensure_number_value_follows_steps(self, data_value):
         """
