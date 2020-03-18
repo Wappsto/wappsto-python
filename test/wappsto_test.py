@@ -215,19 +215,25 @@ def validate_json(json_schema, arg):
         return False
 
 
-def set_up_log(log_location, log_file_exists, file_path, file_size):
+def set_up_log(self, log_file_exists, file_size):
     """
     Sets up logs.
 
     Deletes all log files and creates new one if log file should exist.
 
     Args:
-        log_location: location of the logs
+        self: referece to calling object
         log_file_exists: boolean indicating if log file should exist
-        file_path: path to the file
         file_size: how big is the current size of the folder
 
+    Returns:
+        path to the latest file
+
     """
+    file_name = self.service.event_storage.get_log_name()
+    file_path = self.service.event_storage.get_file_path(file_name)
+    log_location = self.service.event_storage.log_location
+
     # removes all files
     for root, dirs, files in os.walk(log_location):
         for file in files:
@@ -240,9 +246,10 @@ def set_up_log(log_location, log_file_exists, file_path, file_size):
             string = "0" * num_chars + "\n"
             file.write(string)
 
-    file_path = self.service.event_storage.get_file_path("2000-1.txt")
-    with open(file_path, "w") as file:
+    with open(self.service.event_storage.get_file_path("2000-1.txt"), "w") as file:
         file.write("")
+
+    return file_path
 
 def check_for_logged_info(*args, **kwargs):
     """
@@ -412,10 +419,7 @@ class TestConnClass:
         if not valid_json:
             self.service.instance.network.uuid = None
 
-        file_name = self.service.event_storage.get_log_name()
-        file_path = self.service.event_storage.get_file_path(file_name)
-        log_location = self.service.event_storage.log_location
-        set_up_log(log_location, log_file_exists, file_path, 1)
+        set_up_log(self, log_file_exists, 1)
 
         def send_log():
             self.service.event_storage.send_log(self.service.socket)
@@ -1079,9 +1083,7 @@ class TestSendThreadClass:
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.connected = connected
-        file_name = self.service.event_storage.get_log_name()
-        file_path = self.service.event_storage.get_file_path(file_name)
-        set_up_log(self.service.event_storage.log_location, log_file_exists, file_path, file_size)
+        file_path = set_up_log(self, log_file_exists, file_size)
 
         # Act
         try:
@@ -1159,9 +1161,7 @@ class TestSendThreadClass:
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.connected = connected
-        file_name = self.service.event_storage.get_log_name()
-        file_path = self.service.event_storage.get_file_path(file_name)
-        set_up_log(self.service.event_storage.log_location, log_file_exists, file_path, file_size)
+        file_path = set_up_log(self, log_file_exists, file_size)
 
         # Act
         try:
@@ -1239,9 +1239,7 @@ class TestSendThreadClass:
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.connected = connected
-        file_name = self.service.event_storage.get_log_name()
-        file_path = self.service.event_storage.get_file_path(file_name)
-        set_up_log(self.service.event_storage.log_location, log_file_exists, file_path, file_size)
+        file_path = set_up_log(self, log_file_exists, file_size)
 
         # Act
         try:
@@ -1324,9 +1322,7 @@ class TestSendThreadClass:
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.connected = connected
-        file_name = self.service.event_storage.get_log_name()
-        file_path = self.service.event_storage.get_file_path(file_name)
-        set_up_log(self.service.event_storage.log_location, log_file_exists, file_path, file_size)
+        file_path = set_up_log(self, log_file_exists, file_size)
 
         # Act
         try:
@@ -1411,9 +1407,7 @@ class TestSendThreadClass:
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.connected = connected
-        file_name = self.service.event_storage.get_log_name()
-        file_path = self.service.event_storage.get_file_path(file_name)
-        set_up_log(self.service.event_storage.log_location, log_file_exists, file_path, file_size)
+        file_path = set_up_log(self, log_file_exists, file_size)
 
         # Act
         try:
@@ -1518,9 +1512,7 @@ class TestSendThreadClass:
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.add_id_to_confirm_list = Mock()
         self.service.socket.connected = connected
-        file_name = self.service.event_storage.get_log_name()
-        file_path = self.service.event_storage.get_file_path(file_name)
-        set_up_log(self.service.event_storage.log_location, log_file_exists, file_path, file_size)
+        file_path = set_up_log(self, log_file_exists, file_size)
 
         # Act
         try:
