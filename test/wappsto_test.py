@@ -246,7 +246,7 @@ def set_up_log(self, log_file_exists, file_size, make_zip=False):
         with open(file_path, "w") as file:
             num_chars = int((1024 * 1024 * file_size) / 10)
             string = ""
-            for i in range(10): 
+            for i in range(10):
                 string += "0" * num_chars + "\n"
             file.write(string)
 
