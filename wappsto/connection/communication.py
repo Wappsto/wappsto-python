@@ -458,8 +458,7 @@ class ClientSocket:
         if self.connected is True:
             self.wapp_log.info("Reconnected with " + str(attempt) + " attempts")
             if send_reconnect:
-                reconnect = message_data.MessageData(
-                    message_data.SEND_RECONNECT)
+                reconnect = message_data.MessageData(message_data.SEND_RECONNECT)
                 self.sending_queue.put(reconnect)
         else:
             msg = ("Unable to connect to the server[IP: {}, Port: {}]"
@@ -642,10 +641,7 @@ class ClientSocket:
 
         context = ssl._create_unverified_context()
         trace_req = request.urlopen(attempt, context=context)
-        msg = "Sending tracer https message {} response {}".format(
-            attempt,
-            trace_req.getcode()
-        )
+        msg = "Sending tracer https message {} response {}".format(attempt, trace_req.getcode())
         self.wapp_log.debug(msg)
 
     def send_control(self, package):
@@ -839,7 +835,7 @@ class ClientSocket:
             else:
                 self.receive(decoded)
 
-        except ConnectionResetError as e:
+        except ConnectionResetError as e:  # pragma: no cover
             msg = "Received Reset: {}".format(e)
             self.wapp_log.error(msg, exc_info=True)
             self.reconnect()
@@ -896,7 +892,5 @@ class ClientSocket:
                     self.send_error(error_str, decoded_id)
             except ValueError:
                 error_str = 'Value error'
-                self.wapp_log.error("{} [{}]: {}".format(error_str,
-                                                         decoded_id,
-                                                         decoded))
+                self.wapp_log.error("{} [{}]: {}".format(error_str, decoded_id, decoded))
                 self.send_error(error_str, decoded_id)

@@ -246,8 +246,9 @@ def set_up_log(self, log_file_exists, file_size, make_zip=False):
         with open(file_path, "w") as file:
             num_chars = int((1024 * 1024 * file_size) / 10)
             string = ""
+            data = "0" * num_chars
             for i in range(10):
-                string += "0" * num_chars + "\n"
+                string += '[{"data": ' + data + '}]\n'
             file.write(string)
 
         if make_zip:

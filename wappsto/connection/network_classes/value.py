@@ -307,9 +307,7 @@ class Value:
                     )
                     self.wapp_log.warning(msg)
             except ValueError:
-                msg = "Invalid type of value. Must be a number: {}".format(
-                    str(data_value)
-                )
+                msg = "Invalid type of value. Must be a number: {}".format(str(data_value))
                 self.wapp_log.error(msg)
         elif self.__is_string_type():
             if (self.string_max is None
