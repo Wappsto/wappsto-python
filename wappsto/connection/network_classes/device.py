@@ -163,7 +163,7 @@ class Device:
             result of __call_callback method.
 
         """
-        return self.__call_callback('remove')
+        self.__call_callback('remove')
 
     def delete(self):
         """
@@ -185,4 +185,3 @@ class Device:
     def __call_callback(self, event):
         if self.callback is not None:
             self.callback(self, event)
-        return True
