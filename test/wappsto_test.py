@@ -243,8 +243,8 @@ def set_up_log(self, log_file_exists, file_size):
     # creates file
     if log_file_exists:
         with open(file_path, "w") as file:
-            num_chars = 1024 * 1024 * file_size
-            string = "0" * num_chars + "\n"
+            num_chars = 1024 * file_size
+            string = ("0" * num_chars + "\n") * 1024
             file.write(string)
 
         with zipfile.ZipFile(file_path.replace(".txt", ".zip"), "w") as zip_file:
