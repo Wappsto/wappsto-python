@@ -382,10 +382,8 @@ class TestConnClass:
     @pytest.mark.parametrize("address,port,expected_status", [
         (ADDRESS, PORT, status.RUNNING),
         (ADDRESS, -1, status.DISCONNECTING),
-        ("wappstoFail.com", PORT, status.DISCONNECTING),
-        ("wappstoFail.com", -1, status.DISCONNECTING)])
+        ("wappstoFail.com", PORT, status.DISCONNECTING)])
     @pytest.mark.parametrize("callback_exists", [True, False])
-    @pytest.mark.parametrize("value_changed_to_none", [True, False])
     @pytest.mark.parametrize("upgradable", [True, False])
     @pytest.mark.parametrize("valid_json", [True, False])
     @pytest.mark.parametrize("log_offline", [True, False])
@@ -394,8 +392,8 @@ class TestConnClass:
     @pytest.mark.parametrize("load_from_state_file", [True, False])
     @pytest.mark.parametrize("make_zip", [True, False])
     def test_connection(self, address, port, expected_status, callback_exists,
-                        value_changed_to_none, upgradable, valid_json, log_offline,
-                        log_location, log_file_exists, load_from_state_file, make_zip):
+                        upgradable, valid_json, log_offline, log_location,
+                        log_file_exists, load_from_state_file, make_zip):
         """
         Tests connection.
 
@@ -406,7 +404,6 @@ class TestConnClass:
             port: port used for connecting to server
             callback_exists: specifies if object should have callback
             expected_status: status expected after execution of the test
-            value_changed_to_none: specifies if value should be replaced with none
             upgradable: specifies if object is upgradable
             valid_json: Boolean indicating if the sent json should be valid
             log_offline: boolean indicating if data should be logged
@@ -424,8 +421,6 @@ class TestConnClass:
                                        log_location=log_location)
         status_service = self.service.get_status()
         fix_object(callback_exists, status_service)
-        if value_changed_to_none:
-            self.service.instance.network.name = None
         if not valid_json:
             self.service.instance.network.uuid = None
 
@@ -1054,7 +1049,7 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("log_offline", [True, False])
     @pytest.mark.parametrize("connected", [True, False])
     @pytest.mark.parametrize("log_location", ["test_logs/logs"])
-    @pytest.mark.parametrize("file_size", [2, 1, 0])
+    @pytest.mark.parametrize("file_size", [2, 0])
     @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
     def test_send_thread_success(self, messages_in_queue, value, log_offline,
@@ -1131,7 +1126,7 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("log_offline", [True, False])
     @pytest.mark.parametrize("connected", [True, False])
     @pytest.mark.parametrize("log_location", ["test_logs/logs"])
-    @pytest.mark.parametrize("file_size", [2, 1, 0])
+    @pytest.mark.parametrize("file_size", [2, 0])
     @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
     def test_send_thread_report(self, messages_in_queue, value, log_offline,
@@ -1210,7 +1205,7 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("log_offline", [True, False])
     @pytest.mark.parametrize("connected", [True, False])
     @pytest.mark.parametrize("log_location", ["test_logs/logs"])
-    @pytest.mark.parametrize("file_size", [2, 1, 0])
+    @pytest.mark.parametrize("file_size", [2, 0])
     @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
     def test_send_thread_failed(self, messages_in_queue, value, log_offline,
@@ -1287,7 +1282,7 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("log_offline", [True, False])
     @pytest.mark.parametrize("connected", [True, False])
     @pytest.mark.parametrize("log_location", ["test_logs/logs"])
-    @pytest.mark.parametrize("file_size", [2, 1, 0])
+    @pytest.mark.parametrize("file_size", [2, 0])
     @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
     @pytest.mark.parametrize("upgradable", [True, False])
@@ -1372,7 +1367,7 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("log_offline", [True, False])
     @pytest.mark.parametrize("connected", [True, False])
     @pytest.mark.parametrize("log_location", ["test_logs/logs"])
-    @pytest.mark.parametrize("file_size", [2, 1, 0])
+    @pytest.mark.parametrize("file_size", [2, 0])
     @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
     def test_send_thread_control(self, messages_in_queue, valid_message, log_offline,
@@ -1456,7 +1451,7 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("log_offline", [True, False])
     @pytest.mark.parametrize("connected", [True, False])
     @pytest.mark.parametrize("log_location", ["test_logs/logs"])
-    @pytest.mark.parametrize("file_size", [2, 1, 0])
+    @pytest.mark.parametrize("file_size", [2, 0])
     @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
     def test_send_thread_delete(self, object_name, messages_in_queue, log_offline,
@@ -1553,8 +1548,7 @@ class TestSendThreadClass:
             # Message not being sent or saved
             pass
 
-    @pytest.mark.parametrize("expected_trace_id", [
-        (332)])
+    @pytest.mark.parametrize("expected_trace_id", [(332)])
     def test_send_thread_send_trace(self, expected_trace_id):
         """
         Tests sending trace message.

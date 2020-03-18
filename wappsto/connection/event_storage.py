@@ -224,9 +224,8 @@ class OfflineEventStorage:
                 if not os.path.isfile(file_path):
                     # compact data if log for this period doesnt exist
                     self.compact_logs()
-                file = open(file_path, "a")
-                file.write(string_data + " \n")
-                file.close()
+                with open(file_path, "a") as file:
+                    file.write(string_data + " \n")
                 self.wapp_log.debug("Raw log Json: {}".format(string_data))
             else:
                 self.wapp_log.debug("Log limit exeeded.")

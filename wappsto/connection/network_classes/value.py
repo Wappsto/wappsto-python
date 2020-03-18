@@ -258,7 +258,7 @@ class Value:
             msg = "Value {}  has no control state.".format(self.name)
             self.wapp_log.warning(msg)
 
-    def get_now(self):
+    def get_now():
         """
         Retrieve current time.
 
@@ -360,7 +360,7 @@ class Value:
 
         return decimal.Decimal(data_value)
 
-    def update(self, data_value, timestamp=None):
+    def update(self, data_value, timestamp=get_now()):
         """
         Update value.
 
@@ -387,10 +387,7 @@ class Value:
         if data_value is None:
             return False
 
-        if timestamp:
-            state.timestamp = timestamp
-        else:
-            state.timestamp = self.get_now()
+        state.timestamp = timestamp
 
         return self.parent.parent.conn.send_state(
             state,
