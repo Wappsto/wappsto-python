@@ -216,7 +216,7 @@ def validate_json(json_schema, arg):
         return False
 
 
-def set_up_log(self, log_file_exists, make_zip, file_size):
+def set_up_log(self, log_file_exists, file_size, make_zip=False):
     """
     Sets up logs.
 
@@ -225,8 +225,8 @@ def set_up_log(self, log_file_exists, make_zip, file_size):
     Args:
         self: referece to calling object
         log_file_exists: boolean indicating if log file should exist
-        make_zip: boolean indicating if log file should be zipped
         file_size: how big is the current size of the folder
+        make_zip: boolean indicating if log file should be zip
 
     Returns:
         path to the latest file
@@ -413,7 +413,7 @@ class TestConnClass:
             log_location: location of the logs
             log_file_exists: boolean indicating if log file exist
             load_from_state_file: Defines if the data should be loaded from saved files
-            make_zip: boolean indicating if log file should be zipped
+            make_zip: boolean indicating if log file should be zip
 
         """
         # Arrange
@@ -429,7 +429,7 @@ class TestConnClass:
         if not valid_json:
             self.service.instance.network.uuid = None
 
-        set_up_log(self, log_file_exists, make_zip, 1)
+        set_up_log(self, log_file_exists, 1, make_zip)
 
         def send_log():
             self.service.event_storage.send_log(self.service.socket)
@@ -1057,10 +1057,9 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("file_size", [2, 1, 0])
     @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
-    @pytest.mark.parametrize("make_zip", [True, False])
     def test_send_thread_success(self, messages_in_queue, value, log_offline,
                                  connected, log_location, file_size, limit_action,
-                                 log_file_exists, make_zip):
+                                 log_file_exists):
         """
         Tests sending message.
 
@@ -1094,7 +1093,7 @@ class TestSendThreadClass:
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.connected = connected
-        file_path = set_up_log(self, log_file_exists, make_zip, file_size)
+        file_path = set_up_log(self, log_file_exists, file_size)
 
         # Act
         try:
@@ -1135,10 +1134,9 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("file_size", [2, 1, 0])
     @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
-    @pytest.mark.parametrize("make_zip", [True, False])
     def test_send_thread_report(self, messages_in_queue, value, log_offline,
                                 connected, log_location, file_size, limit_action,
-                                log_file_exists, make_zip):
+                                log_file_exists):
         """
         Tests sending message.
 
@@ -1173,7 +1171,7 @@ class TestSendThreadClass:
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.connected = connected
-        file_path = set_up_log(self, log_file_exists, make_zip, file_size)
+        file_path = set_up_log(self, log_file_exists, file_size)
 
         # Act
         try:
@@ -1215,10 +1213,9 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("file_size", [2, 1, 0])
     @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
-    @pytest.mark.parametrize("make_zip", [True, False])
     def test_send_thread_failed(self, messages_in_queue, value, log_offline,
                                 connected, log_location, file_size, limit_action,
-                                log_file_exists, make_zip):
+                                log_file_exists):
         """
         Tests sending message.
 
@@ -1252,7 +1249,7 @@ class TestSendThreadClass:
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.connected = connected
-        file_path = set_up_log(self, log_file_exists, make_zip, file_size)
+        file_path = set_up_log(self, log_file_exists, file_size)
 
         # Act
         try:
@@ -1294,10 +1291,9 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
     @pytest.mark.parametrize("upgradable", [True, False])
-    @pytest.mark.parametrize("make_zip", [True, False])
     def test_send_thread_reconnect(self, messages_in_queue, valid_message, log_offline,
                                    connected, log_location, file_size, limit_action,
-                                   log_file_exists, upgradable, make_zip):
+                                   log_file_exists, upgradable):
         """
         Tests sending message.
 
@@ -1336,7 +1332,7 @@ class TestSendThreadClass:
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.connected = connected
-        file_path = set_up_log(self, log_file_exists, make_zip, file_size)
+        file_path = set_up_log(self, log_file_exists, file_size)
 
         # Act
         try:
@@ -1379,10 +1375,9 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("file_size", [2, 1, 0])
     @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
-    @pytest.mark.parametrize("make_zip", [True, False])
     def test_send_thread_control(self, messages_in_queue, valid_message, log_offline,
                                  connected, log_location, file_size, limit_action,
-                                 log_file_exists, make_zip):
+                                 log_file_exists):
         """
         Tests sending message.
 
@@ -1422,7 +1417,7 @@ class TestSendThreadClass:
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.connected = connected
-        file_path = set_up_log(self, log_file_exists, make_zip, file_size)
+        file_path = set_up_log(self, log_file_exists, file_size)
 
         # Act
         try:
@@ -1464,10 +1459,9 @@ class TestSendThreadClass:
     @pytest.mark.parametrize("file_size", [2, 1, 0])
     @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
     @pytest.mark.parametrize("log_file_exists", [True, False])
-    @pytest.mark.parametrize("make_zip", [True, False])
     def test_send_thread_delete(self, object_name, messages_in_queue, log_offline,
                                 connected, log_location, file_size, limit_action,
-                                log_file_exists, make_zip):
+                                log_file_exists):
         """
         Tests sending DELETE message.
 
@@ -1528,7 +1522,7 @@ class TestSendThreadClass:
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.add_id_to_confirm_list = Mock()
         self.service.socket.connected = connected
-        file_path = set_up_log(self, log_file_exists, make_zip, file_size)
+        file_path = set_up_log(self, log_file_exists, file_size)
 
         # Act
         try:
