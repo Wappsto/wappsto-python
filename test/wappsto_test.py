@@ -240,6 +240,9 @@ def set_up_log(log_location, log_file_exists, file_path, file_size):
             string = "0" * num_chars + "\n"
             file.write(string)
 
+    file_path = self.service.event_storage.get_file_path("2000-1.txt")
+    with open(file_path, "w") as file:
+        file.write("")
 
 def check_for_logged_info(*args, **kwargs):
     """
