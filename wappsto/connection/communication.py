@@ -753,9 +753,7 @@ class ClientSocket:
         """
         if not package.trace_id:
             if package.value_id in self.add_trace_to_report_list.keys():
-                package.trace_id = (
-                    self.add_trace_to_report_list.pop(package.value_id)
-                )
+                package.trace_id = self.add_trace_to_report_list.pop(package.value_id)
         local_data = self.rpc.get_rpc_state(
             package.data,
             package.network_id,
@@ -795,8 +793,7 @@ class ClientSocket:
         for device in self.network.devices:
             for value in device.values:
                 if value.timer.is_alive():
-                    msg = "Value: {} is no longer periodically sending updates."
-                    msg = msg.format(value.uuid)
+                    msg = "Value: {} is no longer periodically sending updates.".format(value.uuid)
                     self.wapp_log.debug(msg)
                 value.timer.cancel()
 
@@ -887,8 +884,8 @@ class ClientSocket:
                     self.remove_id_from_confirm_list(decoded_id)
 
                 else:
-                    self.wapp_log.warning("Unhandled method")
-                    error_str = 'Unknown method'
+                    error_str = "Unknown method"
+                    self.wapp_log.warning(error_str)
                     self.send_error(error_str, decoded_id)
             except ValueError:
                 error_str = 'Value error'

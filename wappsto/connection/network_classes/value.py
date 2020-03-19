@@ -326,7 +326,7 @@ class Value:
                        .format(data_value, self.name))
                 self.wapp_log.warning(msg)
         else:
-            msg = ("Value type {} is invalid".format(self.date_type))
+            msg = "Value type {} is invalid".format(self.date_type)
             self.wapp_log.error(msg)
 
     def ensure_number_value_follows_steps(self, data_value):
