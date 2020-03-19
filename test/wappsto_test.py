@@ -388,11 +388,13 @@ class TestConnClass:
     @pytest.mark.parametrize("callback_exists", [True, False])
     @pytest.mark.parametrize("upgradable", [True, False])
     @pytest.mark.parametrize("valid_json", [True, False])
-    @pytest.mark.parametrize("log_offline", [True, False])
     @pytest.mark.parametrize("log_location", ["test_logs/logs"])
-    @pytest.mark.parametrize("log_file_exists", [True, False])
+    @pytest.mark.parametrize("log_offline,log_file_exists,make_zip", [
+        (True, True, True),
+        (True, True, False),
+        (True, False, False),
+        (False, False, False)])
     @pytest.mark.parametrize("load_from_state_file", [True, False])
-    @pytest.mark.parametrize("make_zip", [True, False])
     def test_connection(self, address, port, expected_status, callback_exists,
                         upgradable, valid_json, log_offline, log_location,
                         log_file_exists, load_from_state_file, make_zip):
@@ -452,6 +454,8 @@ class TestConnClass:
             assert "None" not in str(sent_json)
             assert (upgradable and "upgradable" in str(sent_json["meta"])
                     or not upgradable and "upgradable" not in str(sent_json["meta"]))
+        if callback_exists:
+            assert status_service.callback.call_args[0][-1].current_status == expected_status
         assert self.service.status.get_status() == expected_status
 
     @pytest.mark.parametrize("load_from_state_file", [True, False])
@@ -719,15 +723,14 @@ class TestReceiveThreadClass:
     @pytest.mark.parametrize("callback_exists", [False, True])
     @pytest.mark.parametrize("trace_id", [None, "321"])
     @pytest.mark.parametrize("expected_msg_id", [message_data.SEND_SUCCESS])
-    @pytest.mark.parametrize("object_name", ["value", "wrong"])
+    @pytest.mark.parametrize("object_name", ["value"])
     @pytest.mark.parametrize("object_exists", [False, True])
     @pytest.mark.parametrize("bulk", [False, True])
     @pytest.mark.parametrize("data", ["44", None])
     @pytest.mark.parametrize("split_message", [False, True])
-    @pytest.mark.parametrize("control_id_exists", [False, True])
     def test_receive_thread_Put(self, callback_exists, trace_id,
                                 expected_msg_id, object_name, object_exists,
-                                bulk, data, split_message, control_id_exists):
+                                bulk, data, split_message):
         """
         Tests receiving message with PUT verb.
 
@@ -742,26 +745,18 @@ class TestReceiveThreadClass:
             bulk: Boolean value indicating if multiple messages should be sent at once
             data: data value provided in the message
             split_message: Boolean value indicating if message should be sent in parts
-            control_id_exists: indicates if control_id should be in the message
 
         """
         # Arrange
         actual_object = get_object(self, object_name)
-        if actual_object:
-            fix_object(callback_exists, actual_object)
-            actual_object.control_state.data = "1"
-            id = str(actual_object.control_state.uuid)
-            url = str(actual_object.report_state.uuid)
-            if not object_exists:
-                with patch('queue.Queue.put'):
-                    actual_object.control_state.delete()
-                expected_msg_id = message_data.SEND_FAILED
-        else:
+        fix_object(callback_exists, actual_object)
+        actual_object.control_state.data = "1"
+        id = str(actual_object.control_state.uuid)
+        url = str(actual_object.report_state.uuid)
+        if not object_exists:
+            with patch('queue.Queue.put'):
+                actual_object.control_state.delete()
             expected_msg_id = message_data.SEND_FAILED
-            id = url = "1"
-
-        if not control_id_exists:
-            id = None
 
         send_response(self, "PUT", trace_id, bulk, "1", id, url, data, split_message)
 
@@ -774,11 +769,11 @@ class TestReceiveThreadClass:
             pass
 
         # Assert
-        if control_id_exists and data is not None:
-            if trace_id and object_exists and actual_object:
-                assert any(message.msg_id == message_data.SEND_TRACE for message
-                           in self.service.socket.sending_queue.queue)
-            if actual_object and object_exists:
+        if data is not None:
+            if object_exists:
+                if trace_id:
+                    assert any(message.msg_id == message_data.SEND_TRACE for message
+                               in self.service.socket.sending_queue.queue)
                 if callback_exists:
                     assert actual_object.callback.call_args[0][1] == "set"
             assert self.service.socket.sending_queue.qsize() > 0
@@ -795,7 +790,7 @@ class TestReceiveThreadClass:
     @pytest.mark.parametrize("callback_exists", [False, True])
     @pytest.mark.parametrize("trace_id", [None, "321"])
     @pytest.mark.parametrize("expected_msg_id", [message_data.SEND_SUCCESS])
-    @pytest.mark.parametrize("object_name", ["value", "wrong"])
+    @pytest.mark.parametrize("object_name", ["value"])
     @pytest.mark.parametrize("object_exists", [False, True])
     @pytest.mark.parametrize("bulk", [False, True])
     @pytest.mark.parametrize("split_message", [False, True])
@@ -821,17 +816,13 @@ class TestReceiveThreadClass:
         """
         # Arrange
         actual_object = get_object(self, object_name)
-        if actual_object:
-            fix_object(callback_exists, actual_object)
-            id = str(actual_object.control_state.uuid)
-            url = str(actual_object.report_state.uuid)
-            if not object_exists:
-                with patch('queue.Queue.put'):
-                    actual_object.report_state.delete()
-                expected_msg_id = message_data.SEND_FAILED
-        else:
+        fix_object(callback_exists, actual_object)
+        id = str(actual_object.control_state.uuid)
+        url = str(actual_object.report_state.uuid)
+        if not object_exists:
+            with patch('queue.Queue.put'):
+                actual_object.report_state.delete()
             expected_msg_id = message_data.SEND_FAILED
-            id = url = "1"
 
         if not url_exists:
             url = None
@@ -848,10 +839,10 @@ class TestReceiveThreadClass:
 
         # Assert
         if url_exists:
-            if trace_id and object_exists and actual_object:
-                assert any(message.msg_id == message_data.SEND_TRACE for message
-                           in self.service.socket.sending_queue.queue)
-            if actual_object and object_exists:
+            if object_exists:
+                if trace_id:
+                    assert any(message.msg_id == message_data.SEND_TRACE for message
+                               in self.service.socket.sending_queue.queue)
                 if callback_exists:
                     assert actual_object.callback.call_args[0][1] == "refresh"
             assert self.service.socket.sending_queue.qsize() > 0
@@ -867,7 +858,7 @@ class TestReceiveThreadClass:
     @pytest.mark.parametrize("callback_exists", [False, True])
     @pytest.mark.parametrize("trace_id", [None, "321"])
     @pytest.mark.parametrize("expected_msg_id", [message_data.SEND_SUCCESS])
-    @pytest.mark.parametrize("object_name", ["network", "device", "value", "control_state", "report_state", "wrong"])
+    @pytest.mark.parametrize("object_name", ["network", "device", "value", "control_state", "report_state"])
     @pytest.mark.parametrize("object_exists", [False, True])
     @pytest.mark.parametrize("bulk", [False, True])
     @pytest.mark.parametrize("split_message", [False, True])
@@ -893,16 +884,12 @@ class TestReceiveThreadClass:
         """
         # Arrange
         actual_object = get_object(self, object_name)
-        if actual_object:
-            fix_object(callback_exists, actual_object)
-            id = url = str(actual_object.uuid)
-            if not object_exists:
-                with patch('queue.Queue.put'):
-                    actual_object.delete()
-                expected_msg_id = message_data.SEND_FAILED
-        else:
+        fix_object(callback_exists, actual_object)
+        id = url = str(actual_object.uuid)
+        if not object_exists:
+            with patch('queue.Queue.put'):
+                actual_object.delete()
             expected_msg_id = message_data.SEND_FAILED
-            id = url = "1"
 
         if not url_exists:
             url = None
@@ -919,10 +906,10 @@ class TestReceiveThreadClass:
 
         # Assert
         if url_exists:
-            if trace_id and object_exists and actual_object:
-                assert any(message.msg_id == message_data.SEND_TRACE for message
-                           in self.service.socket.sending_queue.queue)
-            if actual_object and object_exists:
+            if object_exists:
+                if trace_id:
+                    assert any(message.msg_id == message_data.SEND_TRACE for message
+                               in self.service.socket.sending_queue.queue)
                 if callback_exists:
                     assert actual_object.callback.call_args[0][1] == "remove"
             assert self.service.socket.sending_queue.qsize() > 0
@@ -1013,7 +1000,7 @@ class TestSendThreadClass:
 
     """
 
-    @pytest.mark.parametrize("messages_in_queue", [1, 2, 20])
+    @pytest.mark.parametrize("messages_in_queue", [1, 20])
     def test_send_thread_unhandled(self, messages_in_queue):
         """
         Tests sending message.
@@ -1047,14 +1034,16 @@ class TestSendThreadClass:
         assert self.service.socket.sending_queue.qsize() == messages_in_queue - 1
 
     @pytest.mark.parametrize("value", [1, None])
-    @pytest.mark.parametrize("messages_in_queue", [1, 2, 20])
-    @pytest.mark.parametrize("log_offline", [True, False])
-    @pytest.mark.parametrize("connected", [True, False])
+    @pytest.mark.parametrize("messages_in_queue", [1, 20])
     @pytest.mark.parametrize("log_location", ["test_logs/logs"])
     @pytest.mark.parametrize("file_size", [1, 0])
     @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
-    @pytest.mark.parametrize("log_file_exists", [True, False])
-    @pytest.mark.parametrize("make_zip", [True, False])
+    @pytest.mark.parametrize("connected,log_offline,log_file_exists,make_zip", [
+        (False, True, True, True),
+        (False, True, True, False),
+        (False, True, False, False),
+        (False, False, False, False),
+        (True, False, False, False)])
     def test_send_thread_success(self, messages_in_queue, value, log_offline,
                                  connected, log_location, file_size, limit_action,
                                  log_file_exists, make_zip):
@@ -1126,14 +1115,16 @@ class TestSendThreadClass:
             pass
 
     @pytest.mark.parametrize("value", ["test_info", None])
-    @pytest.mark.parametrize("messages_in_queue", [1, 2, 20])
-    @pytest.mark.parametrize("log_offline", [True, False])
-    @pytest.mark.parametrize("connected", [True, False])
+    @pytest.mark.parametrize("messages_in_queue", [1, 20])
     @pytest.mark.parametrize("log_location", ["test_logs/logs"])
     @pytest.mark.parametrize("file_size", [1, 0])
     @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
-    @pytest.mark.parametrize("log_file_exists", [True, False])
-    @pytest.mark.parametrize("make_zip", [True, False])
+    @pytest.mark.parametrize("connected,log_offline,log_file_exists,make_zip", [
+        (False, True, True, True),
+        (False, True, True, False),
+        (False, True, False, False),
+        (False, False, False, False),
+        (True, False, False, False)])
     def test_send_thread_report(self, messages_in_queue, value, log_offline,
                                 connected, log_location, file_size, limit_action,
                                 log_file_exists, make_zip):
@@ -1207,14 +1198,16 @@ class TestSendThreadClass:
             pass
 
     @pytest.mark.parametrize("value", [1, None])
-    @pytest.mark.parametrize("messages_in_queue", [1, 2, 20])
-    @pytest.mark.parametrize("log_offline", [True, False])
-    @pytest.mark.parametrize("connected", [True, False])
+    @pytest.mark.parametrize("messages_in_queue", [1, 20])
     @pytest.mark.parametrize("log_location", ["test_logs/logs"])
     @pytest.mark.parametrize("file_size", [1, 0])
     @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
-    @pytest.mark.parametrize("log_file_exists", [True, False])
-    @pytest.mark.parametrize("make_zip", [True, False])
+    @pytest.mark.parametrize("connected,log_offline,log_file_exists,make_zip", [
+        (False, True, True, True),
+        (False, True, True, False),
+        (False, True, False, False),
+        (False, False, False, False),
+        (True, False, False, False)])
     def test_send_thread_failed(self, messages_in_queue, value, log_offline,
                                 connected, log_location, file_size, limit_action,
                                 log_file_exists, make_zip):
@@ -1286,15 +1279,17 @@ class TestSendThreadClass:
             pass
 
     @pytest.mark.parametrize("valid_message", [True, False])
-    @pytest.mark.parametrize("messages_in_queue", [1, 2, 20])
-    @pytest.mark.parametrize("log_offline", [True, False])
-    @pytest.mark.parametrize("connected", [True, False])
+    @pytest.mark.parametrize("messages_in_queue", [1, 20])
     @pytest.mark.parametrize("log_location", ["test_logs/logs"])
     @pytest.mark.parametrize("file_size", [1, 0])
     @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
-    @pytest.mark.parametrize("log_file_exists", [True, False])
     @pytest.mark.parametrize("upgradable", [True, False])
-    @pytest.mark.parametrize("make_zip", [True, False])
+    @pytest.mark.parametrize("connected,log_offline,log_file_exists,make_zip", [
+        (False, True, True, True),
+        (False, True, True, False),
+        (False, True, False, False),
+        (False, False, False, False),
+        (True, False, False, False)])
     def test_send_thread_reconnect(self, messages_in_queue, valid_message, log_offline,
                                    connected, log_location, file_size, limit_action,
                                    log_file_exists, upgradable, make_zip):
@@ -1373,14 +1368,16 @@ class TestSendThreadClass:
             pass
 
     @pytest.mark.parametrize("valid_message", [True, False])
-    @pytest.mark.parametrize("messages_in_queue", [1, 2, 20])
-    @pytest.mark.parametrize("log_offline", [True, False])
-    @pytest.mark.parametrize("connected", [True, False])
+    @pytest.mark.parametrize("messages_in_queue", [1, 20])
     @pytest.mark.parametrize("log_location", ["test_logs/logs"])
     @pytest.mark.parametrize("file_size", [1, 0])
     @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
-    @pytest.mark.parametrize("log_file_exists", [True, False])
-    @pytest.mark.parametrize("make_zip", [True, False])
+    @pytest.mark.parametrize("connected,log_offline,log_file_exists,make_zip", [
+        (False, True, True, True),
+        (False, True, True, False),
+        (False, True, False, False),
+        (False, False, False, False),
+        (True, False, False, False)])
     def test_send_thread_control(self, messages_in_queue, valid_message, log_offline,
                                  connected, log_location, file_size, limit_action,
                                  log_file_exists, make_zip):
@@ -1459,14 +1456,16 @@ class TestSendThreadClass:
             pass
 
     @pytest.mark.parametrize("object_name", ["network", "device", "value", "control_state", "report_state"])
-    @pytest.mark.parametrize("messages_in_queue", [1, 2, 20])
-    @pytest.mark.parametrize("log_offline", [True, False])
-    @pytest.mark.parametrize("connected", [True, False])
+    @pytest.mark.parametrize("messages_in_queue", [1, 20])
     @pytest.mark.parametrize("log_location", ["test_logs/logs"])
     @pytest.mark.parametrize("file_size", [1, 0])
     @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
-    @pytest.mark.parametrize("log_file_exists", [True, False])
-    @pytest.mark.parametrize("make_zip", [True, False])
+    @pytest.mark.parametrize("connected,log_offline,log_file_exists,make_zip", [
+        (False, True, True, True),
+        (False, True, True, False),
+        (False, True, False, False),
+        (False, False, False, False),
+        (True, False, False, False)])
     def test_send_thread_delete(self, object_name, messages_in_queue, log_offline,
                                 connected, log_location, file_size, limit_action,
                                 log_file_exists, make_zip):
@@ -1562,7 +1561,7 @@ class TestSendThreadClass:
             # Message not being sent or saved
             pass
 
-    @pytest.mark.parametrize("expected_trace_id", [(332)])
+    @pytest.mark.parametrize("expected_trace_id", [332])
     def test_send_thread_send_trace(self, expected_trace_id):
         """
         Tests sending trace message.
