@@ -5,6 +5,7 @@ Stores the Wappsto class functionality.
 """
 
 import os
+import time
 import logging
 import inspect
 from .connection import seluxit_rpc
@@ -136,6 +137,44 @@ class Wappsto:
         """
         return self.data_manager.get_by_id(id)
 
+    def set_status_callback(self, callback):
+        """
+        Sets callback for status.
+
+        Sets the provided callback to the instance of status.
+
+        Args:
+            callback: reference to callback
+
+        """
+        self.status.set_callback(callback)
+
+    def set_network_callback(self, callback):
+        """
+        Sets callback for network.
+
+        Sets the provided callback to the instance of network.
+
+        Args:
+            callback: reference to callback
+
+        """
+        self.data_manager.network.set_callback(callback)
+
+    def set_value_callback(self, callback):
+        """
+        Sets callback for values.
+
+        Sets the provided callback to all instances of value.
+
+        Args:
+            callback: reference to callback
+
+        """
+        for device in self.data_manager.network.devices:
+            for value in device.values:
+                value.set_callback(callback)
+
     def get_device(self, name):
         """
         Device reference.
@@ -218,6 +257,18 @@ class Wappsto:
 
         self.status.set_status(status.RUNNING)
 
+        self.keep_running()
+
+    def keep_running(self):
+        """
+        Keeps wappsto running.
+
+        Creates infinite loop, that doesn't allow for this thread to be closed.
+
+        """
+        while True:
+            time.sleep(1)
+
     def stop(self, save=True):
         """
         Stop the Wappsto service.
@@ -230,7 +281,6 @@ class Wappsto:
                 (default: {True})
 
         """
-        # TODO(Dimitar): Add Exception checking if necessary.
         self.connecting = False
         self.status.set_status(status.DISCONNECTING)
         # Closes the socket connection, if one is established.
