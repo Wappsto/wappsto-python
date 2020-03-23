@@ -133,7 +133,6 @@ class ReceiveData:
 
         except JSONDecodeError:
             self.wapp_log.error("Json error: {}".format(decoded))
-            # TODO send json rpc error, parse error
 
         except ConnectionResetError as e:
             msg = "Received Reset: {}".format(e)
