@@ -17,8 +17,8 @@ from unittest.mock import patch
 
 from wappsto import status
 from wappsto.connection import message_data
+from wappsto.errors import wappsto_errors
 from wappsto.connection import event_storage
-from wappsto.connection.network_classes.errors import wappsto_errors
 
 ADDRESS = "wappsto.com"
 PORT = 11006
@@ -90,15 +90,15 @@ def get_object(self, object_name):
     """
     actual_object = None
     if object_name == "network":
-        actual_object = self.service.instance.network
+        actual_object = self.service.data_manager.network
     elif object_name == "device":
-        actual_object = self.service.get_devices()[0]
+        actual_object = self.service.data_manager.network.devices[0]
     elif object_name == "value":
-        actual_object = self.service.get_devices()[0].values[0]
+        actual_object = self.service.data_manager.network.devices[0].values[0]
     elif object_name == "control_state":
-        actual_object = self.service.get_devices()[0].values[0].get_control_state()
+        actual_object = self.service.data_manager.network.devices[0].values[0].get_control_state()
     elif object_name == "report_state":
-        actual_object = self.service.get_devices()[0].values[0].get_report_state()
+        actual_object = self.service.data_manager.network.devices[0].values[0].get_report_state()
     return actual_object
 
 
@@ -358,7 +358,7 @@ class TestJsonLoadClass:
         # Assert
         assert (valid_location and valid_json) == bool(service)
         if service is not None:
-            assert service.instance.decoded == decoded
+            assert service.data_manager.decoded == decoded
 
     @pytest.mark.parametrize("object_exists", [True, False])
     @pytest.mark.parametrize("object_name", ["network", "device", "value", "control_state", "report_state"])
@@ -441,7 +441,7 @@ class TestConnClass:
         status_service = self.service.get_status()
         fix_object(callback_exists, status_service)
         if not valid_json:
-            self.service.instance.network.uuid = None
+            self.service.data_manager.network.uuid = None
 
         set_up_log(self, log_file_exists, 1, make_zip)
 
@@ -491,8 +491,8 @@ class TestConnClass:
         self.service = wappsto.Wappsto(json_file_name=test_json_location,
                                        load_from_state_file=load_from_state_file)
         fake_connect(self, ADDRESS, PORT)
-        path = self.service.object_saver.path
-        network_id = self.service.instance.network.uuid
+        path = self.service.data_manager.path_to_calling_file
+        network_id = self.service.data_manager.json_file_name
         path_open = os.path.join(path, '{}.json'.format(network_id))
         if os.path.exists(path_open):
             os.remove(path_open)
@@ -777,7 +777,7 @@ class TestReceiveThreadClass:
         elif type == "value":
             id = str(actual_object.uuid)
         if not object_exists:
-            self.service.instance.network = None
+            self.service.data_manager.network = None
             expected_msg_id = message_data.SEND_FAILED
 
         send_response(self, 'PUT', trace_id=trace_id, bulk=bulk, element_id=id,
@@ -847,7 +847,7 @@ class TestReceiveThreadClass:
         fix_object(callback_exists, actual_object)
         id = str(actual_object.report_state.uuid)
         if not object_exists:
-            self.service.instance.network = None
+            self.service.data_manager.network = None
             expected_msg_id = message_data.SEND_FAILED
 
         if not id_exists:
@@ -914,7 +914,7 @@ class TestReceiveThreadClass:
         fix_object(callback_exists, actual_object)
         id = str(actual_object.uuid)
         if not object_exists:
-            self.service.instance.network = None
+            self.service.data_manager.network = None
             expected_msg_id = message_data.SEND_FAILED
 
         if not id_exists:

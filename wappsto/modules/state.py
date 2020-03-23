@@ -4,8 +4,8 @@ The state module.
 Stores attributes for the state instance and handles device-related
 """
 import logging
-from .. import message_data
-from .errors import wappsto_errors
+from ..connection import message_data
+from ..errors import wappsto_errors
 
 
 class State:

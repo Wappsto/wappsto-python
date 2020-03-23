@@ -19,7 +19,7 @@ import urllib.request as request
 import logging
 from . import message_data
 from .. import status
-from .network_classes.errors import wappsto_errors
+from ..errors import wappsto_errors
 from json.decoder import JSONDecodeError
 
 RECEIVE_SIZE = 1024
@@ -37,7 +37,7 @@ class ClientSocket:
     between the client and the server.
     """
 
-    def __init__(self, rpc, instance, address, port, path_to_calling_file,
+    def __init__(self, rpc, data_manager, address, port, path_to_calling_file,
                  wappsto_status, event_storage):
         """
         Create a client socket.
@@ -49,7 +49,7 @@ class ClientSocket:
 
         Args:
             rpc: Sending/receiving queue processing instance.
-            instance: Instance of network, devices, values and states.
+            data_manager: data_manager of DataManager.
             address: Server address.
             port: Server port.
             path_to_calling_file: path to OS directory of calling file.
@@ -59,8 +59,7 @@ class ClientSocket:
         """
         self.wapp_log = logging.getLogger(__name__)
         self.wapp_log.addHandler(logging.NullHandler())
-        self.network = instance.network
-        self.instance = instance
+        self.data_manager = data_manager
         self.path_to_calling_file = path_to_calling_file
         self.ssl_server_cert = os.path.join(path_to_calling_file,
                                             "certificates/ca.crt")
@@ -89,8 +88,8 @@ class ClientSocket:
         self.lock_await = threading.Lock()
         self.set_sockets()
 
-        self.network.rpc = self.rpc
-        self.network.conn = self
+        self.data_manager.network.rpc = self.rpc
+        self.data_manager.network.conn = self
 
     def send_state(self, state, data_value=None):
         """
@@ -219,17 +218,17 @@ class ClientSocket:
 
         Initializes the object instances on the sending/receiving queue.
         """
-        for device in self.instance.network.devices:
+        for device in self.data_manager.network.devices:
             for value in device.values:
                 state = value.get_control_state()
                 if state is not None:
                     self.get_control(state)
 
-        message = self.rpc.get_rpc_whole_json(self.instance.build_json())
+        message = self.rpc.get_rpc_whole_json(self.data_manager.get_encoded_network())
         self.create_bulk(message)
 
         msg = "The whole network {} added to Sending queue {}.".format(
-            self.instance.network.name,
+            self.data_manager.network.name,
             self.rpc
         )
         self.wapp_log.debug(msg)
@@ -297,7 +296,7 @@ class ClientSocket:
         except AttributeError:
             trace_id = None
 
-        obj = self.instance.get_by_id(uuid)
+        obj = self.data_manager.get_by_id(uuid)
         if obj is None:
             self.send_error('Non-existing uuid provided', return_id)
             return
@@ -332,7 +331,7 @@ class ClientSocket:
             self.send_error('Attribute error encountered', return_id)
 
     def __get_random_id(self):
-        network_n = self.instance.network.name
+        network_n = self.data_manager.network.name
         random_int = random.randint(1, 25000)
         return "{}{}".format(network_n, random_int)
 
@@ -423,7 +422,7 @@ class ClientSocket:
         except AttributeError:
             trace_id = None
 
-        obj = self.instance.get_by_id(uuid)
+        obj = self.data_manager.get_by_id(uuid)
         if obj is None:
             self.send_error('Non-existing uuid provided', return_id)
             return
@@ -472,7 +471,7 @@ class ClientSocket:
         except AttributeError:
             trace_id = None
 
-        obj = self.instance.get_by_id(uuid)
+        obj = self.data_manager.get_by_id(uuid)
         if obj is None:
             self.send_error('Non-existing uuid provided', return_id)
             return
@@ -777,14 +776,19 @@ class ClientSocket:
         Sends a request to attempt to reconnect to the server.
         """
         self.wapp_log.info("Sending reconnect data")
-        rpc_network = self.rpc.get_rpc_network(
-            self.network.uuid,
-            self.network.name,
-            put=False
-        )
-        self.create_bulk(rpc_network)
-        for element in self.packet_awaiting_confirm:
-            self.create_bulk(self.packet_awaiting_confirm[element])
+        try:
+            rpc_network = self.rpc.get_rpc_network(
+                self.data_manager.network.uuid,
+                self.data_manager.network.name,
+                put=False
+            )
+            self.create_bulk(rpc_network)
+            for element in self.packet_awaiting_confirm:
+                self.create_bulk(self.packet_awaiting_confirm[element])
+        except OSError as e:
+            self.connected = False
+            msg = "Error sending reconnect: {}".format(e)
+            self.wapp_log.error(msg, exc_info=True)
 
     def send_failed(self, package):
         """
@@ -852,7 +856,7 @@ class ClientSocket:
         """
         self.wapp_log.info("Closing connection...")
 
-        for device in self.network.devices:
+        for device in self.data_manager.network.devices:
             for value in device.values:
                 if value.timer.is_alive():
                     msg = "Value: {} is no longer periodically sending updates.".format(value.uuid)
@@ -938,9 +942,9 @@ class ClientSocket:
                 elif decoded.get('result', False):
                     result_value = decoded['result'].get('value', False)
                     if result_value:
-                        uuid = result_value.get('meta').get('id')
-                        data = result_value.get('data')
-                        object = self.instance.get_by_id(uuid)
+                        uuid = result_value['meta']['id']
+                        data = result_value['data']
+                        object = self.data_manager.get_by_id(uuid)
                         if object is not None and object.parent.control_state == object:
                             object.parent.handle_control(data_value=data)
                     self.remove_id_from_confirm_list(decoded_id)

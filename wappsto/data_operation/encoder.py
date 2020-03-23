@@ -1,8 +1,7 @@
 """
-The wappsto Encoding module.
+The wappsto encoding module.
 
-Handles encoding object instances to a JSON file for the purpose of saving
-them and any modifications made to them.
+Handles encoding object instances to a JSON file.
 """
 import logging
 from ..connection.seluxit_rpc import SeluxitRpc
@@ -19,39 +18,37 @@ class WappstoEncoder:
 
     def __init__(self):
         """
-        Initialize WappstoEncoding.
+        Initialize WappstoEncoder.
 
-        Initializes the WappstoEncoding class, which handles encoding the
-        various parts of the system into a JSON file.
+        Initializes the WappstoEncoder class.
         """
         self.wapp_log = logging.getLogger(__name__)
         self.wapp_log.addHandler(logging.NullHandler())
 
-    def encode(self, instance):
+    def encode_network(self, network):
         """
-        Encode instance.
+        Encode instance of Network class.
 
-        Encodes objects from the runtime instances and returns the result so
-        it can be saved.
+        Handles the encoding of the network instance, contains a template to
+        encode the network with.
 
         Args:
-            instance: Reference to the instance class that holds the object
-                instances.
+            network: Reference to the instance of the Network class.
 
         Returns:
-            An encoded JSON result.
+            The dictionary.
 
         """
         encoded_devices = []
-        for device in instance.network.devices:
+        for device in network.devices:
             encoded_device = self.encode_device(device)
             encoded_devices.append(encoded_device)
 
         encoded_network = {
-            'name': instance.network.name,
+            'name': network.name,
             'device': encoded_devices,
             'meta': {
-                'id': instance.network.uuid,
+                'id': network.uuid,
                 'version': '2.0',
                 'type': 'network'
             }
@@ -61,21 +58,20 @@ class WappstoEncoder:
             encoded_network.get('meta').update({'upgradable': True})
 
         self.wapp_log.debug("Network JSON: {}".format(encoded_network))
-
         return encoded_network
 
     def encode_device(self, device):
         """
         Encode instance of Device class.
 
-        Handles the encondoing of the device instance, contains a template to
+        Handles the encoding of the device instance, contains a template to
         encode the device with.
 
         Args:
             device: Reference to the instance of the Device class.
 
         Returns:
-            The encoded JSON result.
+            The dictionary.
 
         """
         encoded_values = []
@@ -102,21 +98,20 @@ class WappstoEncoder:
         }
 
         self.wapp_log.debug("Device JSON: {}".format(encoded_device))
-
         return encoded_device
 
     def encode_value(self, value):
         """
         Encode instance of Value class.
 
-        Handles the encodoing of the value instance, contains a template to
+        Handles the encoding of the value instance, contains a template to
         encode the value with.
 
         Args:
             value: Reference to the instance of the Value class.
 
         Returns:
-            The encoded JSON result.
+            The dictionary.
 
         """
         states = []
@@ -165,21 +160,20 @@ class WappstoEncoder:
         }
 
         self.wapp_log.debug("Value JSON: {}".format(encoded_value))
-
         return encoded_value
 
     def encode_state(self, state):
         """
         Encode instance of State class.
 
-        Handles the encodoing of the value instance, contains a template to
-        encode the value with.
+        Handles the encoding of the state instance, contains a template to
+        encode the state with.
 
         Args:
             state: Reference to the instance of the State class.
 
         Returns:
-            The encoded JSON result.
+            The dictionary.
 
         """
         encoded_state = {
@@ -196,5 +190,4 @@ class WappstoEncoder:
         }
 
         self.wapp_log.debug("State JSON: {}".format(encoded_state))
-
         return encoded_state
