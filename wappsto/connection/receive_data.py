@@ -35,7 +35,7 @@ class ReceiveData:
         self.client_socket = client_socket
 
     def __get_random_id(self):
-        network_n = self.client_socket.instance.network.name
+        network_n = self.client_socket.data_manager.network.name
         random_int = random.randint(1, 25000)
         return "{}{}".format(network_n, random_int)
 
@@ -217,7 +217,7 @@ class ReceiveData:
         except AttributeError:
             trace_id = None
 
-        obj = self.client_socket.instance.get_by_id(uuid)
+        obj = self.client_socket.data_manager.get_by_id(uuid)
         if obj is None:
             self.error_reply('Non-existing uuid provided', return_id)
             return
@@ -282,7 +282,7 @@ class ReceiveData:
         except AttributeError:
             trace_id = None
 
-        obj = self.client_socket.instance.get_by_id(uuid)
+        obj = self.client_socket.data_manager.get_by_id(uuid)
         if obj is None:
             self.error_reply('Non-existing uuid provided', return_id)
             return
@@ -333,7 +333,7 @@ class ReceiveData:
         except AttributeError:
             trace_id = None
 
-        obj = self.client_socket.instance.get_by_id(uuid)
+        obj = self.client_socket.data_manager.get_by_id(uuid)
         if obj is None:
             self.error_reply('Non-existing uuid provided', return_id)
             return
@@ -380,7 +380,7 @@ class ReceiveData:
         if result_value is not True:
             uuid = result_value['meta']['id']
             data = result_value['data']
-            object = self.client_socket.instance.get_by_id(uuid)
+            object = self.client_socket.data_manager.get_by_id(uuid)
             if object is not None and object.parent.control_state == object:
                 object.parent.handle_control(data_value=data)
         self.client_socket.remove_id_from_confirm_list(return_id)

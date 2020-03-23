@@ -285,8 +285,8 @@ class SendData:
         self.wapp_log.info("Sending reconnect data")
         try:
             rpc_network = self.client_socket.rpc.get_rpc_network(
-                self.client_socket.network.uuid,
-                self.client_socket.network.name,
+                self.client_socket.data_manager.network.uuid,
+                self.client_socket.data_manager.network.name,
                 put=False
             )
             self.create_bulk(rpc_network)
