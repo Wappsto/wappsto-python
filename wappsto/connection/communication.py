@@ -16,7 +16,7 @@ from . import message_data
 from . import receive_data
 from . import send_data
 from .. import status
-from .network_classes.errors import wappsto_errors
+from ..errors import wappsto_errors
 
 
 class ClientSocket:
@@ -27,7 +27,7 @@ class ClientSocket:
     information.
     """
 
-    def __init__(self, rpc, instance, address, port, path_to_calling_file,
+    def __init__(self, rpc, data_manager, address, port, path_to_calling_file,
                  wappsto_status, event_storage):
         """
         Create a client socket.
@@ -39,7 +39,7 @@ class ClientSocket:
 
         Args:
             rpc: Sending/receiving queue processing instance.
-            instance: Instance of network, devices, values and states.
+            data_manager: data_manager of DataManager.
             address: Server address.
             port: Server port.
             path_to_calling_file: path to OS directory of calling file.
@@ -49,8 +49,7 @@ class ClientSocket:
         """
         self.wapp_log = logging.getLogger(__name__)
         self.wapp_log.addHandler(logging.NullHandler())
-        self.network = instance.network
-        self.instance = instance
+        self.data_manager = data_manager
         self.path_to_calling_file = path_to_calling_file
         self.ssl_server_cert = os.path.join(path_to_calling_file,
                                             "certificates/ca.crt")
@@ -82,8 +81,8 @@ class ClientSocket:
         self.lock_await = threading.Lock()
         self.set_sockets()
 
-        self.network.rpc = self.rpc
-        self.network.conn = self
+        self.data_manager.network.rpc = self.rpc
+        self.data_manager.network.conn = self
 
     def set_sockets(self):
         """
@@ -186,7 +185,7 @@ class ClientSocket:
 
         Initializes the object instances on the sending/receiving queue.
         """
-        for device in self.instance.network.devices:
+        for device in self.data_manager.network.devices:
             for value in device.values:
                 state = value.get_control_state()
                 if state is not None:
@@ -201,11 +200,11 @@ class ClientSocket:
                     )
                     self.send_data.send_control(msg)
 
-        message = self.rpc.get_rpc_whole_json(self.instance.build_json())
+        message = self.rpc.get_rpc_whole_json(self.data_manager.get_encoded_network())
         self.rpc.send_init_json(self.send_data, message)
 
         msg = "The whole network {} added to Sending queue {}.".format(
-            self.instance.network.name,
+            self.data_manager.network.name,
             self.rpc
         )
         self.wapp_log.debug(msg)
@@ -310,7 +309,7 @@ class ClientSocket:
         """
         self.wapp_log.info("Closing connection...")
 
-        for device in self.network.devices:
+        for device in self.data_manager.network.devices:
             for value in device.values:
                 if value.timer.is_alive():
                     msg = "Value: {} is no longer periodically sending updates."

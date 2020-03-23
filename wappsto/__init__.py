@@ -5,15 +5,15 @@ Stores the Wappsto class functionality.
 """
 
 import os
+import time
 import logging
 import inspect
 from .connection import seluxit_rpc
 from .connection import communication
+from .errors import wappsto_errors
 from .connection import event_storage
-from .connection.network_classes.errors import wappsto_errors
 from . import status
-from .object_instantiation import instantiate
-from .object_instantiation import save_objects
+from .data_operation import data_manager
 
 RETRY_LIMIT = 5
 
@@ -74,16 +74,12 @@ class Wappsto:
         self.receive_thread = None
         self.send_thread = None
         self.status = status.Status()
-        self.object_saver = save_objects.SaveObjects(self.path_to_calling_file)
-        # Instantiate the objects from JSON
         try:
-            self.instance = instantiate.Instantiator(
+            self.data_manager = data_manager.DataManager(
                 json_file_name=json_file_name,
                 load_from_state_file=load_from_state_file,
                 path_to_calling_file=self.path_to_calling_file
             )
-        # When the file fails to open a FileNotFoundError is raised and
-        # the service is stopped
         except FileNotFoundError as fnfe:
             self.wapp_log.error("Failed to open file: {}".format(fnfe))
             self.stop(False)
@@ -112,7 +108,7 @@ class Wappsto:
             A reference to the network object instance.
 
         """
-        return self.instance.network
+        return self.data_manager.network
 
     def get_devices(self):
         """
@@ -124,7 +120,7 @@ class Wappsto:
             A list of devices.
 
         """
-        return self.instance.network.devices
+        return self.data_manager.network.devices
 
     def get_by_id(self, id):
         """
@@ -139,7 +135,45 @@ class Wappsto:
             A reference to the network/device/value/state object instance.
 
         """
-        return self.instance.get_by_id(id)
+        return self.data_manager.get_by_id(id)
+
+    def set_status_callback(self, callback):
+        """
+        Sets callback for status.
+
+        Sets the provided callback to the instance of status.
+
+        Args:
+            callback: reference to callback
+
+        """
+        self.status.set_callback(callback)
+
+    def set_network_callback(self, callback):
+        """
+        Sets callback for network.
+
+        Sets the provided callback to the instance of network.
+
+        Args:
+            callback: reference to callback
+
+        """
+        self.data_manager.network.set_callback(callback)
+
+    def set_value_callback(self, callback):
+        """
+        Sets callback for values.
+
+        Sets the provided callback to all instances of value.
+
+        Args:
+            callback: reference to callback
+
+        """
+        for device in self.data_manager.network.devices:
+            for value in device.values:
+                value.set_callback(callback)
 
     def get_device(self, name):
         """
@@ -158,11 +192,11 @@ class Wappsto:
             DeviceNotFoundException: Device {name} not found in {instance}.
 
         """
-        for device in self.instance.network.devices:
+        for device in self.data_manager.network.devices:
             if name == device.name:
                 return device
         else:
-            msg = "Device {} not found in {}".format(name, self.instance)
+            msg = "Device {} not found in {}".format(name, self.data_manager)
             self.wapp_log.warning(msg, exc_info=True)
             self.stop(False)
             raise wappsto_errors.DeviceNotFoundException(msg)
@@ -178,15 +212,12 @@ class Wappsto:
                 (default: {"wappsto.com"})
             port: Port to connect the address to. (default: {11006})
 
-        Raises:
-            ServerConnectionException: "Unable to connect to the server.
-
         """
         self.status.set_status(status.STARTING)
 
         self.socket = communication.ClientSocket(
             rpc=self.rpc,
-            instance=self.instance,
+            data_manager=self.data_manager,
             address=address,
             port=port,
             path_to_calling_file=self.path_to_calling_file,
@@ -226,6 +257,18 @@ class Wappsto:
 
         self.status.set_status(status.RUNNING)
 
+        self.keep_running()
+
+    def keep_running(self):
+        """
+        Keeps wappsto running.
+
+        Creates infinite loop, that doesn't allow for this thread to be closed.
+
+        """
+        while True:
+            time.sleep(1)
+
     def stop(self, save=True):
         """
         Stop the Wappsto service.
@@ -238,12 +281,11 @@ class Wappsto:
                 (default: {True})
 
         """
-        # TODO(Dimitar): Add Exception checking if necessary.
         self.connecting = False
         self.status.set_status(status.DISCONNECTING)
         # Closes the socket connection, if one is established.
         if self.socket:
             self.socket.close()
         if save:
-            self.object_saver.save_instance(self.instance)
+            self.data_manager.save_instance()
         self.wapp_log.info("Exiting...")

@@ -9,8 +9,8 @@ import warnings
 import datetime
 import decimal
 import threading
-from .. import message_data
-from .errors import wappsto_errors
+from ..connection import message_data
+from ..errors import wappsto_errors
 
 
 class Value:
@@ -323,6 +323,9 @@ class Value:
             try:
                 data_value = self.ensure_number_value_follows_steps(data_value)
 
+                if data_value is None:
+                    return None
+
                 if self.number_min <= data_value <= self.number_max:
                     return str(data_value)
                 else:
@@ -358,7 +361,7 @@ class Value:
                 self.wapp_log.warning(msg)
                 return None
         else:
-            msg = ("Value type {} is invalid".format(self.date_type))
+            msg = "Value type {} is invalid".format(self.date_type)
             self.wapp_log.error(msg)
             return None
 
@@ -377,19 +380,22 @@ class Value:
             data_value
 
         """
-        data_value = decimal.Decimal(str(data_value))
-        number_step = abs(decimal.Decimal(str(self.number_step)))
+        try:
+            data_value = decimal.Decimal(str(data_value))
+            number_step = abs(decimal.Decimal(str(self.number_step)))
 
-        result = data_value % number_step
-        if result < 0:
-            result += number_step
-        data_value = data_value - result
+            result = data_value % number_step
+            if result < 0:
+                result += number_step
+            data_value = data_value - result
 
-        data_value = f'{data_value:f}'
-        data_value = (data_value.rstrip('0').rstrip('.')
-                      if '.' in data_value else data_value)
+            data_value = f'{data_value:f}'
+            data_value = (data_value.rstrip('0').rstrip('.')
+                          if '.' in data_value else data_value)
 
-        return decimal.Decimal(data_value)
+            return decimal.Decimal(data_value)
+        except decimal.InvalidOperation as e:
+            self.wapp_log.error("Invalid operation: {}".format(e))
 
     def update(self, data_value, timestamp=None):
         """
