@@ -240,7 +240,7 @@ class ClientSocket:
                 if state is not None:
                     self.get_control(state)
 
-        trace_id = self.create_trace(self.instance.network.uuid)
+        trace_id = self.create_trace(self.data_manager.network.uuid)
         message = self.rpc.get_rpc_whole_json(self.data_manager.get_encoded_network(), trace_id)
         self.rpc.send_init_json(self, message)
 
@@ -771,7 +771,7 @@ class ClientSocket:
         """
         if self.automatic_trace and trace_id is None:
             random_int = random.randint(1, 25000)
-            control_value_id = "{}{}".format(self.instance.network.name,
+            control_value_id = "{}{}".format(self.data_manager.network.name,
                                              random_int)
 
             trace_id = random_int

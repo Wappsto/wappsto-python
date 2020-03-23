@@ -224,7 +224,6 @@ class Wappsto:
             path_to_calling_file=self.path_to_calling_file,
             wappsto_status=self.status,
             automatic_trace=automatic_trace,
-            handler=self.handler,
             event_storage=self.event_storage
         )
 
