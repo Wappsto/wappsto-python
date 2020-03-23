@@ -48,7 +48,8 @@ def fake_connect(self, address, port):
             patch('threading.Thread'), \
             patch('threading.Timer'), \
             patch('wappsto.communication.ClientSocket.add_id_to_confirm_list'), \
-                patch('socket.socket'), \
+            patch('wappsto.Wappsto.keep_running'), \
+            patch('socket.socket'), \
                 patch('ssl.SSLContext.wrap_socket', return_value=context):
             self.service.start(address=address, port=port)
 
@@ -101,7 +102,17 @@ def get_object(self, object_name):
     return actual_object
 
 
-def send_response(self, verb, trace_id, bulk, message_id, element_id, url, data, split_message):
+def send_response(self,
+                  verb,
+                  trace_id=None,
+                  bulk=None,
+                  message_id=None,
+                  element_id=None,
+                  data=None,
+                  split_message=None,
+                  type=None,
+                  period=None,
+                  delta=None):
     """
     Sends response.
 
@@ -113,9 +124,11 @@ def send_response(self, verb, trace_id, bulk, message_id, element_id, url, data,
         bulk: Boolean value indicating if multiple messages should be sent at once.
         message_id: id used to indicate the specific message
         element_id: id used for indicating element
-        url: url sent in message parameters
         data: data to be sent
         split_message: Boolean value indicating if message should be sent in parts
+        type: type of module being used.
+        delta: delta of value (determines if change was significant enough to be sent)
+        period: parameter indicating whether value should be updated periodically
 
     Returns:
         the generated message
@@ -135,13 +148,15 @@ def send_response(self, verb, trace_id, bulk, message_id, element_id, url, data,
             if element_id is None:
                 meta = None
             else:
-                meta = {"id": element_id}
+                meta = {"id": element_id,
+                        "type": type}
 
-            params = {"url": url,
-                      "meta": trace,
+            params = {"meta": trace,
                       "data": {
                           "meta": meta,
-                          "data": data}}
+                          "data": data,
+                          "period": period,
+                          "delta": delta}}
 
         message = {"jsonrpc": "2.0",
                    "id": message_id,
@@ -704,7 +719,7 @@ class TestReceiveThreadClass:
 
         """
         # Arrange
-        send_response(self, "wrong_verb", trace_id, bulk, None, None, None, None, split_message)
+        send_response(self, "wrong_verb", trace_id=trace_id, bulk=bulk, split_message=split_message)
 
         # Act
         try:
@@ -728,9 +743,12 @@ class TestReceiveThreadClass:
     @pytest.mark.parametrize("bulk", [False, True])
     @pytest.mark.parametrize("data", ["44", None])
     @pytest.mark.parametrize("split_message", [False, True])
+    @pytest.mark.parametrize("type", ["state", "value"])
+    @pytest.mark.parametrize("period", [1])
+    @pytest.mark.parametrize("delta", [1])
     def test_receive_thread_Put(self, callback_exists, trace_id,
                                 expected_msg_id, object_name, object_exists,
-                                bulk, data, split_message):
+                                bulk, data, split_message, type, period, delta):
         """
         Tests receiving message with PUT verb.
 
@@ -745,26 +763,33 @@ class TestReceiveThreadClass:
             bulk: Boolean value indicating if multiple messages should be sent at once
             data: data value provided in the message
             split_message: Boolean value indicating if message should be sent in parts
+            type: type of module being used.
+            delta: delta of value (determines if change was significant enough to be sent)
+            period: parameter indicating whether value should be updated periodically
 
         """
         # Arrange
         actual_object = get_object(self, object_name)
         fix_object(callback_exists, actual_object)
         actual_object.control_state.data = "1"
-        id = str(actual_object.control_state.uuid)
-        url = str(actual_object.report_state.uuid)
+        if type == "state":
+            id = str(actual_object.control_state.uuid)
+        elif type == "value":
+            id = str(actual_object.uuid)
         if not object_exists:
-            with patch('queue.Queue.put'):
-                actual_object.control_state.delete()
+            self.service.instance.network = None
             expected_msg_id = message_data.SEND_FAILED
 
-        send_response(self, "PUT", trace_id, bulk, "1", id, url, data, split_message)
+        send_response(self, 'PUT', trace_id=trace_id, bulk=bulk, element_id=id,
+                      data=data, split_message=split_message, type=type, period=period,
+                      delta=delta)
 
         # Act
         try:
             # runs until mock object is run and its side_effect raises
             # exception
-            self.service.socket.receive_thread()
+            with patch('threading.Timer.start'):
+                self.service.socket.receive_thread()
         except KeyboardInterrupt:
             pass
 
@@ -774,8 +799,12 @@ class TestReceiveThreadClass:
                 if trace_id:
                     assert any(message.msg_id == message_data.SEND_TRACE for message
                                in self.service.socket.sending_queue.queue)
-                if callback_exists:
-                    assert actual_object.callback.call_args[0][1] == "set"
+                if type == "state":
+                    if callback_exists:
+                        assert actual_object.callback.call_args[0][1] == 'set'
+                elif type == "value":
+                    assert actual_object.period == period
+                    assert actual_object.delta == delta
             assert self.service.socket.sending_queue.qsize() > 0
             while self.service.socket.sending_queue.qsize() > 0:
                 message = self.service.socket.sending_queue.get()
@@ -783,7 +812,6 @@ class TestReceiveThreadClass:
                         or message.msg_id == expected_msg_id)
                 if message.msg_id == message_data.SEND_TRACE:
                     assert message.trace_id == trace_id
-                    assert message.data == data
         else:
             assert self.service.socket.sending_queue.qsize() == 0
 
@@ -794,10 +822,10 @@ class TestReceiveThreadClass:
     @pytest.mark.parametrize("object_exists", [False, True])
     @pytest.mark.parametrize("bulk", [False, True])
     @pytest.mark.parametrize("split_message", [False, True])
-    @pytest.mark.parametrize("url_exists", [False, True])
+    @pytest.mark.parametrize("id_exists", [False, True])
     def test_receive_thread_Get(self, callback_exists, trace_id,
                                 expected_msg_id, object_name, object_exists,
-                                bulk, split_message, url_exists):
+                                bulk, split_message, id_exists):
         """
         Tests receiving message with GET verb.
 
@@ -811,23 +839,22 @@ class TestReceiveThreadClass:
             object_exists: indicates if object would exists
             bulk: Boolean value indicating if multiple messages should be sent at once
             split_message: Boolean value indicating if message should be sent in parts
-            url_exists: indicates if url should be in the message
+            id_exists: indicates if id should be in the message
 
         """
         # Arrange
         actual_object = get_object(self, object_name)
         fix_object(callback_exists, actual_object)
-        id = str(actual_object.control_state.uuid)
-        url = str(actual_object.report_state.uuid)
+        id = str(actual_object.report_state.uuid)
         if not object_exists:
-            with patch('queue.Queue.put'):
-                actual_object.report_state.delete()
+            self.service.instance.network = None
             expected_msg_id = message_data.SEND_FAILED
 
-        if not url_exists:
-            url = None
+        if not id_exists:
+            id = None
 
-        send_response(self, "GET", trace_id, bulk, "1", id, url, "1", split_message)
+        send_response(self, "GET", trace_id=trace_id, bulk=bulk, element_id=id, data=1,
+                      split_message=split_message)
 
         # Act
         try:
@@ -838,7 +865,7 @@ class TestReceiveThreadClass:
             pass
 
         # Assert
-        if url_exists:
+        if id_exists:
             if object_exists:
                 if trace_id:
                     assert any(message.msg_id == message_data.SEND_TRACE for message
@@ -862,10 +889,10 @@ class TestReceiveThreadClass:
     @pytest.mark.parametrize("object_exists", [False, True])
     @pytest.mark.parametrize("bulk", [False, True])
     @pytest.mark.parametrize("split_message", [False, True])
-    @pytest.mark.parametrize("url_exists", [False, True])
+    @pytest.mark.parametrize("id_exists", [False, True])
     def test_receive_thread_Delete(self, callback_exists, trace_id,
                                    expected_msg_id, object_name, object_exists,
-                                   bulk, split_message, url_exists):
+                                   bulk, split_message, id_exists):
         """
         Tests receiving message with DELETE verb.
 
@@ -879,22 +906,22 @@ class TestReceiveThreadClass:
             object_exists: indicates if object would exists
             bulk: Boolean value indicating if multiple messages should be sent at once
             split_message: Boolean value indicating if message should be sent in parts
-            url_exists: indicates if url should be in the message
+            id_exists: indicates if id should be in the message
 
         """
         # Arrange
         actual_object = get_object(self, object_name)
         fix_object(callback_exists, actual_object)
-        id = url = str(actual_object.uuid)
+        id = str(actual_object.uuid)
         if not object_exists:
-            with patch('queue.Queue.put'):
-                actual_object.delete()
+            self.service.instance.network = None
             expected_msg_id = message_data.SEND_FAILED
 
-        if not url_exists:
-            url = None
+        if not id_exists:
+            id = None
 
-        send_response(self, "DELETE", trace_id, bulk, "1", id, url, "1", split_message)
+        send_response(self, 'DELETE', trace_id=trace_id, bulk=bulk, element_id=id, data=1,
+                      split_message=split_message)
 
         # Act
         try:
@@ -905,7 +932,7 @@ class TestReceiveThreadClass:
             pass
 
         # Assert
-        if url_exists:
+        if id_exists:
             if object_exists:
                 if trace_id:
                     assert any(message.msg_id == message_data.SEND_TRACE for message
@@ -942,7 +969,8 @@ class TestReceiveThreadClass:
         # Arrange
         state = self.service.get_devices()[0].get_value("temp").control_state
         state.data = 1
-        send_response(self, "result", None, bulk, "1", state.uuid, None, data, split_message)
+        send_response(self, "result", bulk=bulk, message_id=state.uuid, element_id=state.uuid,
+                      data=data, split_message=split_message)
 
         # Act
         try:
@@ -978,7 +1006,7 @@ class TestReceiveThreadClass:
             messages_in_list = 1
         else:
             messages_in_list = 0
-        send_response(self, "error", None, bulk, "1", "93043873", None, None, split_message)
+        send_response(self, 'error', bulk=bulk, message_id="93043873", split_message=split_message)
 
         # Act
         try:

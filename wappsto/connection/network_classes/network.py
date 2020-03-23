@@ -98,7 +98,7 @@ class Network:
             result of __call_callback method.
 
         """
-        return self.__call_callback('remove')
+        self.__call_callback('remove')
 
     def delete(self):
         """
@@ -118,5 +118,4 @@ class Network:
 
     def __call_callback(self, event):
         if self.callback is not None:
-            return self.callback(self, event)
-        return True
+            self.callback(self, event)

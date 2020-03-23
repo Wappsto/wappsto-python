@@ -88,7 +88,7 @@ class Value:
         self.blob_max = blob_max
         self.report_state = None
         self.control_state = None
-        self.callback = self.__callback_not_set
+        self.callback = None
 
         self.timer = threading.Timer(None, None)
         self.last_update_of_report = None
@@ -125,22 +125,26 @@ class Value:
             period: Reporting period.
 
         """
-        if period is not None:
-            try:
-                period = int(period)
-                if period > 0:
-                    if self.get_report_state() is not None:
-                        self.period = period
-                        self.__set_timer()
-                        self.wapp_log.debug("Period successfully set.")
-                    else:
-                        self.wapp_log.warning("Cannot set the period for this value.")
-                else:
-                    self.wapp_log.warning("Period value must be greater then 0.")
-            except ValueError:
-                self.wapp_log.error("Period value must be a number.")
+        if period is None:
+            self.wapp_log.warning("Period value is not provided.")
+            return
+
+        try:
+            period = int(period)
+        except ValueError:
+            self.wapp_log.error("Period value must be a number.")
+            return
+
+        if period <= 0:
+            self.wapp_log.warning("Period value must be greater then 0.")
+            return
+
+        if self.get_report_state() is not None:
+            self.period = period
+            self.__set_timer()
+            self.wapp_log.debug("Period successfully set.")
         else:
-            self.wapp_log.debug("No period value provided")
+            self.wapp_log.warning("Cannot set the period for this value.")
 
     def __set_timer(self):
         """
@@ -170,21 +174,25 @@ class Value:
             delta: Range to report between.
 
         """
-        if delta is not None:
-            try:
-                delta = float(delta)
-                if delta > 0:
-                    if self.__is_number_type() and self.get_report_state():
-                        self.delta = delta
-                        self.wapp_log.debug("Delta successfully set.")
-                    else:
-                        self.wapp_log.warning("Cannot set the delta for this value.")
-                else:
-                    self.wapp_log.warning("Delta value must be greater then 0.")
-            except ValueError:
-                self.wapp_log.error("Delta value must be a number")
+        if delta is None:
+            self.wapp_log.warning("Delta value is not provided.")
+            return
+
+        try:
+            delta = float(delta)
+        except ValueError:
+            self.wapp_log.error("Delta value must be a number")
+            return
+
+        if delta <= 0:
+            self.wapp_log.warning("Delta value must be greater then 0.")
+            return
+
+        if self.__is_number_type() and self.get_report_state():
+            self.delta = delta
+            self.wapp_log.debug("Delta successfully set.")
         else:
-            self.wapp_log.debug("No delta value provided")
+            self.wapp_log.warning("Cannot set the delta for this value.")
 
     def get_parent_device(self):  # pragma: no cover
         """
@@ -297,6 +305,9 @@ class Value:
             try:
                 data_value = self.ensure_number_value_follows_steps(data_value)
 
+                if data_value is None:
+                    return None
+
                 if self.number_min <= data_value <= self.number_max:
                     return str(data_value)
                 else:
@@ -344,19 +355,22 @@ class Value:
             data_value
 
         """
-        data_value = decimal.Decimal(str(data_value))
-        number_step = abs(decimal.Decimal(str(self.number_step)))
+        try:
+            data_value = decimal.Decimal(str(data_value))
+            number_step = abs(decimal.Decimal(str(self.number_step)))
 
-        result = data_value % number_step
-        if result < 0:
-            result += number_step
-        data_value = data_value - result
+            result = data_value % number_step
+            if result < 0:
+                result += number_step
+            data_value = data_value - result
 
-        data_value = f'{data_value:f}'
-        data_value = (data_value.rstrip('0').rstrip('.')
-                      if '.' in data_value else data_value)
+            data_value = f'{data_value:f}'
+            data_value = (data_value.rstrip('0').rstrip('.')
+                          if '.' in data_value else data_value)
 
-        return decimal.Decimal(data_value)
+            return decimal.Decimal(data_value)
+        except decimal.InvalidOperation as e:
+            self.wapp_log.error("Invalid operation: {}".format(e))
 
     def update(self, data_value, timestamp=get_now()):
         """
@@ -473,7 +487,7 @@ class Value:
             results of __call_callback
 
         """
-        return self.__call_callback('refresh')
+        self.__call_callback('refresh')
 
     def handle_delete(self):
         """
@@ -485,7 +499,7 @@ class Value:
             result of __call_callback method.
 
         """
-        return self.__call_callback('remove')
+        self.__call_callback('remove')
 
     def delete(self):
         """
@@ -507,8 +521,7 @@ class Value:
 
     def __call_callback(self, event):
         if self.callback is not None:
-            return self.callback(self, event)
-        return True
+            self.callback(self, event)
 
     def handle_control(self, data_value):
         """
