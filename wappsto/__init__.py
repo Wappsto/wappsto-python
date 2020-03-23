@@ -5,9 +5,9 @@ Stores the Wappsto class functionality.
 """
 
 import os
+import time
 import logging
 import inspect
-from .connection import handlers
 from .connection import seluxit_rpc
 from .connection import communication
 from .connection import event_storage
@@ -83,7 +83,6 @@ class Wappsto:
                 load_from_state_file=load_from_state_file,
                 path_to_calling_file=self.path_to_calling_file
             )
-            self.handler = handlers.Handlers(self.instance)
         # When the file fails to open a FileNotFoundError is raised and
         # the service is stopped
         except FileNotFoundError as fnfe:
@@ -141,7 +140,45 @@ class Wappsto:
             A reference to the network/device/value/state object instance.
 
         """
-        return self.handler.get_by_id(id)
+        return self.instance.get_by_id(id)
+
+    def set_status_callback(self, callback):
+        """
+        Sets callback for status.
+
+        Sets the provided callback to the instance of status.
+
+        Args:
+            callback: reference to callback
+
+        """
+        self.status.set_callback(callback)
+
+    def set_network_callback(self, callback):
+        """
+        Sets callback for network.
+
+        Sets the provided callback to the instance of network.
+
+        Args:
+            callback: reference to callback
+
+        """
+        self.instance.network.set_callback(callback)
+
+    def set_value_callback(self, callback):
+        """
+        Sets callback for values.
+
+        Sets the provided callback to all instances of value.
+
+        Args:
+            callback: reference to callback
+
+        """
+        for device in self.instance.network.devices:
+            for value in device.values:
+                value.set_callback(callback)
 
     def get_device(self, name):
         """
@@ -231,6 +268,18 @@ class Wappsto:
 
         self.status.set_status(status.RUNNING)
 
+        self.keep_running()
+
+    def keep_running(self):
+        """
+        Keeps wappsto running.
+
+        Creates infinite loop, that doesn't allow for this thread to be closed.
+
+        """
+        while True:
+            time.sleep(1)
+
     def stop(self, save=True):
         """
         Stop the Wappsto service.
@@ -243,7 +292,6 @@ class Wappsto:
                 (default: {True})
 
         """
-        # TODO(Dimitar): Add Exception checking if necessary.
         self.connecting = False
         self.status.set_status(status.DISCONNECTING)
         # Closes the socket connection, if one is established.
