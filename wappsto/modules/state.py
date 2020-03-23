@@ -1,46 +1,60 @@
 """
-The network module.
+The state module.
 
-Stores attributes for the network instance.
+Stores attributes for the state instance and handles device-related
 """
 import logging
-from .. import message_data
-from .errors import wappsto_errors
+from ..connection import message_data
+from ..errors import wappsto_errors
 
 
-class Network:
+class State:
     """
-    Network instance class.
+    State instance class.
 
-    Stores attributes for the network instance.
+    Stores attributes for the state instance and handles device-related
     """
 
-    def __init__(self, uuid, version, name, devices, instance):
+    def __init__(self, parent, uuid, state_type, timestamp, init_value):
         """
-        Initialize the Network class.
+        Initialize the State class.
 
         Initializes an object of network class by passing required parameters.
 
         Args:
-            uuid: Unique identifier of a network
-            version: Version of a network
-            name: Name of a network
-            devices: list of devices in network
-            instance: Instance of Instantiator
+            parent: reference to a value object to which a state
+                belongs to
+            uuid: unique identifier of a state
+            state_type: determines if the state is report or control
+            timestamp: time of last update
+            init_value: Initial value after creation of an object
 
         """
         self.wapp_log = logging.getLogger(__name__)
         self.wapp_log.addHandler(logging.NullHandler())
+        self.parent = parent
         self.uuid = uuid
-        self.version = version
-        self.name = name
-        self.devices = devices
-        self.instance = instance
-        self.rpc = None
-        self.conn = None
-        self.callback = self.__callback_not_set
-        msg = "Network {} Debug \n{}".format(name, str(self.__dict__))
+        self.state_type = state_type
+        self.timestamp = timestamp
+        self.callback = None
+
+        self.init_value = init_value
+        self.data = init_value
+
+        msg = "State {} Debug: \n{}".format(uuid, str(self.__dict__))
         self.wapp_log.debug(msg)
+
+    def get_parent_value(self):
+        """
+        Retrieve parent value reference.
+
+        Gets a reference to the value that owns this state.
+
+        Returns:
+            Reference to instance of value class that owns this state.
+
+        """
+        return self.parent
 
     def set_callback(self, callback):
         """
@@ -90,25 +104,18 @@ class Network:
         """
         message = message_data.MessageData(
             message_data.SEND_DELETE,
-            network_id=self.uuid,
+            network_id=self.parent.parent.parent.uuid,
+            device_id=self.parent.parent.uuid,
+            value_id=self.parent.uuid,
+            state_id=self.uuid
         )
-        self.conn.sending_queue.put(message)
-        self.instance.network = None
-        self.wapp_log.info("Network removed")
-
-    def __callback_not_set(self, network, event):
-        """
-        Message about no callback being set.
-
-        Temporary method to signify that there is no callback set for the
-        class.
-
-        Returns:
-            "Callback not set" message.
-
-        """
-        msg = "Callback for network '{}' is not set".format(self.name)
-        return self.wapp_log.debug(msg)
+        self.parent.parent.parent.conn.sending_queue.put(message)
+        if self == self.parent.report_state:
+            self.parent.report_state = None
+            self.wapp_log.info("Report state removed")
+        elif self == self.parent.control_state:
+            self.parent.control_state = None
+            self.wapp_log.info("Control state removed")
 
     def __call_callback(self, event):
         if self.callback is not None:

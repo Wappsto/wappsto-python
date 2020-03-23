@@ -17,8 +17,8 @@ from urllib.parse import parse_qs
 
 from wappsto import status
 from wappsto.connection import message_data
+from wappsto.errors import wappsto_errors
 from wappsto.connection import event_storage
-from wappsto.connection.network_classes.errors import wappsto_errors
 
 ADDRESS = "wappsto.com"
 PORT = 11006
@@ -105,15 +105,15 @@ def get_object(self, object_name):
     """
     actual_object = None
     if object_name == "network":
-        actual_object = self.service.instance.network
+        actual_object = self.service.data_manager.network
     elif object_name == "device":
-        actual_object = self.service.instance.network.devices[0]
+        actual_object = self.service.data_manager.network.devices[0]
     elif object_name == "value":
-        actual_object = self.service.instance.network.devices[0].values[0]
+        actual_object = self.service.data_manager.network.devices[0].values[0]
     elif object_name == "control_state":
-        actual_object = self.service.instance.network.devices[0].values[0].get_control_state()
+        actual_object = self.service.data_manager.network.devices[0].values[0].get_control_state()
     elif object_name == "report_state":
-        actual_object = self.service.instance.network.devices[0].values[0].get_report_state()
+        actual_object = self.service.data_manager.network.devices[0].values[0].get_report_state()
     return actual_object
 
 
@@ -326,7 +326,7 @@ class TestJsonLoadClass:
         service = wappsto.Wappsto(json_file_name=self.test_json_prettyprint_location)
 
         # Assert
-        assert service.instance.decoded == decoded
+        assert service.data_manager.decoded == decoded
 
     @pytest.mark.parametrize("object_exists", [True, False])
     @pytest.mark.parametrize("object_name", ["network", "device", "value", "control_state", "report_state"])
@@ -408,9 +408,9 @@ class TestConnClass:
         fix_object_callback(callback_exists, status_service)
         urlopen_trace_id = sent_json_trace_id = ''
         if value_changed_to_none:
-            self.service.instance.network.name = None
+            self.service.data_manager.network.name = None
         if not valid_json:
-            self.service.instance.network.uuid = None
+            self.service.data_manager.network.uuid = None
 
         file_name = self.service.event_storage.get_log_name()
         file_path = self.service.event_storage.get_file_path(file_name)
@@ -762,7 +762,7 @@ class TestReceiveThreadClass:
             elif type == "value":
                 id = str(actual_object.uuid)
             if not object_exists:
-                self.service.instance.network = None
+                self.service.data_manager.network = None
                 expected_msg_id = message_data.SEND_FAILED
         else:
             expected_msg_id = message_data.SEND_FAILED
@@ -830,7 +830,7 @@ class TestReceiveThreadClass:
             fix_object_callback(callback_exists, actual_object)
             id = str(actual_object.report_state.uuid)
             if not object_exists:
-                self.service.instance.network = None
+                self.service.data_manager.network = None
                 expected_msg_id = message_data.SEND_FAILED
         else:
             expected_msg_id = message_data.SEND_FAILED
@@ -892,7 +892,7 @@ class TestReceiveThreadClass:
             fix_object_callback(callback_exists, actual_object)
             id = str(actual_object.uuid)
             if not object_exists:
-                self.service.instance.network = None
+                self.service.data_manager.network = None
                 expected_msg_id = message_data.SEND_FAILED
         else:
             expected_msg_id = message_data.SEND_FAILED
@@ -941,7 +941,7 @@ class TestReceiveThreadClass:
 
         """
         # Arrange
-        state = self.service.instance.network.devices[0].values[0].control_state
+        state = self.service.data_manager.network.devices[0].values[0].control_state
         state.data = 1
         send_response(self, 'result', bulk=bulk, id=state.uuid, data=data, split_message=split_message)
 
