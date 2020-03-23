@@ -1,5 +1,5 @@
 """
-The raspberrypi object data managing module.
+The json data managing module.
 
 Saves and loads data from json files.
 """
