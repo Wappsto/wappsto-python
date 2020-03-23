@@ -28,11 +28,11 @@ class ClientSocket:
     """
 
     def __init__(self, rpc, instance, address, port, path_to_calling_file,
-                 wappsto_status, handler, event_storage):
+                 wappsto_status, event_storage):
         """
         Create a client socket.
 
-        Creates a socket instance for the given address and port. Hhandles
+        Creates a socket instance for the given address and port. Handles
         transfer of data from the instance attributes and methods to the
         specified server. Connection to the server is based on the specified
         address and port.
@@ -44,7 +44,6 @@ class ClientSocket:
             port: Server port.
             path_to_calling_file: path to OS directory of calling file.
             wappsto_status: status object.
-            handler: instance of handlers.
             event_storage: instance of event log.
 
         """
@@ -78,7 +77,6 @@ class ClientSocket:
         self.connected = False
         self.sending_queue = queue.Queue(maxsize=0)
         self.rpc = rpc
-        self.handler = handler
         self.event_storage = event_storage
         self.packet_awaiting_confirm = {}
         self.lock_await = threading.Lock()

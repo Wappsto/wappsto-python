@@ -46,7 +46,8 @@ class SendData:
             data: JSON communication message data.
 
         """
-        self.bulk_send_list.append(data)
+        if data is not None:
+            self.bulk_send_list.append(data)
         if ((self.client_socket.sending_queue.qsize() == 0 and len(self.client_socket.packet_awaiting_confirm) == 0)
                 or len(self.bulk_send_list) >= MAX_BULK_SIZE):
             self.send_data(self.bulk_send_list)

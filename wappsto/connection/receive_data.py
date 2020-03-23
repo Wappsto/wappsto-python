@@ -6,6 +6,7 @@ Handles incoming data from the server.
 """
 import sys
 import json
+import random
 import logging
 from . import message_data
 from json.decoder import JSONDecodeError
@@ -32,6 +33,35 @@ class ReceiveData:
         self.wapp_log.addHandler(logging.NullHandler())
 
         self.client_socket = client_socket
+
+    def __get_random_id(self):
+        network_n = self.client_socket.instance.network.name
+        random_int = random.randint(1, 25000)
+        return "{}{}".format(network_n, random_int)
+
+    def sending_queue_add_trace(self, parent, trace_id, data, control_value_id=None):
+        """
+        Add a trace to the sending queue.
+
+        Adds a trace URL to the sending queue for debugging purposes.
+
+        Args:
+            parent: Owner of the trace URL.
+            trace_id: ID of the trace message.
+            data: Trace message data.
+            control_value_id: ID of the control state of the value
+                (default: {None})
+
+        """
+        if trace_id:
+            trace = message_data.MessageData(
+                message_data.SEND_TRACE,
+                parent=parent,
+                trace_id=trace_id,
+                data=data,
+                text="ok",
+                control_value_id=control_value_id)
+            self.client_socket.sending_queue.put(trace)
 
     def receive_thread(self):
         """
@@ -172,37 +202,55 @@ class ReceiveData:
         """
         return_id = data.get('id')
         try:
-            control_id = data.get('params').get('data').get('meta').get('id')
-        except AttributeError:
+            uuid = data.get('params').get('data').get('meta').get('id')
+            meta_type = data.get('params').get('data').get('meta').get('type')
+            self.wapp_log.debug("Put request from id: " + uuid)
+        except AttributeError as e:
             error_str = 'Error received incorrect format in put'
             self.wapp_log.error(data)
             self.wapp_log.error(error_str, exc_info=True)
-            return
-        self.wapp_log.debug("Control Request from control id: " + control_id)
+            raise e
 
-        try:
-            local_data = data.get('params').get('data').get('data')
-        except AttributeError:
-            error = 'Error received incorrect format in put, data missing'
-            self.error_reply(error, return_id)
-            return
         try:
             trace_id = data.get('params').get('meta').get('trace')
             if trace_id:
-                self.wapp_log.debug("Control found trace id: " + trace_id)
+                self.wapp_log.debug("Found trace id: " + trace_id)
         except AttributeError:
             trace_id = None
 
-        if self.client_socket.handler.handle_incoming_put(
-                control_id,
-                local_data,
-                self.client_socket.sending_queue,
-                trace_id
-        ):
-            self.success_reply(return_id)
-        else:
-            error = 'Invalid value range or non-existing ID'
-            self.error_reply(error, return_id)
+        obj = self.client_socket.instance.get_by_id(uuid)
+        if obj is None:
+            self.error_reply('Non-existing uuid provided', return_id)
+            return
+
+        try:
+            if meta_type == "value":
+                period = data.get('params').get('data').get('period')
+                obj.set_period(period)
+                delta = data.get('params').get('data').get('delta')
+                obj.set_delta(delta)
+                self.sending_queue_add_trace(
+                    obj.parent.uuid,
+                    trace_id,
+                    None,
+                    control_value_id=self.__get_random_id()
+                )
+                self.success_reply(return_id)
+            elif meta_type == "state":
+                local_data = data.get('params').get('data').get('data')
+                if obj.state_type == "Control":
+                    obj.parent.handle_control(data_value=local_data)
+                    self.sending_queue_add_trace(
+                        obj.parent.uuid,
+                        trace_id,
+                        local_data,
+                        control_value_id=self.__get_random_id()
+                    )
+                    self.success_reply(return_id)
+                else:
+                    self.error_reply('Element is not control state', return_id)
+        except AttributeError:
+            self.error_reply('Attribute error encountered', return_id)
 
     def incoming_get(self, data):
         """
@@ -220,31 +268,40 @@ class ReceiveData:
         """
         return_id = data.get('id')
         try:
-            get_url_id = data.get('params').get('url').split('/')
-            get_url_id = get_url_id[-1]
-        except AttributeError:
+            uuid = data.get('params').get('data').get('meta').get('id')
+            self.wapp_log.debug("Get request from id: " + uuid)
+        except AttributeError as e:
             error_str = 'Error received incorrect format in get'
             self.wapp_log.error(data)
             self.wapp_log.error(error_str, exc_info=True)
-            return
+            raise e
 
         try:
             trace_id = data.get('params').get('meta').get('trace')
             if trace_id:
-                self.wapp_log.debug("Report GET found trace id: {}"
-                                    .format(trace_id))
+                self.wapp_log.debug("Found trace id: " + trace_id)
         except AttributeError:
             trace_id = None
 
-        if self.client_socket.handler.handle_incoming_get(
-                get_url_id,
-                self.client_socket.sending_queue,
-                trace_id
-        ):
-            self.success_reply(return_id)
-        else:
-            error = 'Non-existing ID for get'
-            self.error_reply(error, return_id)
+        obj = self.client_socket.instance.get_by_id(uuid)
+        if obj is None:
+            self.error_reply('Non-existing uuid provided', return_id)
+            return
+
+        try:
+            if obj.state_type == "Report":
+                self.sending_queue_add_trace(
+                    obj.parent.uuid,
+                    trace_id,
+                    obj.data,
+                    control_value_id=self.__get_random_id()
+                )
+                obj.parent.handle_refresh()
+                self.success_reply(return_id)
+            else:
+                self.error_reply('Element is not control state', return_id)
+        except AttributeError:
+            self.error_reply('Attribute error encountered', return_id)
 
     def incoming_delete(self, data):
         """
@@ -262,31 +319,37 @@ class ReceiveData:
         """
         return_id = data.get('id')
         try:
-            get_url_id = data.get('params').get('url').split('/')
-            get_url_id = get_url_id[-1]
-        except AttributeError:
+            uuid = data.get('params').get('data').get('meta').get('id')
+            self.wapp_log.debug("Delete request from id: " + uuid)
+        except AttributeError as e:
             error_str = 'Error received incorrect format in delete'
             self.wapp_log.error(data)
             self.wapp_log.error(error_str, exc_info=True)
-            return
+            raise e
 
         try:
             trace_id = data.get('params').get('meta').get('trace')
-            self.wapp_log.debug(
-                "Report DELETE found trace id: {}".format(trace_id)
-            )
+            if trace_id:
+                self.wapp_log.debug("Found trace id: " + trace_id)
         except AttributeError:
             trace_id = None
 
-        if self.client_socket.handler.handle_incoming_delete(
-                get_url_id,
-                self.client_socket.sending_queue,
-                trace_id
-        ):
+        obj = self.client_socket.instance.get_by_id(uuid)
+        if obj is None:
+            self.error_reply('Non-existing uuid provided', return_id)
+            return
+
+        try:
+            self.sending_queue_add_trace(
+                obj.uuid,
+                trace_id,
+                None,
+                control_value_id=self.__get_random_id()
+            )
+            obj.handle_delete()
             self.success_reply(return_id)
-        else:
-            error = 'Delete failed'
-            self.error_reply(error, return_id)
+        except AttributeError:
+            self.error_reply('Attribute error encountered', return_id)
 
     def incoming_error(self, data):
         """
@@ -318,7 +381,7 @@ class ReceiveData:
         if result_value is not True:
             uuid = result_value['meta']['id']
             data = result_value['data']
-            object = self.client_socket.handler.get_by_id(uuid)
+            object = self.client_socket.instance.get_by_id(uuid)
             if object is not None and object.parent.control_state == object:
                 object.parent.handle_control(data_value=data)
         self.client_socket.remove_id_from_confirm_list(return_id)
