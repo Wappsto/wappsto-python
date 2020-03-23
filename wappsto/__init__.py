@@ -5,7 +5,6 @@ Stores the Wappsto class functionality.
 """
 
 import os
-import sys
 import time
 import logging
 import inspect
@@ -57,7 +56,6 @@ class Wappsto:
         stack = inspect.stack()[1][1]
         self.path_to_calling_file = os.path.dirname(os.path.abspath(stack))
 
-        self.exit_code = 0
         self.connecting = True
         self.rpc = seluxit_rpc.SeluxitRpc(save_init)
         self.socket = None
@@ -79,6 +77,7 @@ class Wappsto:
         except FileNotFoundError as fnfe:
             self.wapp_log.error("Failed to open file: {}".format(fnfe))
             self.stop(False)
+            raise fnfe
 
     def get_status(self):
         """
@@ -194,6 +193,7 @@ class Wappsto:
             msg = "Device {} not found in {}".format(name, self.instance)
             self.wapp_log.warning(msg, exc_info=True)
             self.stop(False)
+            raise wappsto_errors.DeviceNotFoundException(msg)
 
     def start(self, address="wappsto.com", port=11006):
         """
@@ -228,6 +228,7 @@ class Wappsto:
                 self.socket.reconnect(RETRY_LIMIT, send_reconnect=False)
         except wappsto_errors.ServerConnectionException as ce:
             self.stop(False)
+            raise ce
 
         self.status.set_status(status.INITIALIZING)
         # Initializes the network, and all the subsequent devices, values and
@@ -238,6 +239,7 @@ class Wappsto:
         except Exception as e:
             self.wapp_log.error("Error initializing: {}".format(e))
             self.stop(False)
+            raise e
 
         self.status.set_status(status.STARTING_THREADS)
         # Starts the sending & receiving threads.
@@ -248,6 +250,7 @@ class Wappsto:
             msg = "Error starting threads: {}".format(e)
             self.wapp_log.error(msg, exc_info=True)
             self.stop(False)
+            raise e
 
         self.status.set_status(status.RUNNING)
 
@@ -283,4 +286,3 @@ class Wappsto:
         if save:
             self.object_saver.save_instance(self.instance)
         self.wapp_log.info("Exiting...")
-        sys.exit(self.exit_code)
