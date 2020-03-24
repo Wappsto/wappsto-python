@@ -132,31 +132,25 @@ class DataManager:
 
         self.network = self.wappsto_decoder.decode_network(json_container, self)
 
-    def save_instance(self, save_as_string=True):
+    def save_instance(self):
         """
         Saves current instance of the whole network.
 
         Encodes the whole network and saves it in the saved instance folder.
 
-        Args:
-            save_as_string: indicates if informations inside data should be saved as a string.
-
         """
-        encoded = self.get_encoded_network()
-        if save_as_string:
-            encoded = json.dumps(encoded)
-            encoded = encoded.replace("\'", "\\\"")
-        encoded = {"data": encoded}
-        encoded = json.dumps(encoded)
+        encoded_string = str(self.get_encoded_network())
+        encoded_string = encoded_string.replace("\'", "\\\"")
+        encoded_string = '{"data":"' + encoded_string + '"}'
 
         path = os.path.join(self.path_to_calling_file, 'saved_instances')
         os.makedirs(path, exist_ok=True)
-        path_open = os.path.join(path, self.json_file_name)
+        path_open = os.path.join(path, '{}.json'.format(self.json_file_name))
 
         with open(path_open, "w+") as network_file:
-            network_file.write(encoded)
+            network_file.write(encoded_string)
 
-        msg = "Saved {} to {}".format(encoded, network_file)
+        msg = "Saved {} to {}".format(encoded_string, network_file)
         self.wapp_log.debug(msg)
 
     def get_by_id(self, id):

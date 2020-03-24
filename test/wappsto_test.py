@@ -418,12 +418,22 @@ class TestJsonLoadClass:
         """
         # Arrange
         self.service = wappsto.Wappsto(json_file_name=self.test_json_location)
-        self.service.data_manager.json_file_name = "test.json"
-        self.service.data_manager.save_instance(convert_to_string=save_as_string)
         saved_network = self.service.data_manager.get_encoded_network()
 
+        file_name = "test.json"
+        encoded = saved_network
+        if save_as_string:
+            encoded = json.dumps(encoded)
+            encoded = encoded.replace("\'", "\\\"")
+        encoded = json.dumps({"data": encoded})
+        path = os.path.join(self.service.data_manager.path_to_calling_file, 'saved_instances')
+        os.makedirs(path, exist_ok=True)
+        path_open = os.path.join(path, file_name)
+        with open(path_open, "w+") as network_file:
+            network_file.write(encoded)
+
         # Act
-        self.service = wappsto.Wappsto(json_file_name="test.json", load_from_state_file=True)
+        self.service = wappsto.Wappsto(json_file_name=file_name, load_from_state_file=True)
 
         # Assert
         assert saved_network == self.service.data_manager.get_encoded_network()
