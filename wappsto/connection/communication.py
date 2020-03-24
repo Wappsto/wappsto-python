@@ -38,7 +38,7 @@ class ClientSocket:
     """
 
     def __init__(self, rpc, data_manager, address, port, path_to_calling_file,
-                 wappsto_status, event_storage):
+                 wappsto_status, automatic_trace, event_storage):
         """
         Create a client socket.
 
@@ -54,6 +54,8 @@ class ClientSocket:
             port: Server port.
             path_to_calling_file: path to OS directory of calling file.
             wappsto_status: status object.
+            automatic_trace: indicates if all messages automaticaly send trace.
+            handler: instance of handlers.
             event_storage: instance of event log.
 
         """
@@ -74,6 +76,7 @@ class ClientSocket:
         self.ssl_context.load_cert_chain(self.ssl_client_cert, self.ssl_key)
         self.ssl_context.load_verify_locations(self.ssl_server_cert)
         self.wappsto_status = wappsto_status
+        self.automatic_trace = automatic_trace
         self.receiving_thread = threading.Thread(target=self.receive_thread)
         self.receiving_thread.setDaemon(True)
         self.connected = False
@@ -105,6 +108,8 @@ class ClientSocket:
             Exception: If one occurs while sending control message.
 
         """
+        trace_id = self.create_trace(state.uuid)
+
         json_data = self.rpc.get_rpc_state(
             str(data_value),
             state.parent.parent.parent.uuid,
@@ -112,7 +117,8 @@ class ClientSocket:
             state.parent.uuid,
             state.uuid,
             state.state_type,
-            state_obj=state
+            state_obj=state,
+            trace_id=trace_id
         )
         self.create_bulk(json_data)
         return True
@@ -224,7 +230,8 @@ class ClientSocket:
                 if state is not None:
                     self.get_control(state)
 
-        message = self.rpc.get_rpc_whole_json(self.data_manager.get_encoded_network())
+        trace_id = self.create_trace(self.data_manager.network.uuid)
+        message = self.rpc.get_rpc_whole_json(self.data_manager.get_encoded_network(), trace_id)
         self.create_bulk(message)
 
         msg = "The whole network {} added to Sending queue {}.".format(
@@ -623,7 +630,7 @@ class ClientSocket:
                 self.send_failed(package)
 
             elif package.msg_id == message_data.SEND_RECONNECT:
-                self.send_reconnect()
+                self.send_reconnect(package)
 
             elif package.msg_id == message_data.SEND_CONTROL:
                 self.send_control(package)
@@ -650,11 +657,15 @@ class ClientSocket:
 
         """
         self.wapp_log.info("Sending delete message")
+        package.trace_id = self.create_trace(
+            package.network_id, package.trace_id)
+
         local_data = self.rpc.get_rpc_delete(
             package.network_id,
             package.device_id,
             package.value_id,
-            package.state_id
+            package.state_id,
+            package.trace_id
         )
         self.create_bulk(local_data)
 
@@ -706,6 +717,38 @@ class ClientSocket:
         msg = "Sending tracer https message {} response {}".format(attempt, trace_req.getcode())
         self.wapp_log.debug(msg)
 
+    def create_trace(self, parent, trace_id=None):
+        """
+        Creates trace.
+
+        Creates trace if necessary, by using generated data and existing
+        information.
+
+        Args:
+            parent: owner of trace.
+            trace_id: existing id used for tracing.
+
+        Returns:
+            trace id.
+
+        """
+        if self.automatic_trace and trace_id is None:
+            random_int = random.randint(1, 25000)
+            control_value_id = "{}{}".format(self.data_manager.network.name,
+                                             random_int)
+
+            trace_id = random_int
+
+            trace = message_data.MessageData(
+                message_data.SEND_TRACE,
+                parent=parent,
+                trace_id=trace_id,
+                data=None,
+                text="ok",
+                control_value_id=control_value_id)
+            self.send_trace(trace)
+        return trace_id
+
     def send_control(self, package):
         """
         Send data handler.
@@ -717,6 +760,9 @@ class ClientSocket:
 
         """
         self.wapp_log.info("Sending control message")
+        package.trace_id = self.create_trace(
+            package.network_id, package.trace_id)
+
         local_data = self.rpc.get_rpc_state(
             package.data,
             package.network_id,
@@ -769,7 +815,7 @@ class ClientSocket:
                 break
         return decoded
 
-    def send_reconnect(self):
+    def send_reconnect(self, package):
         """
         Send a reconnect attempt.
 
@@ -777,10 +823,14 @@ class ClientSocket:
         """
         self.wapp_log.info("Sending reconnect data")
         try:
+            package.trace_id = self.create_trace(
+                package.network_id, package.trace_id)
+
             rpc_network = self.rpc.get_rpc_network(
                 self.data_manager.network.uuid,
                 self.data_manager.network.name,
-                put=False
+                put=False,
+                trace_id=package.trace_id
             )
             self.create_bulk(rpc_network)
             for element in self.packet_awaiting_confirm:
@@ -801,6 +851,7 @@ class ClientSocket:
 
         """
         self.wapp_log.info("Sending failed")
+
         rpc_fail_response = self.rpc.get_rpc_fail_response(
             package.rpc_id,
             package.text
@@ -819,7 +870,13 @@ class ClientSocket:
         """
         if not package.trace_id:
             if package.value_id in self.add_trace_to_report_list.keys():
-                package.trace_id = self.add_trace_to_report_list.pop(package.value_id)
+                package.trace_id = (
+                    self.add_trace_to_report_list.pop(package.value_id)
+                )
+
+        package.trace_id = self.create_trace(
+            package.network_id, package.trace_id)
+
         local_data = self.rpc.get_rpc_state(
             package.data,
             package.network_id,
