@@ -1555,8 +1555,7 @@ class TestSendThreadClass:
             reply = message_data.MessageData(
                 message_data.SEND_CONTROL,
                 state_id=value,
-                data="",
-                trace_id=1
+                data=""
             )
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
