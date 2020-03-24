@@ -20,11 +20,7 @@ import logging
 from . import message_data
 from .. import status
 from ..errors import wappsto_errors
-
-try:
-    from json.decoder import JSONDecodeError
-except ImportError:
-    JSONDecodeError = ValueError
+from json.decoder import JSONDecodeError
 
 RECEIVE_SIZE = 1024
 MESSAGE_SIZE_BYTES = 1000000
@@ -112,25 +108,20 @@ class ClientSocket:
             Exception: If one occurs while sending control message.
 
         """
-        try:
-            trace_id = self.create_trace(state.uuid)
+        trace_id = self.create_trace(state.uuid)
 
-            json_data = self.rpc.get_rpc_state(
-                str(data_value),
-                state.parent.parent.parent.uuid,
-                state.parent.parent.uuid,
-                state.parent.uuid,
-                state.uuid,
-                state.state_type,
-                state_obj=state,
-                trace_id=trace_id
-            )
-            return self.rpc.send_init_json(self, json_data)
-
-        except Exception as e:
-            msg = "Error reporting state: {}".format(e)
-            self.wapp_log.error(msg)
-            return False
+        json_data = self.rpc.get_rpc_state(
+            str(data_value),
+            state.parent.parent.parent.uuid,
+            state.parent.parent.uuid,
+            state.parent.uuid,
+            state.uuid,
+            state.state_type,
+            state_obj=state,
+            trace_id=trace_id
+        )
+        self.create_bulk(json_data)
+        return True
 
     def set_sockets(self):
         """
@@ -241,7 +232,7 @@ class ClientSocket:
 
         trace_id = self.create_trace(self.data_manager.network.uuid)
         message = self.rpc.get_rpc_whole_json(self.data_manager.get_encoded_network(), trace_id)
-        self.rpc.send_init_json(self, message)
+        self.create_bulk(message)
 
         msg = "The whole network {} added to Sending queue {}.".format(
             self.data_manager.network.name,
@@ -300,9 +291,10 @@ class ClientSocket:
             uuid = data.get('params').get('data').get('meta').get('id')
             meta_type = data.get('params').get('data').get('meta').get('type')
             self.wapp_log.debug("Put request from id: " + uuid)
-        except AttributeError as e:
-            error_str = 'Error received incorrect format in put'
-            return self.handle_incoming_error(data, e, error_str, return_id)
+        except AttributeError:
+            error_str = 'Error received incorrect format in put: {}'.format(str(data))
+            self.wapp_log.error(error_str, exc_info=True)
+            return
 
         try:
             trace_id = data.get('params').get('meta').get('trace')
@@ -374,22 +366,6 @@ class ClientSocket:
                 control_value_id=control_value_id)
             self.sending_queue.put(trace)
 
-    def handle_incoming_error(self, data, error_str, return_id):
-        """
-        Handle errors on the receive thread.
-
-        Receives an error message and delivers it to the appropriate method.
-
-        Args:
-            data: JSON communication message data.
-            error_str: Error contents.
-            return_id: ID of the error message.
-
-        """
-        self.wapp_log.error(data)
-        self.wapp_log.error(error_str, exc_info=True)
-        return
-
     def send_success_reply(self, return_id):
         """
         Handle successful replies on the receive thread.
@@ -441,9 +417,10 @@ class ClientSocket:
         try:
             uuid = data.get('params').get('data').get('meta').get('id')
             self.wapp_log.debug("Get request from id: " + uuid)
-        except AttributeError as e:
-            error_str = 'Error received incorrect format in get'
-            return self.handle_incoming_error(data, e, error_str, return_id)
+        except AttributeError:
+            error_str = 'Error received incorrect format in get: {}'.format(str(data))
+            self.wapp_log.error(error_str, exc_info=True)
+            return
 
         try:
             trace_id = data.get('params').get('meta').get('trace')
@@ -489,9 +466,10 @@ class ClientSocket:
         try:
             uuid = data.get('params').get('data').get('meta').get('id')
             self.wapp_log.debug("Delete request from id: " + uuid)
-        except AttributeError as e:
-            error_str = 'Error received incorrect format in delete'
-            return self.handle_incoming_error(data, e, error_str, return_id)
+        except AttributeError:
+            error_str = 'Error received incorrect format in delete: {}'.format(str(data))
+            self.wapp_log.error(error_str, exc_info=True)
+            return
 
         try:
             trace_id = data.get('params').get('meta').get('trace')
@@ -542,18 +520,13 @@ class ClientSocket:
             self.wapp_log.info("Trying to reconnect in 5 seconds")
             time.sleep(5)
             self.close()
-            try:
-                self.set_sockets()
-                self.connect()
-            except Exception as e:
-                msg = "Failed to reconnect {}".format(e)
-                self.wapp_log.error(msg, exc_info=True)
+            self.set_sockets()
+            self.connect()
 
         if self.connected is True:
             self.wapp_log.info("Reconnected with " + str(attempt) + " attempts")
             if send_reconnect:
-                reconnect = message_data.MessageData(
-                    message_data.SEND_RECONNECT)
+                reconnect = message_data.MessageData(message_data.SEND_RECONNECT)
                 self.sending_queue.put(reconnect)
         else:
             msg = ("Unable to connect to the server[IP: {}, Port: {}]"
@@ -572,12 +545,17 @@ class ClientSocket:
             data: JSON communication message data.
 
         """
-        if data is not None:
-            self.bulk_send_list.append(data)
-        if ((self.sending_queue.qsize() == 0 and len(self.packet_awaiting_confirm) == 0)
-                or len(self.bulk_send_list) >= MAX_BULK_SIZE):
-            self.send_data(self.bulk_send_list)
-            self.bulk_send_list.clear()
+        try:
+            if data is not None:
+                self.bulk_send_list.append(data)
+            if ((self.sending_queue.qsize() == 0 and len(self.packet_awaiting_confirm) == 0)
+                    or len(self.bulk_send_list) >= MAX_BULK_SIZE):
+                self.send_data(self.bulk_send_list)
+                self.bulk_send_list.clear()
+        except OSError as e:  # pragma: no cover
+            self.connected = False
+            msg = "Error sending message: {}".format(e)
+            self.wapp_log.error(msg, exc_info=True)
 
     def send_data(self, data):
         """
@@ -679,22 +657,17 @@ class ClientSocket:
 
         """
         self.wapp_log.info("Sending delete message")
-        try:
-            package.trace_id = self.create_trace(
-                package.network_id, package.trace_id)
+        package.trace_id = self.create_trace(
+            package.network_id, package.trace_id)
 
-            local_data = self.rpc.get_rpc_delete(
-                package.network_id,
-                package.device_id,
-                package.value_id,
-                package.state_id,
-                package.trace_id
-            )
-            self.create_bulk(local_data)
-        except OSError as e:
-            self.connected = False
-            msg = "Error sending delete: {}".format(e)
-            self.wapp_log.error(msg, exc_info=True)
+        local_data = self.rpc.get_rpc_delete(
+            package.network_id,
+            package.device_id,
+            package.value_id,
+            package.state_id,
+            package.trace_id
+        )
+        self.create_bulk(local_data)
 
     def get_control(self, state):
         """
@@ -707,22 +680,16 @@ class ClientSocket:
 
         """
         self.wapp_log.info("Getting control value")
-        try:
-            local_data = self.rpc.get_rpc_state(
-                None,
-                state.parent.parent.parent.uuid,
-                state.parent.parent.uuid,
-                state.parent.uuid,
-                state.uuid,
-                state.state_type,
-                get=True
-            )
-            self.create_bulk(local_data)
-        except OSError as e:
-            self.connected = False
-            msg = "Failed to send a get request for the control value: {}"
-            msg = msg.format(e)
-            self.wapp_log.error(msg, exc_info=True)
+        local_data = self.rpc.get_rpc_state(
+            None,
+            state.parent.parent.parent.uuid,
+            state.parent.parent.uuid,
+            state.parent.uuid,
+            state.uuid,
+            state.state_type,
+            get=True
+        )
+        self.create_bulk(local_data)
 
     def send_trace(self, package):
         """
@@ -747,10 +714,7 @@ class ClientSocket:
 
         context = ssl._create_unverified_context()
         trace_req = request.urlopen(attempt, context=context)
-        msg = "Sending tracer https message {} response {}".format(
-            attempt,
-            trace_req.getcode()
-        )
+        msg = "Sending tracer https message {} response {}".format(attempt, trace_req.getcode())
         self.wapp_log.debug(msg)
 
     def create_trace(self, parent, trace_id=None):
@@ -796,24 +760,19 @@ class ClientSocket:
 
         """
         self.wapp_log.info("Sending control message")
-        try:
-            package.trace_id = self.create_trace(
-                package.network_id, package.trace_id)
+        package.trace_id = self.create_trace(
+            package.network_id, package.trace_id)
 
-            local_data = self.rpc.get_rpc_state(
-                package.data,
-                package.network_id,
-                package.device_id,
-                package.value_id,
-                package.state_id,
-                'Control',
-                trace_id=package.trace_id
-            )
-            self.create_bulk(local_data)
-        except OSError as e:
-            self.connected = False
-            msg = "Error sending control: {}".format(e)
-            self.wapp_log.error(msg, exc_info=True)
+        local_data = self.rpc.get_rpc_state(
+            package.data,
+            package.network_id,
+            package.device_id,
+            package.value_id,
+            package.state_id,
+            'Control',
+            trace_id=package.trace_id
+        )
+        self.create_bulk(local_data)
 
     def receive_data(self):
         """
@@ -836,7 +795,7 @@ class ClientSocket:
                     return None
                 try:
                     decoded_data = data.decode('utf-8')
-                except Exception:
+                except AttributeError:
                     continue
                 total_decoded += decoded_data
                 if sys.getsizeof(total_decoded) > MESSAGE_SIZE_BYTES:
@@ -897,12 +856,7 @@ class ClientSocket:
             package.rpc_id,
             package.text
         )
-        try:
-            self.create_bulk(rpc_fail_response)
-        except OSError as e:
-            self.connected = False
-            msg = "Error sending failed response: {}".format(e)
-            self.wapp_log.error(msg, exc_info=True)
+        self.create_bulk(rpc_fail_response)
 
     def send_report(self, package):
         """
@@ -914,32 +868,27 @@ class ClientSocket:
             package: A sending queue item.
 
         """
-        try:
-            if not package.trace_id:
-                if package.value_id in self.add_trace_to_report_list.keys():
-                    package.trace_id = (
-                        self.add_trace_to_report_list.pop(package.value_id)
-                    )
+        if not package.trace_id:
+            if package.value_id in self.add_trace_to_report_list.keys():
+                package.trace_id = (
+                    self.add_trace_to_report_list.pop(package.value_id)
+                )
 
-            package.trace_id = self.create_trace(
-                package.network_id, package.trace_id)
+        package.trace_id = self.create_trace(
+            package.network_id, package.trace_id)
 
-            local_data = self.rpc.get_rpc_state(
-                package.data,
-                package.network_id,
-                package.device_id,
-                package.value_id,
-                package.state_id,
-                'Report',
-                trace_id=package.trace_id
-            )
-            self.create_bulk(local_data)
-            data_decoded = local_data.get('params').get('data').get('data')
-            self.wapp_log.info('Sending report value: {}'.format(data_decoded))
-        except OSError as e:
-            self.connected = False
-            msg = "Error sending report: {}".format(e)
-            self.wapp_log.error(msg, exc_info=True)
+        local_data = self.rpc.get_rpc_state(
+            package.data,
+            package.network_id,
+            package.device_id,
+            package.value_id,
+            package.state_id,
+            'Report',
+            trace_id=package.trace_id
+        )
+        self.create_bulk(local_data)
+        data_decoded = local_data.get('params').get('data').get('data')
+        self.wapp_log.info('Sending report value: {}'.format(data_decoded))
 
     def send_success(self, package):
         """
@@ -951,16 +900,10 @@ class ClientSocket:
             package: A sending queue item.
 
         """
-        try:
-            rpc_success_response = self.rpc.get_rpc_success_response(
-                package.rpc_id
-            )
-            self.create_bulk(rpc_success_response)
-
-        except OSError as e:
-            self.connected = False
-            msg = "Error sending response: {}".format(e)
-            self.wapp_log.error(msg, exc_info=True)
+        rpc_success_response = self.rpc.get_rpc_success_response(
+            package.rpc_id
+        )
+        self.create_bulk(rpc_success_response)
 
     def close(self):
         """
@@ -973,8 +916,7 @@ class ClientSocket:
         for device in self.data_manager.network.devices:
             for value in device.values:
                 if value.timer.is_alive():
-                    msg = "Value: {} is no longer periodically sending updates."
-                    msg = msg.format(value.uuid)
+                    msg = "Value: {} is no longer periodically sending updates.".format(value.uuid)
                     self.wapp_log.debug(msg)
                 value.timer.cancel()
 
@@ -1013,16 +955,12 @@ class ClientSocket:
             else:
                 self.receive(decoded)
 
-        except JSONDecodeError:
-            self.wapp_log.error("Json error: {}".format(decoded))
-            # TODO send json rpc error, parse error
-
-        except ConnectionResetError as e:
+        except ConnectionResetError as e:  # pragma: no cover
             msg = "Received Reset: {}".format(e)
             self.wapp_log.error(msg, exc_info=True)
             self.reconnect()
 
-        except OSError as oe:
+        except OSError as oe:  # pragma: no cover
             msg = "Received OS Error: {}".format(oe)
             self.wapp_log.error(msg, exc_info=True)
             self.reconnect()
@@ -1059,8 +997,8 @@ class ClientSocket:
                     self.remove_id_from_confirm_list(decoded_id)
 
                 elif decoded.get('result', False):
-                    result_value = decoded['result'].get('value', True)
-                    if result_value is not True:
+                    result_value = decoded['result'].get('value', False)
+                    if result_value:
                         uuid = result_value['meta']['id']
                         data = result_value['data']
                         object = self.data_manager.get_by_id(uuid)
@@ -1069,13 +1007,10 @@ class ClientSocket:
                     self.remove_id_from_confirm_list(decoded_id)
 
                 else:
-                    self.wapp_log.warning("Unhandled method")
-                    error_str = 'Unknown method'
+                    error_str = "Unknown method"
+                    self.wapp_log.warning(error_str)
                     self.send_error(error_str, decoded_id)
-
             except ValueError:
                 error_str = 'Value error'
-                self.wapp_log.error("{} [{}]: {}".format(error_str,
-                                                         decoded_id,
-                                                         decoded))
+                self.wapp_log.error("{} [{}]: {}".format(error_str, decoded_id, decoded))
                 self.send_error(error_str, decoded_id)
