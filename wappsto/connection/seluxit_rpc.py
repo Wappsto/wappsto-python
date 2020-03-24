@@ -119,7 +119,8 @@ class SeluxitRpc:
         except OSError:
             pass
 
-    def get_rpc_network(self, network_id, network_name, put=True):
+    def get_rpc_network(self, network_id, network_name, put=True,
+                        trace_id=None):
         """
         Retrieve network from server.
 
@@ -131,6 +132,7 @@ class SeluxitRpc:
             network_id: Unique identifying number of a network
             network_name: Name of a network
             put: defines if the request method is put {default: True}
+            trace_id:  ID of the debug trace {default: None}
 
         Returns:
             JSON formatted data of network
@@ -147,13 +149,17 @@ class SeluxitRpc:
 
         if put:
             verb = 'PUT'
-            url = '{}/{}'.format(url, network_id)
+            url = '/{}'.format(network_id)
         else:
             verb = 'POST'
+
+        if trace_id:
+            url = "{}?trace={}".format(url, trace_id)
 
         data_json_rpc = requests.Request(verb,
                                          url=url,
                                          data=data_inside)
+
         return data_json_rpc
 
     def get_rpc_state(
@@ -230,7 +236,8 @@ class SeluxitRpc:
                        network_id,
                        device_id,
                        value_id,
-                       state_id):
+                       state_id,
+                       trace_id=None):
         """
         Creates delete request.
 
@@ -238,10 +245,11 @@ class SeluxitRpc:
         delete network or its elements.
 
         Args:
-            network_id: id of the network to delete/modify
-            device_id: id of the device to delete/modify
-            value_id: id of the value to delete/modify
-            state_id: id of the state to delete
+            network_id: id of the network to delete/modify.
+            device_id: id of the device to delete/modify.
+            value_id: id of the value to delete/modify.
+            state_id: id of the state to delete.
+            trace_id: ID of the debug trace. {default: None}
 
         Returns:
             JSON formatted data of delete message
@@ -256,12 +264,15 @@ class SeluxitRpc:
                     if state_id:
                         url += '/state/{}'.format(state_id)
 
+        if trace_id:
+            url = '{}?trace={}'.format(url, trace_id)
+
         data_json_rpc = requests.Request('DELETE',
                                          url=url)
 
         return data_json_rpc
 
-    def get_rpc_whole_json(self, json_data):
+    def get_rpc_whole_json(self, json_data, trace_id=None):
         """
         Creates request containing the whole json file.
 
@@ -270,33 +281,21 @@ class SeluxitRpc:
 
         Args:
             json_data: Data read from json file.
+            trace_id:  ID of the debug trace {default: None}
 
         Returns:
             JSON formatted data of network
 
         """
+        url = '/{}'.format("network")
+
+        if trace_id:
+            url = "{}?trace={}".format(url, trace_id)
+
         data_json_rpc = requests.Request('POST',
-                                         url='/{}'.format('network'),
+                                         url=url,
                                          data=json_data)
         return data_json_rpc
-
-    def add_whole_json(
-            self,
-            connection,
-            json_data
-    ):
-        """Add an instance of the whole json file.
-
-        While initializing adds network/device/value/state to send and
-        receive queue.
-
-        Args:
-            connection: A reference to the socket instance.
-            json_data: Data read from json file.
-
-        """
-        message = self.get_rpc_whole_json(json_data)
-        self.send_init_json(connection, message)
 
     def send_init_json(self, connection, json_data):
         """Send initial JSON data.
