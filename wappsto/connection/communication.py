@@ -14,7 +14,6 @@ import time
 import json
 import queue
 import ssl
-import random
 # REPLACED request WITH NATIVE MODULE
 import urllib.request as request
 import logging
