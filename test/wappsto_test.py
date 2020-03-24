@@ -332,7 +332,7 @@ class TestJsonLoadClass:
     @pytest.mark.parametrize("object_name", ["network", "device", "value", "control_state", "report_state"])
     def test_get_by_id(self, object_exists, object_name):
         """
-        Tests getting element  by id.
+        Tests getting element by id.
 
         Gets id and checks if result is the expected one.
 
@@ -354,6 +354,29 @@ class TestJsonLoadClass:
 
         # Assert
         assert (object_exists and result is not None) or (not object_exists and result is None)
+
+    @pytest.mark.parametrize("save_as_string", [True, False])
+    def test_load_existing_instance(self, save_as_string):
+        """
+        Tests loading existing instance
+
+        Creates new instance and then tries to load it.
+
+        Args:
+            save_as_string: indicates if informations inside data should be saved as a string. 
+
+        """
+        # Arrange
+        self.service = wappsto.Wappsto(json_file_name=self.test_json_location)
+        self.service.data_manager.json_file_name = "test.json"
+        self.service.data_manager.save_instance(convert_to_string=save_as_string)
+        saved_network = self.service.data_manager.get_encoded_network()
+
+        # Act
+        self.service = wappsto.Wappsto(json_file_name="test.json", load_from_state_file=True)
+
+        # Assert
+        assert saved_network == self.service.data_manager.get_encoded_network()
 
 
 class TestConnClass:

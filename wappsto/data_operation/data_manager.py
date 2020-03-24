@@ -78,7 +78,7 @@ class DataManager:
             name of the most recently changed file
 
         """
-        path = os.path.join(self.path_to_calling_file, 'saved_instances/')
+        path = os.path.join(self.path_to_calling_file, 'saved_instances')
 
         file_paths = []
         for file_name in os.listdir(path):
@@ -120,7 +120,9 @@ class DataManager:
         """
         try:
             self.decoded = json.loads(file_data)
-            json_container = json.loads(self.decoded.get('data'))
+            json_container = self.decoded.get('data')
+            if not isinstance(json_container, dict):
+                json_container = json.loads(json_container)
         except json.JSONDecodeError as jde:
             self.wapp_log.error("Error decoding: {}".format(jde))
             raise jde
@@ -129,25 +131,31 @@ class DataManager:
 
         self.network = self.wappsto_decoder.decode_network(json_container, self)
 
-    def save_instance(self):
+    def save_instance(self, save_as_string=True):
         """
         Saves current instance of the whole network.
 
         Encodes the whole network and saves it in the saved instance folder.
 
-        """
-        encoded_string = str(self.get_encoded_network())
-        encoded_string = encoded_string.replace("\'", "\\\"")
-        encoded_string = '{"data":"' + encoded_string + '"}'
+        Args:
+            save_as_string: indicates if informations inside data should be saved as a string.
 
-        path = os.path.join(self.path_to_calling_file, 'saved_instances/')
+        """
+        encoded = self.get_encoded_network()
+        if save_as_string:
+            encoded = json.dumps(encoded)
+            encoded = encoded.replace("\'", "\\\"")
+        encoded = {"data": encoded}
+        encoded = json.dumps(encoded)
+
+        path = os.path.join(self.path_to_calling_file, 'saved_instances')
         os.makedirs(path, exist_ok=True)
-        path_open = os.path.join(path, '{}.json'.format(self.json_file_name))
+        path_open = os.path.join(path, self.json_file_name)
 
         with open(path_open, "w+") as network_file:
-            network_file.write(encoded_string)
+            network_file.write(encoded)
 
-        msg = "Saved {} to {}".format(encoded_string, network_file)
+        msg = "Saved {} to {}".format(encoded, network_file)
         self.wapp_log.debug(msg)
 
     def get_by_id(self, id):
