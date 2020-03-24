@@ -79,6 +79,7 @@ class DataManager:
 
         """
         path = os.path.join(self.path_to_calling_file, 'saved_instances/')
+        os.makedirs(path, exist_ok=True)
 
         file_paths = []
         for file_name in os.listdir(path):

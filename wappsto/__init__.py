@@ -29,7 +29,7 @@ class Wappsto:
     __version__ = "1.1.0"
 
     def __init__(self, json_file_name=None, load_from_state_file=False,
-                 save_init=False, log_offline=False, log_location="logs",
+                 log_offline=False, log_location="logs",
                  log_data_limit=10, limit_action=event_storage.REMOVE_OLD,
                  compression_period=event_storage.DAY_PERIOD):
         # TODO(Dimitar): Come up with a better description.
@@ -46,8 +46,6 @@ class Wappsto:
                 about a network (default: {None})
             load_from_state_file: Defines if the data should be loaded from
                 saved files (default: {False})
-            save_init: Determines whether or not save json data
-                (default: {False})
             log_offline: boolean indicating if data should be logged (default: {False})
             log_location: location of the logs (default: {"logs"})
             log_data_limit: limit of data to be saved in log [in Megabytes] (default: {10})
@@ -63,9 +61,10 @@ class Wappsto:
         self.path_to_calling_file = os.path.dirname(os.path.abspath(stack))
 
         self.connecting = True
-        self.rpc = seluxit_rpc.SeluxitRpc(save_init)
+        self.rpc = seluxit_rpc.SeluxitRpc()
         self.event_storage = event_storage.OfflineEventStorage(
-            log_offline, log_location,
+            log_offline,
+            log_location,
             log_data_limit,
             limit_action,
             compression_period
@@ -187,9 +186,6 @@ class Wappsto:
 
         Returns:
             A reference to the device object instance.
-
-        Raises:
-            DeviceNotFoundException: Device {name} not found in {instance}.
 
         """
         for device in self.data_manager.network.devices:
