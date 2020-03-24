@@ -251,8 +251,6 @@ def set_up_log(self, log_file_exists, file_size, make_zip=False):
     file_path = self.service.event_storage.get_file_path(file_name)
     log_location = self.service.event_storage.log_location
 
-    os.makedirs(log_location, exist_ok=True)
-
     # removes all files
     for root, dirs, files in os.walk(log_location):
         for file in files:
