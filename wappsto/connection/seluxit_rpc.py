@@ -245,11 +245,11 @@ class SeluxitRpc:
         delete network or its elements.
 
         Args:
-            network_id: id of the network to delete/modify
-            device_id: id of the device to delete/modify
-            value_id: id of the value to delete/modify
-            state_id: id of the state to delete
-            trace_id: ID of the debug trace. (default: {None})
+            network_id: id of the network to delete/modify.
+            device_id: id of the device to delete/modify.
+            value_id: id of the value to delete/modify.
+            state_id: id of the state to delete.
+            trace_id: ID of the debug trace. {default: None}
 
         Returns:
             JSON formatted data of delete message
