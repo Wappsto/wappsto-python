@@ -209,7 +209,7 @@ def send_response(self,
         message_size = math.ceil(len(message) / 2)
         message1 = message[:message_size]
         message2 = message[message_size:]
-        wappsto.connection.communication.RECEIVE_SIZE = message_size
+        wappsto.connection.communication.receive_data.RECEIVE_SIZE = message_size
         self.service.socket.my_socket.recv = Mock(side_effect=[message1.encode("utf-8"),
                                                                message2.encode("utf-8"),
                                                                KeyboardInterrupt])
@@ -832,7 +832,7 @@ class TestReceiveThreadClass:
         try:
             # runs until mock object is run and its side_effect raises
             # exception
-            self.service.socket.receive_thread()
+            self.service.socket.receive_data.receive_thread()
         except KeyboardInterrupt:
             pass
 
@@ -896,7 +896,7 @@ class TestReceiveThreadClass:
             # runs until mock object is run and its side_effect raises
             # exception
             with patch('threading.Timer.start'):
-                self.service.socket.receive_thread()
+                self.service.socket.receive_data.receive_thread()
         except KeyboardInterrupt:
             pass
 
@@ -967,7 +967,7 @@ class TestReceiveThreadClass:
         try:
             # runs until mock object is run and its side_effect raises
             # exception
-            self.service.socket.receive_thread()
+            self.service.socket.receive_data.receive_thread()
         except KeyboardInterrupt:
             pass
 
@@ -1034,7 +1034,7 @@ class TestReceiveThreadClass:
         try:
             # runs until mock object is run and its side_effect raises
             # exception
-            self.service.socket.receive_thread()
+            self.service.socket.receive_data.receive_thread()
         except KeyboardInterrupt:
             pass
 
@@ -1083,7 +1083,7 @@ class TestReceiveThreadClass:
         try:
             # runs until mock object is run and its side_effect raises
             # exception
-            self.service.socket.receive_thread()
+            self.service.socket.receive_data.receive_thread()
         except KeyboardInterrupt:
             pass
 
@@ -1109,7 +1109,7 @@ class TestReceiveThreadClass:
         """
         # Arrange
         if message_size_exeeded:
-            wappsto.communication.MESSAGE_SIZE_BYTES = 0
+            wappsto.communication.receive_data.MESSAGE_SIZE_BYTES = 0
             messages_in_list = 1
         else:
             messages_in_list = 0
@@ -1119,7 +1119,7 @@ class TestReceiveThreadClass:
         try:
             # runs until mock object is run and its side_effect raises
             # exception
-            self.service.socket.receive_thread()
+            self.service.socket.receive_data.receive_thread()
         except KeyboardInterrupt:
             pass
 
@@ -1161,7 +1161,7 @@ class TestSendThreadClass:
             # runs until mock object is run and its side_effect raises
             # exception
             with patch("logging.Logger.warning", side_effect=check_for_logged_info):
-                self.service.socket.send_thread()
+                self.service.socket.send_data.send_thread()
         except KeyboardInterrupt:
             pass
 
@@ -1224,7 +1224,7 @@ class TestSendThreadClass:
             # exception
             with patch("logging.Logger.error", side_effect=check_for_logged_info), \
                     patch("logging.Logger.debug", side_effect=check_for_logged_info):
-                self.service.socket.send_thread()
+                self.service.socket.send_data.send_thread()
         except KeyboardInterrupt:
             pass
 
@@ -1238,9 +1238,9 @@ class TestSendThreadClass:
                 with open(file_path, "r") as file:
                     args = file.readlines()[-1]
             arg = json.loads(args)
-            assert len(arg) <= wappsto.connection.communication.MAX_BULK_SIZE
+            assert len(arg) <= wappsto.connection.communication.send_data.MAX_BULK_SIZE
             assert self.service.socket.sending_queue.qsize() == max(
-                messages_in_queue - wappsto.connection.communication.MAX_BULK_SIZE, 0)
+                messages_in_queue - wappsto.connection.communication.send_data.MAX_BULK_SIZE, 0)
             assert validate_json("successResponse", arg) == bool(value)
             for request in arg:
                 assert request.get("id", None) == value
@@ -1295,25 +1295,26 @@ class TestSendThreadClass:
             reply = message_data.MessageData(
                 message_data.SEND_REPORT,
                 state_id=self.service.get_network().uuid,
-                data=value
+                data=value,
+                verb=message_data.PUT
             )
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.connected = connected
-        self.service.socket.automatic_trace = send_trace
+        self.service.socket.send_data.automatic_trace = send_trace
         file_path = set_up_log(self, log_file_exists, file_size, make_zip)
         urlopen_trace_id = sent_json_trace_id = ''
 
         # Act
-        with patch('urllib.request.urlopen') as urlopen:
-            try:
-                # runs until mock object is run and its side_effect raises
-                # exception
-                with patch("logging.Logger.error", side_effect=check_for_logged_info), \
-                        patch("logging.Logger.debug", side_effect=check_for_logged_info):
-                    self.service.socket.send_thread()
-            except KeyboardInterrupt:
-                pass
+        try:
+            # runs until mock object is run and its side_effect raises
+            # exception
+            with patch("logging.Logger.error", side_effect=check_for_logged_info), \
+                patch("logging.Logger.debug", side_effect=check_for_logged_info), \
+                    patch('urllib.request.urlopen') as urlopen:
+                self.service.socket.send_data.send_thread()
+        except KeyboardInterrupt:
+            pass
 
         # Assert
         assert os.path.isdir(self.service.event_storage.log_location)
@@ -1338,9 +1339,9 @@ class TestSendThreadClass:
                 assert urlopen_trace_id != ''
             else:
                 assert urlopen_trace_id == ''
-            assert len(arg) <= wappsto.connection.communication.MAX_BULK_SIZE
+            assert len(arg) <= wappsto.connection.communication.send_data.MAX_BULK_SIZE
             assert self.service.socket.sending_queue.qsize() == max(
-                messages_in_queue - wappsto.connection.communication.MAX_BULK_SIZE, 0)
+                messages_in_queue - wappsto.connection.communication.send_data.MAX_BULK_SIZE, 0)
             assert validate_json("request", arg) == bool(value)
             for request in arg:
                 assert request["params"]["data"].get("data", None) == value
@@ -1406,7 +1407,7 @@ class TestSendThreadClass:
             # exception
             with patch("logging.Logger.error", side_effect=check_for_logged_info), \
                     patch("logging.Logger.debug", side_effect=check_for_logged_info):
-                self.service.socket.send_thread()
+                self.service.socket.send_data.send_thread()
         except KeyboardInterrupt:
             pass
 
@@ -1420,9 +1421,9 @@ class TestSendThreadClass:
                 with open(file_path, "r") as file:
                     args = file.readlines()[-1]
             arg = json.loads(args)
-            assert len(arg) <= wappsto.connection.communication.MAX_BULK_SIZE
+            assert len(arg) <= wappsto.connection.communication.send_data.MAX_BULK_SIZE
             assert self.service.socket.sending_queue.qsize() == max(
-                messages_in_queue - wappsto.connection.communication.MAX_BULK_SIZE, 0)
+                messages_in_queue - wappsto.connection.communication.send_data.MAX_BULK_SIZE, 0)
             assert validate_json("errorResponse", arg) == bool(value)
             for request in arg:
                 assert request.get("id", None) == value
@@ -1487,7 +1488,7 @@ class TestSendThreadClass:
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.connected = connected
-        self.service.socket.automatic_trace = send_trace
+        self.service.socket.send_data.automatic_trace = send_trace
         urlopen_trace_id = sent_json_trace_id = ''
         file_path = set_up_log(self, log_file_exists, file_size, make_zip)
 
@@ -1499,7 +1500,7 @@ class TestSendThreadClass:
                 patch("logging.Logger.error", side_effect=check_for_logged_info), \
                 patch("logging.Logger.debug", side_effect=check_for_logged_info), \
                     patch("urllib.request.urlopen") as urlopen:
-                self.service.socket.send_thread()
+                self.service.socket.send_data.send_thread()
         except KeyboardInterrupt:
             pass
 
@@ -1526,9 +1527,9 @@ class TestSendThreadClass:
                 assert urlopen_trace_id != ''
             else:
                 assert urlopen_trace_id == ''
-            assert len(arg) <= wappsto.connection.communication.MAX_BULK_SIZE
+            assert len(arg) <= wappsto.connection.communication.send_data.MAX_BULK_SIZE
             assert self.service.socket.sending_queue.qsize() == max(
-                messages_in_queue - wappsto.connection.communication.MAX_BULK_SIZE, 0)
+                messages_in_queue - wappsto.connection.communication.send_data.MAX_BULK_SIZE, 0)
             assert validate_json("request", arg) == valid_message
             for request in arg:
                 assert request["params"]["data"]["meta"].get("id", None) == value
@@ -1588,25 +1589,26 @@ class TestSendThreadClass:
             reply = message_data.MessageData(
                 message_data.SEND_CONTROL,
                 state_id=value,
-                data=""
+                data="",
+                verb=message_data.PUT
             )
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.connected = connected
-        self.service.socket.automatic_trace = send_trace
+        self.service.socket.send_data.automatic_trace = send_trace
         urlopen_trace_id = sent_json_trace_id = ''
         file_path = set_up_log(self, log_file_exists, file_size, make_zip)
 
         # Act
-        with patch('urllib.request.urlopen') as urlopen:
-            try:
-                # runs until mock object is run and its side_effect raises
-                # exception
-                with patch("logging.Logger.error", side_effect=check_for_logged_info), \
-                        patch("logging.Logger.debug", side_effect=check_for_logged_info):
-                    self.service.socket.send_thread()
-            except KeyboardInterrupt:
-                pass
+        try:
+            # runs until mock object is run and its side_effect raises
+            # exception
+            with patch("logging.Logger.error", side_effect=check_for_logged_info), \
+                patch("logging.Logger.debug", side_effect=check_for_logged_info), \
+                    patch('urllib.request.urlopen') as urlopen:
+                self.service.socket.send_data.send_thread()
+        except KeyboardInterrupt:
+            pass
 
         # Assert
         assert os.path.isdir(self.service.event_storage.log_location)
@@ -1631,9 +1633,9 @@ class TestSendThreadClass:
                 assert urlopen_trace_id != ''
             else:
                 assert urlopen_trace_id == ''
-            assert len(arg) <= wappsto.connection.communication.MAX_BULK_SIZE
+            assert len(arg) <= wappsto.connection.communication.send_data.MAX_BULK_SIZE
             assert self.service.socket.sending_queue.qsize() == max(
-                messages_in_queue - wappsto.connection.communication.MAX_BULK_SIZE, 0)
+                messages_in_queue - wappsto.connection.communication.send_data.MAX_BULK_SIZE, 0)
             assert validate_json("request", arg) == valid_message
             for request in arg:
                 assert request["params"]["data"]["meta"].get("id", None) == value
@@ -1720,20 +1722,20 @@ class TestSendThreadClass:
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.add_id_to_confirm_list = Mock()
         self.service.socket.connected = connected
-        self.service.socket.automatic_trace = send_trace
+        self.service.socket.send_data.automatic_trace = send_trace
         urlopen_trace_id = sent_json_trace_id = ''
         file_path = set_up_log(self, log_file_exists, file_size, make_zip)
 
         # Act
-        with patch('urllib.request.urlopen') as urlopen:
-            try:
-                # runs until mock object is run and its side_effect raises
-                # exception
-                with patch("logging.Logger.error", side_effect=check_for_logged_info), \
-                        patch("logging.Logger.debug", side_effect=check_for_logged_info):
-                    self.service.socket.send_thread()
-            except KeyboardInterrupt:
-                pass
+        try:
+            # runs until mock object is run and its side_effect raises
+            # exception
+            with patch("logging.Logger.error", side_effect=check_for_logged_info), \
+                patch("logging.Logger.debug", side_effect=check_for_logged_info), \
+                    patch('urllib.request.urlopen') as urlopen:
+                self.service.socket.send_data.send_thread()
+        except KeyboardInterrupt:
+            pass
 
         # Assert
         assert os.path.isdir(self.service.event_storage.log_location)
@@ -1758,9 +1760,9 @@ class TestSendThreadClass:
                 assert urlopen_trace_id != ''
             else:
                 assert urlopen_trace_id == ''
-            assert len(arg) <= wappsto.connection.communication.MAX_BULK_SIZE
+            assert len(arg) <= wappsto.connection.communication.send_data.MAX_BULK_SIZE
             assert self.service.socket.sending_queue.qsize() == max(
-                messages_in_queue - wappsto.connection.communication.MAX_BULK_SIZE, 0)
+                messages_in_queue - wappsto.connection.communication.send_data.MAX_BULK_SIZE, 0)
             for request in arg:
                 assert request["params"]["url"] is not None
         else:
@@ -1795,7 +1797,7 @@ class TestSendThreadClass:
             try:
                 # runs until mock object is run and its side_effect raises
                 # exception
-                self.service.socket.send_thread()
+                self.service.socket.send_data.send_thread()
             except KeyboardInterrupt:
                 if urlopen.called:
                     urlopen_args, urlopen_kwargs = urlopen.call_args

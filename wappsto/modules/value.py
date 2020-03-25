@@ -401,10 +401,15 @@ class Value:
 
         state.timestamp = timestamp
 
-        return self.parent.parent.conn.send_state(
-            state,
-            data_value=data_value,
+        msg = message_data.MessageData(
+            message_data.SEND_REPORT,
+            data=data_value,
+            network_id=state.parent.parent.parent.uuid,
+            device_id=state.parent.parent.uuid,
+            value_id=state.parent.uuid,
+            state_id=state.uuid
         )
+        self.parent.parent.conn.send_data.send_report(msg)
 
     def check_delta_and_period(self, data_value):
         """

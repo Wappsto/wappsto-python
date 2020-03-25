@@ -9,6 +9,7 @@ import json
 import datetime
 import os
 import logging
+from . import message_data
 from jsonrpcclient import requests, response
 
 JSONRPC = '2.0'
@@ -110,7 +111,7 @@ class SeluxitRpc:
         self.wapp_log = logging.getLogger(__name__)
         self.wapp_log.addHandler(logging.NullHandler())
 
-    def get_rpc_network(self, network_id, network_name, put=True,
+    def get_rpc_network(self, network_id, network_name, verb,
                         trace_id=None):
         """
         Retrieve network from server.
@@ -122,7 +123,7 @@ class SeluxitRpc:
         Args:
             network_id: Unique identifying number of a network
             network_name: Name of a network
-            put: defines if the request method is put {default: True}
+            verb: indicates what verb should be used.
             trace_id:  ID of the debug trace {default: None}
 
         Returns:
@@ -138,11 +139,8 @@ class SeluxitRpc:
         }
         url = '/network'
 
-        if put:
-            verb = 'PUT'
+        if verb == message_data.PUT:
             url = '/{}'.format(network_id)
-        else:
-            verb = 'POST'
 
         if trace_id:
             url = "{}?trace={}".format(url, trace_id)
@@ -161,10 +159,8 @@ class SeluxitRpc:
             value_id,
             state_id,
             set_type,
-            get=False,
-            put=True,
-            trace_id=None,
-            state_obj=None
+            verb,
+            trace_id=None
     ):
         """
         Retrieve state of the value.
@@ -180,11 +176,8 @@ class SeluxitRpc:
             value_id: Unique identifier of a value.
             state_id: Unique identifier of the state.
             set_type: The type to set.
-            get: Defines if the request is of type GET. (default: {False})
-            put: Defines if the request is of type PUT. (default: {True})
+            verb: indicates what verb should be used.
             trace_id: ID of the debug trace. (default: {None})
-            state_obj: Reference to the value instance's state instance.
-                (default: {None})
 
         Returns:
             JSON formatted data of the state.
@@ -199,19 +192,12 @@ class SeluxitRpc:
             'timestamp': update
         }
 
-        if state_obj is not None:
-            state_obj.timestamp = update
-
         url = '/network/{}/device/{}/value/{}/state'
         url = url.format(network_id, device_id, value_id)
 
-        if put:
-            if get:
-                verb = 'GET'
-                device_state = None
-            else:
-                verb = 'PUT'
-            url = '{}/{}'.format(url, state_id)
+        if verb == message_data.GET:
+            device_state = None
+        url = '{}/{}'.format(url, state_id)
 
         if trace_id:
             url = '{}?trace={}'.format(url, trace_id)
