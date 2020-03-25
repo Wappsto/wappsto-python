@@ -557,9 +557,9 @@ class TestConnClass:
         self.service = wappsto.Wappsto(json_file_name=test_json_location,
                                        load_from_state_file=load_from_state_file)
         fake_connect(self, ADDRESS, PORT)
-        path = self.service.data_manager.path_to_calling_file
-        network_id = self.service.data_manager.json_file_name
-        path_open = os.path.join(path, '{}.json'.format(network_id))
+        path = os.path.join(self.service.data_manager.path_to_calling_file, 'saved_instances')
+        network_id = self.service.data_manager.json_file_name = "test.json"
+        path_open = os.path.join(path, network_id)
         if os.path.exists(path_open):
             os.remove(path_open)
 
