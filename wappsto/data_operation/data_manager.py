@@ -78,7 +78,7 @@ class DataManager:
             name of the most recently changed file
 
         """
-        path = os.path.join(self.path_to_calling_file, 'saved_instances/')
+        path = os.path.join(self.path_to_calling_file, 'saved_instances')
         os.makedirs(path, exist_ok=True)
 
         file_paths = []
@@ -141,7 +141,7 @@ class DataManager:
         encoded_string = encoded_string.replace("\'", "\\\"")
         encoded_string = '{"data":"' + encoded_string + '"}'
 
-        path = os.path.join(self.path_to_calling_file, 'saved_instances/')
+        path = os.path.join(self.path_to_calling_file, 'saved_instances')
         os.makedirs(path, exist_ok=True)
         path_open = os.path.join(path, '{}.json'.format(self.json_file_name))
 

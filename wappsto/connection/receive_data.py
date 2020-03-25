@@ -94,7 +94,7 @@ class ReceiveData:
                     return None
                 try:
                     decoded_data = data.decode('utf-8')
-                except Exception:
+                except AttributeError:
                     continue
                 total_decoded += decoded_data
                 if sys.getsizeof(total_decoded) > MESSAGE_SIZE_BYTES:
@@ -131,15 +131,12 @@ class ReceiveData:
             else:
                 self.receive(decoded)
 
-        except JSONDecodeError:
-            self.wapp_log.error("Json error: {}".format(decoded))
-
-        except ConnectionResetError as e:
+        except ConnectionResetError as e:  # pragma: no cover
             msg = "Received Reset: {}".format(e)
             self.wapp_log.error(msg, exc_info=True)
             self.client_socket.reconnect()
 
-        except OSError as oe:
+        except OSError as oe:  # pragma: no cover
             msg = "Received OS Error: {}".format(oe)
             self.wapp_log.error(msg, exc_info=True)
             self.client_socket.reconnect()
@@ -204,11 +201,10 @@ class ReceiveData:
             uuid = data.get('params').get('data').get('meta').get('id')
             meta_type = data.get('params').get('data').get('meta').get('type')
             self.wapp_log.debug("Put request from id: " + uuid)
-        except AttributeError as e:
-            error_str = 'Error received incorrect format in put'
-            self.wapp_log.error(data)
+        except AttributeError:
+            error_str = 'Error received incorrect format in put: {}'.format(str(data))
             self.wapp_log.error(error_str, exc_info=True)
-            raise e
+            return
 
         try:
             trace_id = data.get('params').get('meta').get('trace')
@@ -269,11 +265,10 @@ class ReceiveData:
         try:
             uuid = data.get('params').get('data').get('meta').get('id')
             self.wapp_log.debug("Get request from id: " + uuid)
-        except AttributeError as e:
-            error_str = 'Error received incorrect format in get'
-            self.wapp_log.error(data)
+        except AttributeError:
+            error_str = 'Error received incorrect format in get: {}'.format(str(data))
             self.wapp_log.error(error_str, exc_info=True)
-            raise e
+            return
 
         try:
             trace_id = data.get('params').get('meta').get('trace')
@@ -320,11 +315,10 @@ class ReceiveData:
         try:
             uuid = data.get('params').get('data').get('meta').get('id')
             self.wapp_log.debug("Delete request from id: " + uuid)
-        except AttributeError as e:
-            error_str = 'Error received incorrect format in delete'
-            self.wapp_log.error(data)
+        except AttributeError:
+            error_str = 'Error received incorrect format in delete: {}'.format(str(data))
             self.wapp_log.error(error_str, exc_info=True)
-            raise e
+            return
 
         try:
             trace_id = data.get('params').get('meta').get('trace')
