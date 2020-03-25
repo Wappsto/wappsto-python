@@ -382,7 +382,7 @@ class TestJsonLoadClass:
     @pytest.mark.parametrize("object_name", ["network", "device", "value", "control_state", "report_state"])
     def test_get_by_id(self, object_exists, object_name):
         """
-        Tests getting element  by id.
+        Tests getting element by id.
 
         Gets id and checks if result is the expected one.
 
@@ -404,6 +404,39 @@ class TestJsonLoadClass:
 
         # Assert
         assert (object_exists and result is not None) or (not object_exists and result is None)
+
+    @pytest.mark.parametrize("save_as_string", [True, False])
+    def test_load_existing_instance(self, save_as_string):
+        """
+        Tests loading existing instance.
+
+        Creates new instance and then tries to load it.
+
+        Args:
+            save_as_string: indicates if informations inside data should be saved as a string.
+
+        """
+        # Arrange
+        self.service = wappsto.Wappsto(json_file_name=self.test_json_location)
+        saved_network = self.service.data_manager.get_encoded_network()
+
+        file_name = "test.json"
+        encoded = saved_network
+        if save_as_string:
+            encoded = json.dumps(encoded)
+            encoded = encoded.replace("\'", "\\\"")
+        encoded = json.dumps({"data": encoded})
+        path = os.path.join(self.service.data_manager.path_to_calling_file, 'saved_instances')
+        os.makedirs(path, exist_ok=True)
+        path_open = os.path.join(path, file_name)
+        with open(path_open, "w+") as network_file:
+            network_file.write(encoded)
+
+        # Act
+        self.service = wappsto.Wappsto(json_file_name=file_name, load_from_state_file=True)
+
+        # Assert
+        assert saved_network == self.service.data_manager.get_encoded_network()
 
 
 class TestConnClass:
@@ -524,9 +557,9 @@ class TestConnClass:
         self.service = wappsto.Wappsto(json_file_name=test_json_location,
                                        load_from_state_file=load_from_state_file)
         fake_connect(self, ADDRESS, PORT)
-        path = self.service.data_manager.path_to_calling_file
-        network_id = self.service.data_manager.json_file_name
-        path_open = os.path.join(path, '{}.json'.format(network_id))
+        path = os.path.join(self.service.data_manager.path_to_calling_file, 'saved_instances')
+        network_id = self.service.data_manager.json_file_name = "test.json"
+        path_open = os.path.join(path, network_id)
         if os.path.exists(path_open):
             os.remove(path_open)
 

@@ -78,7 +78,7 @@ class DataManager:
             name of the most recently changed file
 
         """
-        path = os.path.join(self.path_to_calling_file, 'saved_instances/')
+        path = os.path.join(self.path_to_calling_file, 'saved_instances')
         os.makedirs(path, exist_ok=True)
 
         file_paths = []
@@ -121,7 +121,9 @@ class DataManager:
         """
         try:
             self.decoded = json.loads(file_data)
-            json_container = json.loads(self.decoded.get('data'))
+            json_container = self.decoded.get('data')
+            if not isinstance(json_container, dict):
+                json_container = json.loads(json_container)
         except json.JSONDecodeError as jde:
             self.wapp_log.error("Error decoding: {}".format(jde))
             raise jde
@@ -141,9 +143,9 @@ class DataManager:
         encoded_string = encoded_string.replace("\'", "\\\"")
         encoded_string = '{"data":"' + encoded_string + '"}'
 
-        path = os.path.join(self.path_to_calling_file, 'saved_instances/')
+        path = os.path.join(self.path_to_calling_file, 'saved_instances')
         os.makedirs(path, exist_ok=True)
-        path_open = os.path.join(path, '{}.json'.format(self.json_file_name))
+        path_open = os.path.join(path, self.json_file_name)
 
         with open(path_open, "w+") as network_file:
             network_file.write(encoded_string)
