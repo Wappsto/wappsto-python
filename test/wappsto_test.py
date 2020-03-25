@@ -408,12 +408,12 @@ class TestJsonLoadClass:
     @pytest.mark.parametrize("save_as_string", [True, False])
     def test_load_existing_instance(self, save_as_string):
         """
-        Tests loading existing instance
+        Tests loading existing instance.
 
         Creates new instance and then tries to load it.
 
         Args:
-            save_as_string: indicates if informations inside data should be saved as a string. 
+            save_as_string: indicates if informations inside data should be saved as a string.
 
         """
         # Arrange
