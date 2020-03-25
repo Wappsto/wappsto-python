@@ -193,12 +193,11 @@ class ClientSocket:
                 if state is not None:
                     msg = message_data.MessageData(
                         message_data.SEND_CONTROL,
-                        data=None,
                         network_id=state.parent.parent.parent.uuid,
                         device_id=state.parent.parent.uuid,
                         value_id=state.parent.uuid,
                         state_id=state.uuid,
-                        get=True
+                        verb=message_data.GET
                     )
                     self.send_data.send_control(msg)
 

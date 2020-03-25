@@ -12,6 +12,11 @@ Attributes:
     SEND_CONTROL: Control message global flag.
     SEND_TRACE: Trace sending global flag.
 
+    GET: Get message global flag
+    PUT: Put message global flag
+    POST: Post message global flag
+    Delete: Delete message global flag
+
 """
 SEND_SUCCESS = 1
 SEND_FAILED = 2
@@ -20,6 +25,11 @@ SEND_RECONNECT = 4
 SEND_CONTROL = 5
 SEND_TRACE = 6
 SEND_DELETE = 7
+
+GET = "GET"
+PUT = "PUT"
+POST = "POST"
+Delete = "Delete"
 
 
 class MessageData:
@@ -42,7 +52,7 @@ class MessageData:
             parent=None,
             trace_id=None,
             control_value_id=None,
-            get=False
+            verb=POST
     ):
         """
         Initialize the MessageData class.
@@ -63,7 +73,7 @@ class MessageData:
             parent: The parent object. (default: {None})
             trace_id: The trace ID used to debug. (default: {None})
             control_value_id: The control data ID. (default: {None})
-            get: Boolean indication if verb should be GET. (default: {False})
+            verb: indicates what verb should be used. (default: {POST})
 
         """
         self.msg_id = msg_id
@@ -77,4 +87,4 @@ class MessageData:
         self.parent = parent
         self.trace_id = trace_id
         self.control_value_id = control_value_id
-        self.get = get
+        self.verb = verb

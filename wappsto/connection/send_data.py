@@ -217,6 +217,7 @@ class SendData:
             package.value_id,
             package.state_id,
             'Report',
+            package.verb,
             trace_id=package.trace_id
         )
         self.create_bulk(local_data)
@@ -245,8 +246,8 @@ class SendData:
             package.value_id,
             package.state_id,
             'Control',
-            trace_id=package.trace_id,
-            get=package.get
+            package.verb,
+            trace_id=package.trace_id
         )
         self.create_bulk(local_data)
 
@@ -316,7 +317,7 @@ class SendData:
         rpc_network = self.client_socket.rpc.get_rpc_network(
             self.client_socket.data_manager.network.uuid,
             self.client_socket.data_manager.network.name,
-            put=False,
+            package.verb,
             trace_id=package.trace_id
         )
         self.create_bulk(rpc_network)
