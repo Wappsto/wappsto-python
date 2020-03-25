@@ -145,7 +145,7 @@ class DataManager:
 
         path = os.path.join(self.path_to_calling_file, 'saved_instances')
         os.makedirs(path, exist_ok=True)
-        path_open = os.path.join(path, '{}.json'.format(self.json_file_name))
+        path_open = os.path.join(path, self.json_file_name)
 
         with open(path_open, "w+") as network_file:
             network_file.write(encoded_string)
