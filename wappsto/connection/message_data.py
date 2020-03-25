@@ -15,7 +15,7 @@ Attributes:
     GET: Get message global flag
     PUT: Put message global flag
     POST: Post message global flag
-    Delete: Delete message global flag
+    DELETE: Delete message global flag
 
 """
 SEND_SUCCESS = 1
@@ -29,7 +29,7 @@ SEND_DELETE = 7
 GET = "GET"
 PUT = "PUT"
 POST = "POST"
-Delete = "Delete"
+DELETE = "DELETE"
 
 
 class MessageData:
