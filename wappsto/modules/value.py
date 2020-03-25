@@ -88,7 +88,7 @@ class Value:
         self.blob_max = blob_max
         self.report_state = None
         self.control_state = None
-        self.callback = self.__callback_not_set
+        self.callback = None
 
         self.timer = threading.Timer(None, None)
         self.last_update_of_report = None
@@ -99,7 +99,7 @@ class Value:
         msg = "Value {} debug: {}".format(name, str(self.__dict__))
         self.wapp_log.debug(msg)
 
-    def __getattr__(self, attr):
+    def __getattr__(self, attr):  # pragma: no cover
         """
         Get attribute value.
 
@@ -194,21 +194,7 @@ class Value:
         else:
             self.wapp_log.warning("Cannot set the delta for this value.")
 
-    def __callback_not_set(self, value, type):
-        """
-        Message about no callback being set.
-
-        Temporary method to signify that there is no callback set for the
-        class.
-
-        Returns:
-            "Callback not set" message.
-
-        """
-        msg = "Callback for value {} was not set".format(self.name)
-        return self.wapp_log.debug(msg)
-
-    def get_parent_device(self):
+    def get_parent_device(self):  # pragma: no cover
         """
         Retrieve parent device reference.
 
@@ -280,7 +266,7 @@ class Value:
             msg = "Value {}  has no control state.".format(self.name)
             self.wapp_log.warning(msg)
 
-    def get_now(self):
+    def get_now():
         """
         Retrieve current time.
 
@@ -296,8 +282,7 @@ class Value:
         """
         Set the callback.
 
-        Sets the callback attribute. It will be called by the __send_logic
-        method.
+        Sets the callback attribute.
 
         Args:
             callback: Callback reference.
@@ -307,16 +292,13 @@ class Value:
             callback.
 
         """
-        try:
-            if not callable(callback):
-                msg = "Callback method should be a method"
-                raise wappsto_errors.CallbackNotCallableException(msg)
-            self.callback = callback
-            self.wapp_log.debug("Callback {} has been set.".format(callback))
-            return True
-        except wappsto_errors.CallbackNotCallableException as e:
-            self.wapp_log.error("Error setting callback: {}".format(e))
-            raise
+        if not callable(callback):
+            msg = "Callback method should be a method"
+            self.wapp_log.error("Error setting callback: {}".format(msg))
+            raise wappsto_errors.CallbackNotCallableException
+        self.callback = callback
+        self.wapp_log.debug("Callback {} has been set.".format(callback))
+        return True
 
     def __validate_value_data(self, data_value):
         if self.__is_number_type():
@@ -335,13 +317,9 @@ class Value:
                         str(data_value)
                     )
                     self.wapp_log.warning(msg)
-                    return None
             except ValueError:
-                msg = "Invalid type of value. Must be a number: {}".format(
-                    str(data_value)
-                )
+                msg = "Invalid type of value. Must be a number: {}".format(str(data_value))
                 self.wapp_log.error(msg)
-                return None
         elif self.__is_string_type():
             if (self.string_max is None
                     or len(str(data_value)) <= int(self.string_max)):
@@ -350,7 +328,6 @@ class Value:
                 msg = ("Value {} not in correct range for {}"
                        .format(data_value, self.name))
                 self.wapp_log.warning(msg)
-                return None
         elif self.__is_blob_type():
             if (self.blob_max is None
                     or len(str(data_value)) <= int(self.blob_max)):
@@ -359,11 +336,9 @@ class Value:
                 msg = ("Value {} not in correct range for {}"
                        .format(data_value, self.name))
                 self.wapp_log.warning(msg)
-                return None
         else:
             msg = "Value type {} is invalid".format(self.date_type)
             self.wapp_log.error(msg)
-            return None
 
     def ensure_number_value_follows_steps(self, data_value):
         """
@@ -397,7 +372,7 @@ class Value:
         except decimal.InvalidOperation as e:
             self.wapp_log.error("Invalid operation: {}".format(e))
 
-    def update(self, data_value, timestamp=None):
+    def update(self, data_value, timestamp=get_now()):
         """
         Update value.
 
@@ -424,10 +399,7 @@ class Value:
         if data_value is None:
             return False
 
-        if timestamp:
-            state.timestamp = timestamp
-        else:
-            state.timestamp = self.get_now()
+        state.timestamp = timestamp
 
         msg = message_data.MessageData(
             message_data.SEND_REPORT,

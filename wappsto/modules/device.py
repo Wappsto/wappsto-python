@@ -66,7 +66,7 @@ class Device:
         msg = "Device {} Debug: \n {}".format(name, str(self.__dict__))
         self.wapp_log.debug(msg)
 
-    def __getattr__(self, attr):
+    def __getattr__(self, attr):  # pragma: no cover
         """
         Get attribute value.
 
@@ -81,7 +81,7 @@ class Device:
             warnings.warn("Property %s is deprecated" % attr)
             return self.values
 
-    def get_parent_network(self):
+    def get_parent_network(self):  # pragma: no cover
         """
         Retrieve parent network reference.
 
@@ -121,18 +121,17 @@ class Device:
 
         """
         for value in self.values:
-            if value_name in list(value.__dict__.values()):
+            if value_name == value.name:
                 return value
-            else:
-                msg = "Value {} not found".format(value_name)
-                wappsto_errors.ValueNotFoundException(msg)
+        else:
+            msg = "Value {} not found".format(value_name)
+            raise wappsto_errors.ValueNotFoundException(msg)
 
     def set_callback(self, callback):
         """
         Set the callback.
 
-        Sets the callback attribute. It will be called by the __send_logic
-        method.
+        Sets the callback attribute.
 
         Args:
             callback: Callback reference.
@@ -142,16 +141,13 @@ class Device:
             callback.
 
         """
-        try:
-            if not callable(callback):
-                msg = "Callback method should be a method"
-                raise wappsto_errors.CallbackNotCallableException(msg)
-            self.callback = callback
-            self.wapp_log.debug("Callback {} has been set.".format(callback))
-            return True
-        except wappsto_errors.CallbackNotCallableException as e:
-            self.wapp_log.error("Error setting callback: {}".format(e))
-            raise
+        if not callable(callback):
+            msg = "Callback method should be a method"
+            self.wapp_log.error("Error setting callback: {}".format(msg))
+            raise wappsto_errors.CallbackNotCallableException
+        self.callback = callback
+        self.wapp_log.debug("Callback {} has been set.".format(callback))
+        return True
 
     def handle_delete(self):
         """

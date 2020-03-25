@@ -137,9 +137,8 @@ class OfflineEventStorage:
         text_logs = [file_name for id, file_name in enumerate(all_logs) if re.search(".txt$", file_name)]
         for file_name in text_logs:
             file_path = self.get_file_path(file_name)
-            zip_file = zipfile.ZipFile(file_path.replace(".txt", ".zip"), "w")
-            zip_file.write(file_path, file_name)
-            zip_file.close()
+            with zipfile.ZipFile(file_path.replace(".txt", ".zip"), "w") as zip_file:
+                zip_file.write(file_path, file_name)
             os.remove(file_path)
 
     def get_oldest_log_name(self):
@@ -225,9 +224,8 @@ class OfflineEventStorage:
                 if not os.path.isfile(file_path):
                     # compact data if log for this period doesnt exist
                     self.compact_logs()
-                file = open(file_path, "a")
-                file.write(string_data + " \n")
-                file.close()
+                with open(file_path, "a") as file:
+                    file.write(string_data + " \n")
                 self.wapp_log.debug("Raw log Json: {}".format(string_data))
             else:
                 self.wapp_log.debug("Log limit exeeded.")

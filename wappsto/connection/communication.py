@@ -28,7 +28,7 @@ class ClientSocket:
     """
 
     def __init__(self, rpc, data_manager, address, port, path_to_calling_file,
-                 wappsto_status, event_storage):
+                 wappsto_status, automatic_trace, event_storage):
         """
         Create a client socket.
 
@@ -44,6 +44,8 @@ class ClientSocket:
             port: Server port.
             path_to_calling_file: path to OS directory of calling file.
             wappsto_status: status object.
+            handler: instance of handlers.
+            automatic_trace: indicates if all messages automaticaly send trace.
             event_storage: instance of event log.
 
         """
@@ -69,7 +71,7 @@ class ClientSocket:
         self.receiving_thread = threading.Thread(target=self.receive_data.receive_thread)
         self.receiving_thread.setDaemon(True)
 
-        self.send_data = send_data.SendData(self)
+        self.send_data = send_data.SendData(self, automatic_trace)
         self.sending_thread = threading.Thread(target=self.send_data.send_thread)
         self.sending_thread.setDaemon(True)
 
@@ -200,8 +202,9 @@ class ClientSocket:
                     )
                     self.send_data.send_control(msg)
 
-        message = self.rpc.get_rpc_whole_json(self.data_manager.get_encoded_network())
-        self.rpc.send_init_json(self.send_data, message)
+        trace_id = self.send_data.create_trace(self.data_manager.network.uuid)
+        message = self.rpc.get_rpc_whole_json(self.data_manager.get_encoded_network(), trace_id)
+        self.send_data.create_bulk(message)
 
         msg = "The whole network {} added to Sending queue {}.".format(
             self.data_manager.network.name,
@@ -257,18 +260,13 @@ class ClientSocket:
             self.wapp_log.info("Trying to reconnect in 5 seconds")
             time.sleep(5)
             self.close()
-            try:
-                self.set_sockets()
-                self.connect()
-            except Exception as e:
-                msg = "Failed to reconnect {}".format(e)
-                self.wapp_log.error(msg, exc_info=True)
+            self.set_sockets()
+            self.connect()
 
         if self.connected is True:
             self.wapp_log.info("Reconnected with " + str(attempt) + " attempts")
             if send_reconnect:
-                reconnect = message_data.MessageData(
-                    message_data.SEND_RECONNECT)
+                reconnect = message_data.MessageData(message_data.SEND_RECONNECT)
                 self.sending_queue.put(reconnect)
         else:
             msg = ("Unable to connect to the server[IP: {}, Port: {}]"
@@ -312,8 +310,7 @@ class ClientSocket:
         for device in self.data_manager.network.devices:
             for value in device.values:
                 if value.timer.is_alive():
-                    msg = "Value: {} is no longer periodically sending updates."
-                    msg = msg.format(value.uuid)
+                    msg = "Value: {} is no longer periodically sending updates.".format(value.uuid)
                     self.wapp_log.debug(msg)
                 value.timer.cancel()
 

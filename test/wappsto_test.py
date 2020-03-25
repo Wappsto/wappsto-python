@@ -9,10 +9,12 @@ import math
 import json
 import pytest
 import wappsto
+import zipfile
 import jsonschema
-import urllib.parse
 from mock import Mock
 from unittest.mock import patch
+import urllib.parse as urlparse
+from urllib.parse import parse_qs
 
 from wappsto import status
 from wappsto.connection import message_data
@@ -22,10 +24,25 @@ from wappsto.connection import event_storage
 ADDRESS = "wappsto.com"
 PORT = 11006
 TEST_JSON = "test_JSON/test_json.json"
-TEST_JSON_prettyprint = "test_JSON/test_json_prettyprint.json"
 
 
-def fake_connect(self, address, port):
+def check_for_correct_conn(*args, **kwargs):
+    """
+    Check if connection is valid.
+
+    Reviews the provided address and port, if it does not correspond to expected values raises the same exception,
+    that would be raised when inputting wrong details.
+
+    Args:
+        args: arguments that method was called with
+        kwargs: key worded arguments
+
+    """
+    if args[0][0] != ADDRESS or args[0][1] != PORT:
+        raise wappsto_errors.ServerConnectionException
+
+
+def fake_connect(self, address, port, send_trace=False):
     """
     Creates fake connection.
 
@@ -35,6 +52,7 @@ def fake_connect(self, address, port):
         self: the instance of the calling object
         address: address used for connecting to server
         port: port used for connecting to server
+        send_trace: Boolean indicating if trace should be automatically sent
 
     """
     def check_for_correct_conn(*args, **kwargs):
@@ -51,10 +69,10 @@ def fake_connect(self, address, port):
             patch('wappsto.Wappsto.keep_running'), \
             patch('socket.socket'), \
                 patch('ssl.SSLContext.wrap_socket', return_value=context):
-            self.service.start(address=address, port=port)
+            self.service.start(address=address, port=port, automatic_trace=send_trace)
 
 
-def fix_object(callback_exists, testing_object):
+def fix_object_callback(callback_exists, testing_object):
     """
     Add callback to object.
 
@@ -69,7 +87,10 @@ def fix_object(callback_exists, testing_object):
         test_callback = Mock(return_value=True)
         testing_object.set_callback(test_callback)
     else:
-        testing_object.callback = None
+        try:
+            testing_object.set_callback(None)
+        except wappsto_errors.CallbackNotCallableException:
+            pass
 
 
 def get_object(self, object_name):
@@ -103,7 +124,8 @@ def send_response(self,
                   verb,
                   trace_id=None,
                   bulk=None,
-                  id=None,
+                  message_id=None,
+                  element_id=None,
                   data=None,
                   split_message=None,
                   type=None,
@@ -118,7 +140,8 @@ def send_response(self,
         verb: specifies if request is DELETE/PUT/POST/GET
         trace_id: id used for tracing messages
         bulk: Boolean value indicating if multiple messages should be sent at once.
-        id: specifies id used in message
+        message_id: id used to indicate the specific message
+        element_id: id used for indicating element
         data: data to be sent
         split_message: Boolean value indicating if message should be sent in parts
         type: type of module being used.
@@ -132,48 +155,51 @@ def send_response(self,
     trace = ""
 
     if verb == "DELETE" or verb == "PUT" or verb == "GET":
-        if trace_id is not None:
-            trace = {"trace": str(trace_id)}
+        if data is None:
+            params = None
+        else:
+            if trace_id is None:
+                trace = None
+            else:
+                trace = {"trace": str(trace_id)}
+
+            if element_id is None:
+                meta = None
+            else:
+                meta = {"id": element_id,
+                        "type": type}
+
+            params = {"meta": trace,
+                      "data": {
+                          "meta": meta,
+                          "data": data,
+                          "period": period,
+                          "delta": delta}}
 
         message = {"jsonrpc": "2.0",
-                   "id": "1",
-                   "params": {
-                       "meta": trace,
-                       "data": {
-                           "meta": {
-                               "id": id,
-                               "type": type},
-                           "data": data,
-                           "period": period,
-                           "delta": delta}},
+                   "id": message_id,
+                   "params": params,
                    "method": verb}
-    else:
-        if verb == "error" or verb == "result":
-            if data:
-                message_value = {"data": data,
-                                 "type": "Control",
-                                 "timestamp": "2020-01-20T09:20:21.092Z",
-                                 "meta": {
-                                     "type": "state",
-                                     "version": "2.0",
-                                     "id": id,
-                                     "manufacturer": "31439b87-040b-4b41-b5b8-f3774b2a1c19",
-                                     "updated": "2020-02-18T09:14:12.880+00:00",
-                                     "created": "2020-01-20T09:20:21.290+00:00",
-                                     "revision": 1035,
-                                     "contract": [],
-                                     "owner": "bb10f0f1-390f-478e-81c2-a67f58de88be"}}
-            else:
-                message_value = "True"
-            message = {"jsonrpc": "2.0",
-                       "id": str(id),
-                       verb: {
-                           "value": message_value,
-                           "meta": {
-                               "server_send_time": "2020-01-22T08:22:55.315Z"}}}
-            self.service.socket.packet_awaiting_confirm[str(id)] = message
+    elif verb == "error" or verb == "result":
+        if data:
+            message_value = {"data": data,
+                             "type": "Control",
+                             "timestamp": "2020-01-20T09:20:21.092Z",
+                             "meta": {
+                                 "type": "state",
+                                 "version": "2.0",
+                                 "id": element_id}}
         else:
-            message = {"jsonrpc": "2.0", "id": "1", "params": {}, "method": "??????"}
+            message_value = "True"
+        message = {"jsonrpc": "2.0",
+                   "id": message_id,
+                   verb: {
+                       "value": message_value,
+                       "meta": {
+                           "server_send_time": "2020-01-22T08:22:55.315Z"}}}
+        self.service.socket.packet_awaiting_confirm[message_id] = message
+    else:
+        message = {"jsonrpc": "2.0", "id": "1", "params": {}, "method": "??????"}
 
     if bulk:
         message = [message, message]
@@ -223,19 +249,26 @@ def validate_json(json_schema, arg):
         return False
 
 
-def set_up_log(log_location, log_file_exists, file_path, file_size):
+def set_up_log(self, log_file_exists, file_size, make_zip=False):
     """
     Sets up logs.
 
     Deletes all log files and creates new one if log file should exist.
 
     Args:
-        log_location: location of the logs
+        self: referece to calling object
         log_file_exists: boolean indicating if log file should exist
-        file_path: path to the file
         file_size: how big is the current size of the folder
+        make_zip: boolean indicating if log file should be zip
+
+    Returns:
+        path to the latest file
 
     """
+    file_name = self.service.event_storage.get_log_name()
+    file_path = self.service.event_storage.get_file_path(file_name)
+    log_location = self.service.event_storage.log_location
+
     # removes all files
     for root, dirs, files in os.walk(log_location):
         for file in files:
@@ -244,9 +277,22 @@ def set_up_log(log_location, log_file_exists, file_path, file_size):
     # creates file
     if log_file_exists:
         with open(file_path, "w") as file:
-            num_chars = 1024 * 1024 * file_size
-            string = "0" * num_chars + "\n"
+            num_chars = int((1024 * 1024 * file_size) / 10)
+            string = ""
+            data = "0" * num_chars
+            for i in range(10):
+                string += '[{"data": "' + data + '"}]\n'
             file.write(string)
+
+        if make_zip:
+            with zipfile.ZipFile(file_path.replace(".txt", ".zip"), "w") as zip_file:
+                zip_file.write(file_path, file_name)
+            os.remove(file_path)
+
+    with open(self.service.event_storage.get_file_path("2000-1.txt"), "w") as file:
+        file.write("")
+
+    return file_path
 
 
 def check_for_logged_info(*args, **kwargs):
@@ -262,12 +308,13 @@ def check_for_logged_info(*args, **kwargs):
 
     """
     if (re.search("^Raw log Json:", args[0])
-            or re.search("^Sending while not connected$", args[0])):
+            or re.search("^Sending while not connected$", args[0])
+            or re.search("^Received message exeeds size limit.$", args[0])
+            or re.search("^Unhandled send$", args[0])):
         raise KeyboardInterrupt
 
 
 # ################################## TESTS ################################## #
-
 
 class TestJsonLoadClass:
     """
@@ -285,30 +332,51 @@ class TestJsonLoadClass:
         Sets locations to be used in test.
 
         """
-        self.test_json_prettyprint_location = os.path.join(
-            os.path.dirname(__file__),
-            TEST_JSON_prettyprint)
         self.test_json_location = os.path.join(
             os.path.dirname(__file__),
             TEST_JSON)
 
-    def test_load_prettyprint_json(self):
+    @pytest.mark.parametrize("valid_location", [True, False])
+    @pytest.mark.parametrize("valid_json", [True, False])
+    def test_load_json(self, valid_location, valid_json):
         """
-        Tests loading pretty print json.
+        Tests loading json.
 
-        Loads pretty print json file and checks if it is read the same way
-        as normal json file.
+        Loads json file and checks if pretty print json is read same way as ordinary file.
+
+        Args:
+            valid_location: parameter indicating whether file should be found in the location
+            valid_json: parameter indicating whether file should be parsed successfully
 
         """
         # Arrange
+        if not valid_location:
+            test_json_location_2 = "wrong_location"
+        else:
+            if not valid_json:
+                test_json_location_2 = os.path.join(
+                    os.path.dirname(__file__),
+                    "test_JSON/test_json_wrong.json")
+            else:
+                test_json_location_2 = os.path.join(
+                    os.path.dirname(__file__),
+                    "test_JSON/test_json_prettyprint.json")
+
         with open(self.test_json_location, "r") as json_file:
             decoded = json.load(json_file)
 
         # Act
-        service = wappsto.Wappsto(json_file_name=self.test_json_prettyprint_location)
+        try:
+            service = wappsto.Wappsto(json_file_name=test_json_location_2)
+        except FileNotFoundError:
+            service = None
+        except json.JSONDecodeError:
+            service = None
 
         # Assert
-        assert service.data_manager.decoded == decoded
+        assert (valid_location and valid_json) == bool(service)
+        if service is not None:
+            assert service.data_manager.decoded == decoded
 
     @pytest.mark.parametrize("object_exists", [True, False])
     @pytest.mark.parametrize("object_name", ["network", "device", "value", "control_state", "report_state"])
@@ -324,7 +392,7 @@ class TestJsonLoadClass:
 
         """
         # Arrange
-        self.service = wappsto.Wappsto(json_file_name=self.test_json_prettyprint_location)
+        self.service = wappsto.Wappsto(json_file_name=self.test_json_location)
         get_object(self, "network").conn = Mock()
         actual_object = get_object(self, object_name)
         id = actual_object.uuid
@@ -348,18 +416,22 @@ class TestConnClass:
 
     @pytest.mark.parametrize("address,port,expected_status", [
         (ADDRESS, PORT, status.RUNNING),
-        (ADDRESS, -1, status.DISCONNECTING,),
+        (ADDRESS, -1, status.DISCONNECTING),
         ("wappstoFail.com", PORT, status.DISCONNECTING)])
+    @pytest.mark.parametrize("send_trace", [True, False])
     @pytest.mark.parametrize("callback_exists", [True, False])
-    @pytest.mark.parametrize("value_changed_to_none", [True, False])
     @pytest.mark.parametrize("upgradable", [True, False])
     @pytest.mark.parametrize("valid_json", [True, False])
-    @pytest.mark.parametrize("log_offline", [True, False])
     @pytest.mark.parametrize("log_location", ["test_logs/logs"])
-    @pytest.mark.parametrize("log_file_exists", [True, False])
-    def test_connection(self, address, port, expected_status, callback_exists,
-                        value_changed_to_none, upgradable, valid_json, log_offline,
-                        log_location, log_file_exists):
+    @pytest.mark.parametrize("log_offline,log_file_exists,make_zip", [
+        (True, True, True),
+        (True, True, False),
+        (True, False, False),
+        (False, False, False)])
+    @pytest.mark.parametrize("load_from_state_file", [True, False])
+    def test_connection(self, address, port, expected_status, callback_exists, send_trace,
+                        upgradable, valid_json, log_offline, log_location,
+                        log_file_exists, load_from_state_file, make_zip):
         """
         Tests connection.
 
@@ -370,42 +442,50 @@ class TestConnClass:
             port: port used for connecting to server
             callback_exists: specifies if object should have callback
             expected_status: status expected after execution of the test
-            value_changed_to_none: specifies if value should be replaced with none
             upgradable: specifies if object is upgradable
+            send_trace: Boolean indicating if trace should be automatically sent
             valid_json: Boolean indicating if the sent json should be valid
             log_offline: boolean indicating if data should be logged
             log_location: location of the logs
             log_file_exists: boolean indicating if log file exist
+            load_from_state_file: Defines if the data should be loaded from saved files
+            make_zip: boolean indicating if log file should be zip
 
         """
         # Arrange
         test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
         self.service = wappsto.Wappsto(json_file_name=test_json_location,
+                                       load_from_state_file=load_from_state_file,
                                        log_offline=log_offline,
                                        log_location=log_location)
         status_service = self.service.get_status()
-        fix_object(callback_exists, status_service)
-        if value_changed_to_none:
-            self.service.data_manager.network.name = None
+        fix_object_callback(callback_exists, status_service)
+        urlopen_trace_id = sent_json_trace_id = ''
         if not valid_json:
             self.service.data_manager.network.uuid = None
 
-        file_name = self.service.event_storage.get_log_name()
-        file_path = self.service.event_storage.get_file_path(file_name)
-        log_location = self.service.event_storage.log_location
-        set_up_log(log_location, log_file_exists, file_path, 1)
+        set_up_log(self, log_file_exists, 1, make_zip)
 
         def send_log():
             self.service.event_storage.send_log(self.service.socket)
 
         # Act
         with patch("os.getenv", return_value=str(upgradable)), \
+            patch('urllib.request.urlopen') as urlopen, \
                 patch("wappsto.communication.ClientSocket.send_logged_data", side_effect=send_log):
             try:
-                fake_connect(self, address, port)
+                fake_connect(self, address, port, send_trace)
                 args, kwargs = self.service.socket.my_socket.send.call_args
                 arg = json.loads(args[0].decode("utf-8"))
                 sent_json = arg[-1]["params"]["data"]
+                if send_trace:
+                    urlopen_args, urlopen_kwargs = urlopen.call_args
+
+                    parsed_urlopen = urlparse.urlparse(urlopen_args[0])
+                    urlopen_trace_id = parse_qs(parsed_urlopen.query)['id']
+
+                    parsed_sent_json = urlparse.urlparse(arg[0]['params']['url'])
+                    sent_json_trace_id = parse_qs(parsed_sent_json.query)['trace']
             except wappsto_errors.ServerConnectionException:
                 sent_json = None
                 arg = []
@@ -417,9 +497,44 @@ class TestConnClass:
                 assert len(os.listdir(log_location)) == 0
             assert validate_json("request", arg) == valid_json
             assert "None" not in str(sent_json)
+            assert sent_json_trace_id == urlopen_trace_id
+            assert (send_trace and urlopen_trace_id != ''
+                    or not send_trace and urlopen_trace_id == '')
             assert (upgradable and "upgradable" in str(sent_json["meta"])
                     or not upgradable and "upgradable" not in str(sent_json["meta"]))
+        if callback_exists:
+            assert status_service.callback.call_args[0][-1].current_status == expected_status
         assert self.service.status.get_status() == expected_status
+
+    @pytest.mark.parametrize("load_from_state_file", [True, False])
+    @pytest.mark.parametrize("save", [True, False])
+    def test_close(self, load_from_state_file, save):
+        """
+        Tests closing connection.
+
+        Tests if closing connecting works es expected within different setup.
+
+        Args:
+            load_from_state_file: Defines if the data should be loaded from saved files
+            save: Flag to determine whether runtime instances should be saved
+
+        """
+        # Arrange
+        test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
+        self.service = wappsto.Wappsto(json_file_name=test_json_location,
+                                       load_from_state_file=load_from_state_file)
+        fake_connect(self, ADDRESS, PORT)
+        path = self.service.data_manager.path_to_calling_file
+        network_id = self.service.data_manager.json_file_name
+        path_open = os.path.join(path, '{}.json'.format(network_id))
+        if os.path.exists(path_open):
+            os.remove(path_open)
+
+        # Act
+        self.service.stop(save)
+
+        # Assert
+        assert save == os.path.isfile(path_open)
 
 
 class TestValueSendClass:
@@ -439,7 +554,6 @@ class TestValueSendClass:
         """
         test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
         self.service = wappsto.Wappsto(json_file_name=test_json_location)
-        fake_connect(self, ADDRESS, PORT)
 
     @pytest.mark.parametrize("input,step_size,expected", [
         (8, 1, "8"),  # value on the step
@@ -481,9 +595,10 @@ class TestValueSendClass:
         (2, 123.456e-5, "1.9999872"),
         (1, 9.0e-20, "0.99999999999999999999"),
         (0.02442002442002442001001, 0.00000000000002, "0.02442002442002")])
+    @pytest.mark.parametrize("send_trace", [True, False])
     @pytest.mark.parametrize("delta", [None, 0.1, 1, 100])
     @pytest.mark.parametrize("period", [True, False])
-    def test_send_value_update_number_type(self, input, step_size, expected, delta, period):
+    def test_send_value_update_number_type(self, input, step_size, expected, send_trace, delta, period):
         """
         Tests sending update for number value.
 
@@ -493,14 +608,18 @@ class TestValueSendClass:
             input: value to be updated
             step_size: step size value should follow
             expected: value expected to be sent
+            send_trace: Boolean indicating if trace should be automatically sent
             delta: delta of value (determines if change was significant enough to be sent)
             period: parameter indicating whether value should be updated periodically
 
         """
         # Arrange
+        with patch('urllib.request.urlopen'):
+            fake_connect(self, ADDRESS, PORT, send_trace)
         self.service.socket.my_socket.send = Mock()
-        device = self.service.get_devices()[0]
-        value = device.values[0]
+        urlopen_trace_id = sent_json_trace_id = ''
+        device = self.service.get_device("device-1")
+        value = next(val for val in device.values if val.data_type == "number")
         value.data_type == "number"
         value.number_step = step_size
         if delta:
@@ -511,25 +630,40 @@ class TestValueSendClass:
                 expected = None
 
         # Act
-        try:
-            if period is True and delta is None:
-                with patch('threading.Timer.start') as start:
-                    value.set_period(1)
-                    value.timer_elapsed = True
-                    if start.called:
-                        value.update(input)
-            else:
-                value.update(input)
-            args, kwargs = self.service.socket.my_socket.send.call_args
-            arg = json.loads(args[0].decode("utf-8"))
-            result = arg[0]["params"]["data"]["data"]
-        except TypeError:
-            result = None
-            arg = []
+        with patch('urllib.request.urlopen') as urlopen:
+            try:
+                if period is True and delta is None:
+                    with patch('threading.Timer.start') as start:
+                        value.set_period(1)
+                        value.timer_elapsed = True
+                        if start.called:
+                            value.update(input)
+                else:
+                    value.update(input)
+                args, kwargs = self.service.socket.my_socket.send.call_args
+                arg = json.loads(args[0].decode("utf-8"))
+                result = arg[0]["params"]["data"]["data"]
+
+                if send_trace:
+                    urlopen_args, urlopen_kwargs = urlopen.call_args
+
+                    parsed_urlopen = urlparse.urlparse(urlopen_args[0])
+                    urlopen_trace_id = parse_qs(parsed_urlopen.query)['id']
+
+                    parsed_sent_json = urlparse.urlparse(arg[0]['params']['url'])
+                    sent_json_trace_id = parse_qs(parsed_sent_json.query)['trace']
+            except TypeError:
+                result = None
+                arg = []
 
         # Assert
         assert validate_json("request", arg) is True
         assert result == expected
+        assert sent_json_trace_id == urlopen_trace_id
+        if send_trace and result is not None:
+            assert urlopen_trace_id != ''
+        else:
+            assert urlopen_trace_id == ''
 
     @pytest.mark.parametrize("input,max,expected", [
         ("test", 10, "test"),  # value under max
@@ -543,9 +677,10 @@ class TestValueSendClass:
         (None, None, None),
         ("test", 1, None)])  # value over max
     @pytest.mark.parametrize("type", ["string", "blob"])
+    @pytest.mark.parametrize("send_trace", [True, False])
     @pytest.mark.parametrize("delta", [None, 0.1, 1, 100])
     @pytest.mark.parametrize("period", [True, False])
-    def test_send_value_update_text_type(self, input, max, expected, type, delta, period):
+    def test_send_value_update_text_type(self, input, max, expected, type, send_trace, delta, period):
         """
         Tests sending update for text/blob value.
 
@@ -556,14 +691,18 @@ class TestValueSendClass:
             max: maximum length of the message
             expected: value expected to be sent
             type: indicates if it is string or blob types of value
+            send_trace: Boolean indicating if trace should be automatically sent
             delta: delta of value (determines if change was significant enough to be sent)
             period: parameter indicating whether value should be updated periodically
 
         """
         # Arrange
+        with patch('urllib.request.urlopen'):
+            fake_connect(self, ADDRESS, PORT, send_trace)
         self.service.socket.my_socket.send = Mock()
-        device = self.service.get_devices()[0]
-        value = device.values[0]
+        urlopen_trace_id = sent_json_trace_id = ''
+        device = self.service.get_device("device-1")
+        value = next(val for val in device.values if val.data_type == type)
         value.data_type = type
         value.string_max = max
         value.blob_max = max
@@ -573,23 +712,47 @@ class TestValueSendClass:
             # delta should not have eny effect
 
         # Act
-        try:
-            if period is True:
-                with patch('threading.Timer.start') as start:
-                    value.set_period(1)
-                    value.timer_elapsed = True
-                    if start.called:
-                        value.update(input)
-            else:
-                value.update(input)
-            args, kwargs = self.service.socket.my_socket.send.call_args
-            arg = json.loads(args[0].decode("utf-8"))
-            result = arg[0]["params"]["data"]["data"]
-        except TypeError:
-            result = None
+        with patch('urllib.request.urlopen') as urlopen:
+            try:
+                if period is True:
+                    with patch('threading.Timer.start') as start:
+                        value.set_period(1)
+                        value.timer_elapsed = True
+                        if start.called:
+                            value.update(input)
+                else:
+                    value.update(input)
+                args, kwargs = self.service.socket.my_socket.send.call_args
+                arg = json.loads(args[0].decode("utf-8"))
+                result = arg[0]["params"]["data"]["data"]
+
+                if send_trace:
+                    urlopen_args, urlopen_kwargs = urlopen.call_args
+
+                    parsed_urlopen = urlparse.urlparse(urlopen_args[0])
+                    urlopen_trace_id = parse_qs(parsed_urlopen.query)['id']
+
+                    parsed_sent_json = urlparse.urlparse(arg[0]['params']['url'])
+                    sent_json_trace_id = parse_qs(parsed_sent_json.query)['trace']
+            except TypeError:
+                result = None
 
         # Assert
         assert result == expected
+        assert sent_json_trace_id == urlopen_trace_id
+        if send_trace and result is not None:
+            assert urlopen_trace_id != ''
+        else:
+            assert urlopen_trace_id == ''
+
+    def teardown_module(self):
+        """
+        Teardown each method.
+
+        Stops connection.
+
+        """
+        self.service.socket.close()
 
 
 class TestReceiveThreadClass:
@@ -649,10 +812,10 @@ class TestReceiveThreadClass:
     @pytest.mark.parametrize("callback_exists", [False, True])
     @pytest.mark.parametrize("trace_id", [None, "321"])
     @pytest.mark.parametrize("expected_msg_id", [message_data.SEND_SUCCESS])
-    @pytest.mark.parametrize("object_name", ["value", "wrong"])
+    @pytest.mark.parametrize("object_name", ["value"])
     @pytest.mark.parametrize("object_exists", [False, True])
     @pytest.mark.parametrize("bulk", [False, True])
-    @pytest.mark.parametrize("data", ["44"])
+    @pytest.mark.parametrize("data", ["44", None])
     @pytest.mark.parametrize("split_message", [False, True])
     @pytest.mark.parametrize("type", ["state", "value"])
     @pytest.mark.parametrize("period", [1])
@@ -681,21 +844,17 @@ class TestReceiveThreadClass:
         """
         # Arrange
         actual_object = get_object(self, object_name)
-        if actual_object:
-            fix_object(callback_exists, actual_object)
-            actual_object.control_state.data = '1'
-            if type == "state":
-                id = str(actual_object.control_state.uuid)
-            elif type == "value":
-                id = str(actual_object.uuid)
-            if not object_exists:
-                self.service.data_manager.network = None
-                expected_msg_id = message_data.SEND_FAILED
-        else:
+        fix_object_callback(callback_exists, actual_object)
+        actual_object.control_state.data = "1"
+        if type == "state":
+            id = str(actual_object.control_state.uuid)
+        elif type == "value":
+            id = str(actual_object.uuid)
+        if not object_exists:
+            self.service.data_manager.network = None
             expected_msg_id = message_data.SEND_FAILED
-            id = '1'
 
-        send_response(self, 'PUT', trace_id=trace_id, bulk=bulk, id=id,
+        send_response(self, 'PUT', trace_id=trace_id, bulk=bulk, element_id=id,
                       data=data, split_message=split_message, type=type, period=period,
                       delta=delta)
 
@@ -709,33 +868,38 @@ class TestReceiveThreadClass:
             pass
 
         # Assert
-        if trace_id and object_exists and actual_object:
-            assert any(message.msg_id == message_data.SEND_TRACE for message in self.service.socket.sending_queue.queue)
-        if actual_object and object_exists:
-            if type == "state":
-                if callback_exists:
-                    assert actual_object.callback.call_args[0][1] == 'set'
-            elif type == "value":
-                assert actual_object.period == period
-                assert actual_object.delta == delta
-        assert self.service.socket.sending_queue.qsize() > 0
-        while self.service.socket.sending_queue.qsize() > 0:
-            message = self.service.socket.sending_queue.get()
-            assert (message.msg_id == message_data.SEND_TRACE
-                    or message.msg_id == expected_msg_id)
-            if message.msg_id == message_data.SEND_TRACE:
-                assert message.trace_id == trace_id
+        if data is not None:
+            if object_exists:
+                if trace_id:
+                    assert any(message.msg_id == message_data.SEND_TRACE for message
+                               in self.service.socket.sending_queue.queue)
+                if type == "state":
+                    if callback_exists:
+                        assert actual_object.callback.call_args[0][1] == 'set'
+                elif type == "value":
+                    assert actual_object.period == period
+                    assert actual_object.delta == delta
+            assert self.service.socket.sending_queue.qsize() > 0
+            while self.service.socket.sending_queue.qsize() > 0:
+                message = self.service.socket.sending_queue.get()
+                assert (message.msg_id == message_data.SEND_TRACE
+                        or message.msg_id == expected_msg_id)
+                if message.msg_id == message_data.SEND_TRACE:
+                    assert message.trace_id == trace_id
+        else:
+            assert self.service.socket.sending_queue.qsize() == 0
 
     @pytest.mark.parametrize("callback_exists", [False, True])
     @pytest.mark.parametrize("trace_id", [None, "321"])
     @pytest.mark.parametrize("expected_msg_id", [message_data.SEND_SUCCESS])
-    @pytest.mark.parametrize("object_name", ["value", "wrong"])
+    @pytest.mark.parametrize("object_name", ["value"])
     @pytest.mark.parametrize("object_exists", [False, True])
     @pytest.mark.parametrize("bulk", [False, True])
     @pytest.mark.parametrize("split_message", [False, True])
+    @pytest.mark.parametrize("id_exists", [False, True])
     def test_receive_thread_Get(self, callback_exists, trace_id,
                                 expected_msg_id, object_name, object_exists,
-                                bulk, split_message):
+                                bulk, split_message, id_exists):
         """
         Tests receiving message with GET verb.
 
@@ -749,21 +913,21 @@ class TestReceiveThreadClass:
             object_exists: indicates if object would exists
             bulk: Boolean value indicating if multiple messages should be sent at once
             split_message: Boolean value indicating if message should be sent in parts
+            id_exists: indicates if id should be in the message
 
         """
         # Arrange
         actual_object = get_object(self, object_name)
-        if actual_object:
-            fix_object(callback_exists, actual_object)
-            id = str(actual_object.report_state.uuid)
-            if not object_exists:
-                self.service.data_manager.network = None
-                expected_msg_id = message_data.SEND_FAILED
-        else:
+        fix_object_callback(callback_exists, actual_object)
+        id = str(actual_object.report_state.uuid)
+        if not object_exists:
+            self.service.data_manager.network = None
             expected_msg_id = message_data.SEND_FAILED
-            id = '1'
 
-        send_response(self, 'GET', trace_id=trace_id, bulk=bulk, id=id,
+        if not id_exists:
+            id = None
+
+        send_response(self, "GET", trace_id=trace_id, bulk=bulk, element_id=id, data=1,
                       split_message=split_message)
 
         # Act
@@ -775,29 +939,34 @@ class TestReceiveThreadClass:
             pass
 
         # Assert
-        if trace_id and object_exists and actual_object:
-            assert any(message.msg_id == message_data.SEND_TRACE for message in self.service.socket.sending_queue.queue)
-        if actual_object and object_exists:
-            if callback_exists:
-                assert actual_object.callback.call_args[0][1] == "refresh"
-        assert self.service.socket.sending_queue.qsize() > 0
-        while self.service.socket.sending_queue.qsize() > 0:
-            message = self.service.socket.sending_queue.get()
-            assert (message.msg_id == message_data.SEND_TRACE
-                    or message.msg_id == expected_msg_id)
-            if message.msg_id == message_data.SEND_TRACE:
-                assert message.trace_id == trace_id
+        if id_exists:
+            if object_exists:
+                if trace_id:
+                    assert any(message.msg_id == message_data.SEND_TRACE for message
+                               in self.service.socket.sending_queue.queue)
+                if callback_exists:
+                    assert actual_object.callback.call_args[0][1] == "refresh"
+            assert self.service.socket.sending_queue.qsize() > 0
+            while self.service.socket.sending_queue.qsize() > 0:
+                message = self.service.socket.sending_queue.get()
+                assert (message.msg_id == message_data.SEND_TRACE
+                        or message.msg_id == expected_msg_id)
+                if message.msg_id == message_data.SEND_TRACE:
+                    assert message.trace_id == trace_id
+        else:
+            assert self.service.socket.sending_queue.qsize() == 0
 
     @pytest.mark.parametrize("callback_exists", [False, True])
     @pytest.mark.parametrize("trace_id", [None, "321"])
     @pytest.mark.parametrize("expected_msg_id", [message_data.SEND_SUCCESS])
-    @pytest.mark.parametrize("object_name", ["network", "device", "value", "control_state", "report_state", "wrong"])
+    @pytest.mark.parametrize("object_name", ["network", "device", "value", "control_state", "report_state"])
     @pytest.mark.parametrize("object_exists", [False, True])
     @pytest.mark.parametrize("bulk", [False, True])
     @pytest.mark.parametrize("split_message", [False, True])
+    @pytest.mark.parametrize("id_exists", [False, True])
     def test_receive_thread_Delete(self, callback_exists, trace_id,
                                    expected_msg_id, object_name, object_exists,
-                                   bulk, split_message):
+                                   bulk, split_message, id_exists):
         """
         Tests receiving message with DELETE verb.
 
@@ -811,21 +980,21 @@ class TestReceiveThreadClass:
             object_exists: indicates if object would exists
             bulk: Boolean value indicating if multiple messages should be sent at once
             split_message: Boolean value indicating if message should be sent in parts
+            id_exists: indicates if id should be in the message
 
         """
         # Arrange
         actual_object = get_object(self, object_name)
-        if actual_object:
-            fix_object(callback_exists, actual_object)
-            id = str(actual_object.uuid)
-            if not object_exists:
-                self.service.data_manager.network = None
-                expected_msg_id = message_data.SEND_FAILED
-        else:
+        fix_object_callback(callback_exists, actual_object)
+        id = str(actual_object.uuid)
+        if not object_exists:
+            self.service.data_manager.network = None
             expected_msg_id = message_data.SEND_FAILED
-            id = '1'
 
-        send_response(self, 'DELETE', trace_id=trace_id, bulk=bulk, id=id,
+        if not id_exists:
+            id = None
+
+        send_response(self, 'DELETE', trace_id=trace_id, bulk=bulk, element_id=id, data=1,
                       split_message=split_message)
 
         # Act
@@ -837,18 +1006,22 @@ class TestReceiveThreadClass:
             pass
 
         # Assert
-        if trace_id and object_exists and actual_object:
-            assert any(message.msg_id == message_data.SEND_TRACE for message in self.service.socket.sending_queue.queue)
-        if actual_object and object_exists:
-            if callback_exists:
-                assert actual_object.callback.call_args[0][1] == "remove"
-        assert self.service.socket.sending_queue.qsize() > 0
-        while self.service.socket.sending_queue.qsize() > 0:
-            message = self.service.socket.sending_queue.get()
-            assert (message.msg_id == message_data.SEND_TRACE
-                    or message.msg_id == expected_msg_id)
-            if message.msg_id == message_data.SEND_TRACE:
-                assert message.trace_id == trace_id
+        if id_exists:
+            if object_exists:
+                if trace_id:
+                    assert any(message.msg_id == message_data.SEND_TRACE for message
+                               in self.service.socket.sending_queue.queue)
+                if callback_exists:
+                    assert actual_object.callback.call_args[0][1] == "remove"
+            assert self.service.socket.sending_queue.qsize() > 0
+            while self.service.socket.sending_queue.qsize() > 0:
+                message = self.service.socket.sending_queue.get()
+                assert (message.msg_id == message_data.SEND_TRACE
+                        or message.msg_id == expected_msg_id)
+                if message.msg_id == message_data.SEND_TRACE:
+                    assert message.trace_id == trace_id
+        else:
+            assert self.service.socket.sending_queue.qsize() == 0
 
     @pytest.mark.parametrize("id", ["93043873"])
     @pytest.mark.parametrize("data", ["55"])
@@ -868,9 +1041,10 @@ class TestReceiveThreadClass:
 
         """
         # Arrange
-        state = self.service.data_manager.network.devices[0].values[0].control_state
+        state = self.service.get_devices()[0].get_value("temp").control_state
         state.data = 1
-        send_response(self, 'result', bulk=bulk, id=state.uuid, data=data, split_message=split_message)
+        send_response(self, "result", bulk=bulk, message_id=state.uuid, element_id=state.uuid,
+                      data=data, split_message=split_message)
 
         # Act
         try:
@@ -886,7 +1060,8 @@ class TestReceiveThreadClass:
 
     @pytest.mark.parametrize("bulk", [False, True])
     @pytest.mark.parametrize("split_message", [False, True])
-    def test_receive_thread_error(self, bulk, split_message):
+    @pytest.mark.parametrize("message_size_exeeded", [False, True])
+    def test_receive_thread_error(self, bulk, split_message, message_size_exeeded):
         """
         Tests receiving error message.
 
@@ -896,10 +1071,16 @@ class TestReceiveThreadClass:
             id: id of the message
             bulk: Boolean value indicating if multiple messages should be sent at once
             split_message: Boolean value indicating if message should be sent in parts
+            message_size_exeeded: Boolean indicating if message received is too big
 
         """
         # Arrange
-        send_response(self, 'error', bulk=bulk, id="93043873", split_message=split_message)
+        if message_size_exeeded:
+            wappsto.communication.receive_data.MESSAGE_SIZE_BYTES = 0
+            messages_in_list = 1
+        else:
+            messages_in_list = 0
+        send_response(self, 'error', bulk=bulk, message_id="93043873", split_message=split_message)
 
         # Act
         try:
@@ -910,7 +1091,7 @@ class TestReceiveThreadClass:
             pass
 
         # Assert
-        assert len(self.service.socket.packet_awaiting_confirm) == 0
+        assert len(self.service.socket.packet_awaiting_confirm) == messages_in_list
 
 
 class TestSendThreadClass:
@@ -921,17 +1102,53 @@ class TestSendThreadClass:
 
     """
 
+    @pytest.mark.parametrize("messages_in_queue", [1, 20])
+    def test_send_thread_unhandled(self, messages_in_queue):
+        """
+        Tests sending message.
+
+        Tests what would happen when sending message.
+
+        Args:
+            messages_in_queue: How many messages should be sent
+
+        """
+        # Arrange
+        test_json_location = os.path.join(os.path.dirname(__file__), TEST_JSON)
+        self.service = wappsto.Wappsto(json_file_name=test_json_location)
+        fake_connect(self, ADDRESS, PORT)
+        for x in range(messages_in_queue):
+            reply = message_data.MessageData(
+                -1
+            )
+            self.service.socket.sending_queue.put(reply)
+
+        # Act
+        try:
+            # runs until mock object is run and its side_effect raises
+            # exception
+            with patch("logging.Logger.warning", side_effect=check_for_logged_info):
+                self.service.socket.send_data.send_thread()
+        except KeyboardInterrupt:
+            pass
+
+        # Assert
+        assert self.service.socket.sending_queue.qsize() == messages_in_queue - 1
+
     @pytest.mark.parametrize("value", [1, None])
-    @pytest.mark.parametrize("messages_in_queue", [1, 2, 20])
-    @pytest.mark.parametrize("log_offline", [True, False])
-    @pytest.mark.parametrize("connected", [True, False])
+    @pytest.mark.parametrize("messages_in_queue", [1, 20])
     @pytest.mark.parametrize("log_location", ["test_logs/logs"])
-    @pytest.mark.parametrize("file_size", [2, 1, 0])
+    @pytest.mark.parametrize("file_size", [1, 0])
     @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
-    @pytest.mark.parametrize("log_file_exists", [True, False])
+    @pytest.mark.parametrize("connected,log_offline,log_file_exists,make_zip", [
+        (False, True, True, True),
+        (False, True, True, False),
+        (False, True, False, False),
+        (False, False, False, False),
+        (True, False, False, False)])
     def test_send_thread_success(self, messages_in_queue, value, log_offline,
                                  connected, log_location, file_size, limit_action,
-                                 log_file_exists):
+                                 log_file_exists, make_zip):
         """
         Tests sending message.
 
@@ -946,6 +1163,7 @@ class TestSendThreadClass:
             file_size: how big is the current size of the folder
             limit_action: action to perform when limit is exeeded
             log_file_exists: boolean indicating if log file exist
+            make_zip: boolean indicating if log file should be zip
 
         """
         # Arrange
@@ -955,7 +1173,7 @@ class TestSendThreadClass:
                                        log_location=log_location,
                                        log_data_limit=1,
                                        limit_action=limit_action,
-                                       compression_period=event_storage.DAY_PERIOD)
+                                       compression_period=event_storage.HOUR_PERIOD)
         fake_connect(self, ADDRESS, PORT)
         for x in range(messages_in_queue):
             reply = message_data.MessageData(
@@ -965,9 +1183,7 @@ class TestSendThreadClass:
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.connected = connected
-        file_name = self.service.event_storage.get_log_name()
-        file_path = self.service.event_storage.get_file_path(file_name)
-        set_up_log(self.service.event_storage.log_location, log_file_exists, file_path, file_size)
+        file_path = set_up_log(self, log_file_exists, file_size, make_zip)
 
         # Act
         try:
@@ -1001,16 +1217,20 @@ class TestSendThreadClass:
             pass
 
     @pytest.mark.parametrize("value", ["test_info", None])
-    @pytest.mark.parametrize("messages_in_queue", [1, 2, 20])
-    @pytest.mark.parametrize("log_offline", [True, False])
-    @pytest.mark.parametrize("connected", [True, False])
+    @pytest.mark.parametrize("messages_in_queue", [1, 20])
     @pytest.mark.parametrize("log_location", ["test_logs/logs"])
-    @pytest.mark.parametrize("file_size", [2, 1, 0])
+    @pytest.mark.parametrize("file_size", [1, 0])
     @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
-    @pytest.mark.parametrize("log_file_exists", [True, False])
+    @pytest.mark.parametrize("connected,log_offline,log_file_exists,make_zip", [
+        (False, True, True, True),
+        (False, True, True, False),
+        (False, True, False, False),
+        (False, False, False, False),
+        (True, False, False, False)])
+    @pytest.mark.parametrize("send_trace", [True, False])
     def test_send_thread_report(self, messages_in_queue, value, log_offline,
                                 connected, log_location, file_size, limit_action,
-                                log_file_exists):
+                                log_file_exists, make_zip, send_trace):
         """
         Tests sending message.
 
@@ -1025,6 +1245,8 @@ class TestSendThreadClass:
             file_size: how big is the current size of the folder
             limit_action: action to perform when limit is exeeded
             log_file_exists: boolean indicating if log file exist
+            make_zip: boolean indicating if log file should be zip
+            send_trace: Boolean indicating if trace should be automatically sent
 
         """
         # Arrange
@@ -1034,7 +1256,7 @@ class TestSendThreadClass:
                                        log_location=log_location,
                                        log_data_limit=1,
                                        limit_action=limit_action,
-                                       compression_period=event_storage.DAY_PERIOD)
+                                       compression_period=event_storage.HOUR_PERIOD)
         fake_connect(self, ADDRESS, PORT)
         for x in range(messages_in_queue):
             reply = message_data.MessageData(
@@ -1045,16 +1267,17 @@ class TestSendThreadClass:
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.connected = connected
-        file_name = self.service.event_storage.get_log_name()
-        file_path = self.service.event_storage.get_file_path(file_name)
-        set_up_log(self.service.event_storage.log_location, log_file_exists, file_path, file_size)
+        self.service.socket.send_data.automatic_trace = send_trace
+        file_path = set_up_log(self, log_file_exists, file_size, make_zip)
+        urlopen_trace_id = sent_json_trace_id = ''
 
         # Act
         try:
             # runs until mock object is run and its side_effect raises
             # exception
             with patch("logging.Logger.error", side_effect=check_for_logged_info), \
-                    patch("logging.Logger.debug", side_effect=check_for_logged_info):
+                patch("logging.Logger.debug", side_effect=check_for_logged_info), \
+                    patch('urllib.request.urlopen') as urlopen:
                 self.service.socket.send_data.send_thread()
         except KeyboardInterrupt:
             pass
@@ -1069,6 +1292,19 @@ class TestSendThreadClass:
                 with open(file_path, "r") as file:
                     args = file.readlines()[-1]
             arg = json.loads(args)
+            if urlopen.called:
+                urlopen_args, urlopen_kwargs = urlopen.call_args
+
+                parsed_urlopen = urlparse.urlparse(urlopen_args[0])
+                urlopen_trace_id = parse_qs(parsed_urlopen.query)['id']
+
+                parsed_sent_json = urlparse.urlparse(arg[-1]['params']['url'])
+                sent_json_trace_id = parse_qs(parsed_sent_json.query)['trace']
+            assert urlopen_trace_id == sent_json_trace_id
+            if send_trace:
+                assert urlopen_trace_id != ''
+            else:
+                assert urlopen_trace_id == ''
             assert len(arg) <= wappsto.connection.communication.send_data.MAX_BULK_SIZE
             assert self.service.socket.sending_queue.qsize() == max(
                 messages_in_queue - wappsto.connection.communication.send_data.MAX_BULK_SIZE, 0)
@@ -1082,16 +1318,19 @@ class TestSendThreadClass:
             pass
 
     @pytest.mark.parametrize("value", [1, None])
-    @pytest.mark.parametrize("messages_in_queue", [1, 2, 20])
-    @pytest.mark.parametrize("log_offline", [True, False])
-    @pytest.mark.parametrize("connected", [True, False])
+    @pytest.mark.parametrize("messages_in_queue", [1, 20])
     @pytest.mark.parametrize("log_location", ["test_logs/logs"])
-    @pytest.mark.parametrize("file_size", [2, 1, 0])
+    @pytest.mark.parametrize("file_size", [1, 0])
     @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
-    @pytest.mark.parametrize("log_file_exists", [True, False])
+    @pytest.mark.parametrize("connected,log_offline,log_file_exists,make_zip", [
+        (False, True, True, True),
+        (False, True, True, False),
+        (False, True, False, False),
+        (False, False, False, False),
+        (True, False, False, False)])
     def test_send_thread_failed(self, messages_in_queue, value, log_offline,
                                 connected, log_location, file_size, limit_action,
-                                log_file_exists):
+                                log_file_exists, make_zip):
         """
         Tests sending message.
 
@@ -1106,6 +1345,7 @@ class TestSendThreadClass:
             file_size: how big is the current size of the folder
             limit_action: action to perform when limit is exeeded
             log_file_exists: boolean indicating if log file exist
+            make_zip: boolean indicating if log file should be zip
 
         """
         # Arrange
@@ -1115,7 +1355,7 @@ class TestSendThreadClass:
                                        log_location=log_location,
                                        log_data_limit=1,
                                        limit_action=limit_action,
-                                       compression_period=event_storage.DAY_PERIOD)
+                                       compression_period=event_storage.HOUR_PERIOD)
         fake_connect(self, ADDRESS, PORT)
         for x in range(messages_in_queue):
             reply = message_data.MessageData(
@@ -1125,9 +1365,7 @@ class TestSendThreadClass:
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.connected = connected
-        file_name = self.service.event_storage.get_log_name()
-        file_path = self.service.event_storage.get_file_path(file_name)
-        set_up_log(self.service.event_storage.log_location, log_file_exists, file_path, file_size)
+        file_path = set_up_log(self, log_file_exists, file_size, make_zip)
 
         # Act
         try:
@@ -1161,16 +1399,21 @@ class TestSendThreadClass:
             pass
 
     @pytest.mark.parametrize("valid_message", [True, False])
-    @pytest.mark.parametrize("messages_in_queue", [1, 2, 20])
-    @pytest.mark.parametrize("log_offline", [True, False])
-    @pytest.mark.parametrize("connected", [True, False])
+    @pytest.mark.parametrize("messages_in_queue", [1, 20])
     @pytest.mark.parametrize("log_location", ["test_logs/logs"])
-    @pytest.mark.parametrize("file_size", [2, 1, 0])
+    @pytest.mark.parametrize("file_size", [1, 0])
     @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
-    @pytest.mark.parametrize("log_file_exists", [True, False])
+    @pytest.mark.parametrize("upgradable", [True, False])
+    @pytest.mark.parametrize("connected,log_offline,log_file_exists,make_zip", [
+        (False, True, True, True),
+        (False, True, True, False),
+        (False, True, False, False),
+        (False, False, False, False),
+        (True, False, False, False)])
+    @pytest.mark.parametrize("send_trace", [True, False])
     def test_send_thread_reconnect(self, messages_in_queue, valid_message, log_offline,
                                    connected, log_location, file_size, limit_action,
-                                   log_file_exists):
+                                   log_file_exists, upgradable, make_zip, send_trace):
         """
         Tests sending message.
 
@@ -1185,6 +1428,9 @@ class TestSendThreadClass:
             file_size: how big is the current size of the folder
             limit_action: action to perform when limit is exeeded
             log_file_exists: boolean indicating if log file exist
+            upgradable: specifies if object is upgradable
+            make_zip: boolean indicating if log file should be zip
+            send_trace: Boolean indicating if trace should be automatically sent
 
         """
         # Arrange
@@ -1194,7 +1440,7 @@ class TestSendThreadClass:
                                        log_location=log_location,
                                        log_data_limit=1,
                                        limit_action=limit_action,
-                                       compression_period=event_storage.DAY_PERIOD)
+                                       compression_period=event_storage.HOUR_PERIOD)
         fake_connect(self, ADDRESS, PORT)
         if valid_message:
             value = self.service.get_network().uuid
@@ -1202,21 +1448,24 @@ class TestSendThreadClass:
             value = self.service.get_network().uuid = 1
         for x in range(messages_in_queue):
             reply = message_data.MessageData(
-                message_data.SEND_RECONNECT
+                message_data.SEND_RECONNECT,
+                data=value
             )
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.connected = connected
-        file_name = self.service.event_storage.get_log_name()
-        file_path = self.service.event_storage.get_file_path(file_name)
-        set_up_log(self.service.event_storage.log_location, log_file_exists, file_path, file_size)
+        self.service.socket.send_data.automatic_trace = send_trace
+        urlopen_trace_id = sent_json_trace_id = ''
+        file_path = set_up_log(self, log_file_exists, file_size, make_zip)
 
         # Act
         try:
             # runs until mock object is run and its side_effect raises
             # exception
-            with patch("logging.Logger.error", side_effect=check_for_logged_info), \
-                    patch("logging.Logger.debug", side_effect=check_for_logged_info):
+            with patch('os.getenv', return_value=str(upgradable)), \
+                patch("logging.Logger.error", side_effect=check_for_logged_info), \
+                patch("logging.Logger.debug", side_effect=check_for_logged_info), \
+                    patch("urllib.request.urlopen") as urlopen:
                 self.service.socket.send_data.send_thread()
         except KeyboardInterrupt:
             pass
@@ -1231,6 +1480,19 @@ class TestSendThreadClass:
                 with open(file_path, "r") as file:
                     args = file.readlines()[-1]
             arg = json.loads(args)
+            if urlopen.called:
+                urlopen_args, urlopen_kwargs = urlopen.call_args
+
+                parsed_urlopen = urlparse.urlparse(urlopen_args[0])
+                urlopen_trace_id = parse_qs(parsed_urlopen.query)['id']
+
+                parsed_sent_json = urlparse.urlparse(arg[-1]['params']['url'])
+                sent_json_trace_id = parse_qs(parsed_sent_json.query)['trace']
+            assert urlopen_trace_id == sent_json_trace_id
+            if send_trace:
+                assert urlopen_trace_id != ''
+            else:
+                assert urlopen_trace_id == ''
             assert len(arg) <= wappsto.connection.communication.send_data.MAX_BULK_SIZE
             assert self.service.socket.sending_queue.qsize() == max(
                 messages_in_queue - wappsto.connection.communication.send_data.MAX_BULK_SIZE, 0)
@@ -1244,16 +1506,20 @@ class TestSendThreadClass:
             pass
 
     @pytest.mark.parametrize("valid_message", [True, False])
-    @pytest.mark.parametrize("messages_in_queue", [1, 2, 20])
-    @pytest.mark.parametrize("log_offline", [True, False])
-    @pytest.mark.parametrize("connected", [True, False])
+    @pytest.mark.parametrize("messages_in_queue", [1, 20])
     @pytest.mark.parametrize("log_location", ["test_logs/logs"])
-    @pytest.mark.parametrize("file_size", [2, 1, 0])
+    @pytest.mark.parametrize("file_size", [1, 0])
     @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
-    @pytest.mark.parametrize("log_file_exists", [True, False])
+    @pytest.mark.parametrize("connected,log_offline,log_file_exists,make_zip", [
+        (False, True, True, True),
+        (False, True, True, False),
+        (False, True, False, False),
+        (False, False, False, False),
+        (True, False, False, False)])
+    @pytest.mark.parametrize("send_trace", [True, False])
     def test_send_thread_control(self, messages_in_queue, valid_message, log_offline,
                                  connected, log_location, file_size, limit_action,
-                                 log_file_exists):
+                                 log_file_exists, make_zip, send_trace):
         """
         Tests sending message.
 
@@ -1268,6 +1534,8 @@ class TestSendThreadClass:
             file_size: how big is the current size of the folder
             limit_action: action to perform when limit is exeeded
             log_file_exists: boolean indicating if log file exist
+            make_zip: boolean indicating if log file should be zip
+            send_trace: Boolean indicating if trace should be automatically sent
 
         """
         # Arrange
@@ -1277,7 +1545,7 @@ class TestSendThreadClass:
                                        log_location=log_location,
                                        log_data_limit=1,
                                        limit_action=limit_action,
-                                       compression_period=event_storage.DAY_PERIOD)
+                                       compression_period=event_storage.HOUR_PERIOD)
         fake_connect(self, ADDRESS, PORT)
         if valid_message:
             value = self.service.get_network().uuid
@@ -1292,16 +1560,17 @@ class TestSendThreadClass:
             self.service.socket.sending_queue.put(reply)
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.connected = connected
-        file_name = self.service.event_storage.get_log_name()
-        file_path = self.service.event_storage.get_file_path(file_name)
-        set_up_log(self.service.event_storage.log_location, log_file_exists, file_path, file_size)
+        self.service.socket.send_data.automatic_trace = send_trace
+        urlopen_trace_id = sent_json_trace_id = ''
+        file_path = set_up_log(self, log_file_exists, file_size, make_zip)
 
         # Act
         try:
             # runs until mock object is run and its side_effect raises
             # exception
             with patch("logging.Logger.error", side_effect=check_for_logged_info), \
-                    patch("logging.Logger.debug", side_effect=check_for_logged_info):
+                patch("logging.Logger.debug", side_effect=check_for_logged_info), \
+                    patch('urllib.request.urlopen') as urlopen:
                 self.service.socket.send_data.send_thread()
         except KeyboardInterrupt:
             pass
@@ -1316,6 +1585,19 @@ class TestSendThreadClass:
                 with open(file_path, "r") as file:
                     args = file.readlines()[-1]
             arg = json.loads(args)
+            if urlopen.called:
+                urlopen_args, urlopen_kwargs = urlopen.call_args
+
+                parsed_urlopen = urlparse.urlparse(urlopen_args[0])
+                urlopen_trace_id = parse_qs(parsed_urlopen.query)['id']
+
+                parsed_sent_json = urlparse.urlparse(arg[-1]['params']['url'])
+                sent_json_trace_id = parse_qs(parsed_sent_json.query)['trace']
+            assert urlopen_trace_id == sent_json_trace_id
+            if send_trace:
+                assert urlopen_trace_id != ''
+            else:
+                assert urlopen_trace_id == ''
             assert len(arg) <= wappsto.connection.communication.send_data.MAX_BULK_SIZE
             assert self.service.socket.sending_queue.qsize() == max(
                 messages_in_queue - wappsto.connection.communication.send_data.MAX_BULK_SIZE, 0)
@@ -1329,16 +1611,20 @@ class TestSendThreadClass:
             pass
 
     @pytest.mark.parametrize("object_name", ["network", "device", "value", "control_state", "report_state"])
-    @pytest.mark.parametrize("messages_in_queue", [1, 2, 20])
-    @pytest.mark.parametrize("log_offline", [True, False])
-    @pytest.mark.parametrize("connected", [True, False])
+    @pytest.mark.parametrize("messages_in_queue", [1, 20])
     @pytest.mark.parametrize("log_location", ["test_logs/logs"])
-    @pytest.mark.parametrize("file_size", [2, 1, 0])
+    @pytest.mark.parametrize("file_size", [1, 0])
     @pytest.mark.parametrize("limit_action", [event_storage.REMOVE_OLD])
-    @pytest.mark.parametrize("log_file_exists", [True, False])
+    @pytest.mark.parametrize("connected,log_offline,log_file_exists,make_zip", [
+        (False, True, True, True),
+        (False, True, True, False),
+        (False, True, False, False),
+        (False, False, False, False),
+        (True, False, False, False)])
+    @pytest.mark.parametrize("send_trace", [True, False])
     def test_send_thread_delete(self, object_name, messages_in_queue, log_offline,
                                 connected, log_location, file_size, limit_action,
-                                log_file_exists):
+                                log_file_exists, make_zip, send_trace):
         """
         Tests sending DELETE message.
 
@@ -1353,6 +1639,8 @@ class TestSendThreadClass:
             file_size: how big is the current size of the folder
             limit_action: action to perform when limit is exeeded
             log_file_exists: boolean indicating if log file exist
+            make_zip: boolean indicating if log file should be zip
+            send_trace: Boolean indicating if trace should be automatically sent
 
         """
         # Arrange
@@ -1362,7 +1650,7 @@ class TestSendThreadClass:
                                        log_location=log_location,
                                        log_data_limit=1,
                                        limit_action=limit_action,
-                                       compression_period=event_storage.DAY_PERIOD)
+                                       compression_period=event_storage.HOUR_PERIOD)
         fake_connect(self, ADDRESS, PORT)
         actual_object = get_object(self, object_name)
 
@@ -1399,16 +1687,17 @@ class TestSendThreadClass:
         self.service.socket.my_socket.send = Mock(side_effect=KeyboardInterrupt)
         self.service.socket.add_id_to_confirm_list = Mock()
         self.service.socket.connected = connected
-        file_name = self.service.event_storage.get_log_name()
-        file_path = self.service.event_storage.get_file_path(file_name)
-        set_up_log(self.service.event_storage.log_location, log_file_exists, file_path, file_size)
+        self.service.socket.send_data.automatic_trace = send_trace
+        urlopen_trace_id = sent_json_trace_id = ''
+        file_path = set_up_log(self, log_file_exists, file_size, make_zip)
 
         # Act
         try:
             # runs until mock object is run and its side_effect raises
             # exception
             with patch("logging.Logger.error", side_effect=check_for_logged_info), \
-                    patch("logging.Logger.debug", side_effect=check_for_logged_info):
+                patch("logging.Logger.debug", side_effect=check_for_logged_info), \
+                    patch('urllib.request.urlopen') as urlopen:
                 self.service.socket.send_data.send_thread()
         except KeyboardInterrupt:
             pass
@@ -1423,6 +1712,19 @@ class TestSendThreadClass:
                 with open(file_path, "r") as file:
                     args = file.readlines()[-1]
             arg = json.loads(args)
+            if urlopen.called:
+                urlopen_args, urlopen_kwargs = urlopen.call_args
+
+                parsed_urlopen = urlparse.urlparse(urlopen_args[0])
+                urlopen_trace_id = parse_qs(parsed_urlopen.query)['id']
+
+                parsed_sent_json = urlparse.urlparse(arg[-1]['params']['url'])
+                sent_json_trace_id = parse_qs(parsed_sent_json.query)['trace']
+            assert urlopen_trace_id == sent_json_trace_id
+            if send_trace:
+                assert urlopen_trace_id != ''
+            else:
+                assert urlopen_trace_id == ''
             assert len(arg) <= wappsto.connection.communication.send_data.MAX_BULK_SIZE
             assert self.service.socket.sending_queue.qsize() == max(
                 messages_in_queue - wappsto.connection.communication.send_data.MAX_BULK_SIZE, 0)
@@ -1432,16 +1734,15 @@ class TestSendThreadClass:
             # Message not being sent or saved
             pass
 
-    @pytest.mark.parametrize("expected_trace_id", [
-        (332)])
-    def test_send_thread_send_trace(self, expected_trace_id):
+    @pytest.mark.parametrize("trace_id", [(332)])
+    def test_send_thread_send_trace(self, trace_id):
         """
         Tests sending trace message.
 
         Tests what would happen when sending trace message.
 
         Args:
-            expected_trace_id: trace id expected to be sent
+            trace_id: trace id expected to be sent
 
         """
         # Arrange
@@ -1450,7 +1751,8 @@ class TestSendThreadClass:
         fake_connect(self, ADDRESS, PORT)
         reply = message_data.MessageData(
             message_data.SEND_TRACE,
-            trace_id=expected_trace_id,
+            trace_id=trace_id,
+            control_value_id=1,
             rpc_id=93043873
         )
         self.service.socket.sending_queue.put(reply)
@@ -1462,9 +1764,11 @@ class TestSendThreadClass:
                 # exception
                 self.service.socket.send_data.send_thread()
             except KeyboardInterrupt:
-                args, kwargs = urlopen.call_args
-                arg = urllib.parse.parse_qs(args[0])
-        result_trace_id = int(arg["https://tracer.iot.seluxit.com/trace?id"][0])
+                if urlopen.called:
+                    urlopen_args, urlopen_kwargs = urlopen.call_args
+
+                    parsed_id = urlparse.urlparse(urlopen_args[0])
+                    parsed_id = int(parse_qs(parsed_id.query)['id'][0])
 
         # Assert
-        assert result_trace_id == expected_trace_id
+        assert parsed_id == trace_id
