@@ -4,10 +4,13 @@ The __init__ method for the wappsto module.
 Stores the Wappsto class functionality.
 """
 
-import os
-import time
-import logging
 import inspect
+import logging
+import os
+import signal
+
+from threading import Event
+
 from .connection import seluxit_rpc
 from .connection import communication
 from .errors import wappsto_errors
@@ -197,7 +200,7 @@ class Wappsto:
             self.stop(False)
             raise wappsto_errors.DeviceNotFoundException(msg)
 
-    def start(self, address="wappsto.com", port=11006, automatic_trace=False):
+    def start(self, address="wappsto.com", port=11006, automatic_trace=False, blocking=False):
         """
         Start the server connection.
 
@@ -208,6 +211,10 @@ class Wappsto:
                 (default: {"wappsto.com"})
             port: Port to connect the address to. (default: {11006})
             automatic_trace: indicates if all messages automaticaly send trace.
+            blocking: Wheather or not this call should be a block call.
+                      (default: False)
+                      If sat to True, it will listen for a SIGTERM or SIGINT,
+                      and terminate if those was received.
 
         """
         self.status.set_status(status.STARTING)
@@ -255,17 +262,23 @@ class Wappsto:
 
         self.status.set_status(status.RUNNING)
 
-        self.keep_running()
+        if blocking:
+            self.keep_running()
 
     def keep_running(self):
         """
         Keeps wappsto running.
 
-        Creates infinite loop, that doesn't allow for this thread to be closed.
+        Waiting for a SIGTERM or SIGINT, or self.terminated to be set,
+        before it will exits.
 
         """
-        while True:
-            time.sleep(1)
+        self.terminated = Event()
+
+        signal.signal(signal.SIGINT, lambda *args: self.terminated.set())
+        signal.signal(signal.SIGTERM, lambda *args: self.terminated.set())
+
+        self.terminated.wait()
 
     def stop(self, save=True):
         """
