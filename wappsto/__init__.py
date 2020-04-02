@@ -277,8 +277,11 @@ class Wappsto:
 
         signal.signal(signal.SIGINT, lambda *args: self.terminated.set())
         signal.signal(signal.SIGTERM, lambda *args: self.terminated.set())
+        self.wapp_log.info("Waiting terminate request.")
 
         self.terminated.wait()
+        self.wapp_log.info("Terminate request received.")
+        self.stop()
 
     def stop(self, save=True):
         """

@@ -557,10 +557,7 @@ class Value:
         boolean
 
         """
-        if self.data_type == "number":
-            return True
-        else:
-            return False
+        return self.data_type == "number"
 
     def __is_string_type(self):
         """
@@ -573,10 +570,7 @@ class Value:
         boolean
 
         """
-        if self.data_type == "string":
-            return True
-        else:
-            return False
+        return self.data_type == "string"
 
     def __is_blob_type(self):
         """
@@ -589,7 +583,4 @@ class Value:
         boolean
 
         """
-        if self.data_type == "blob":
-            return True
-        else:
-            return False
+        return self.data_type == "blob"
