@@ -98,7 +98,7 @@ class SeluxitRpc:
             False, if it is not.
 
         """
-        return os.getenv("UPGRADABLE").upper() == "TRUE"
+        return os.getenv("UPGRADABLE", "").upper() == "TRUE"
 
     def __init__(self):
         """

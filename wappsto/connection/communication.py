@@ -275,7 +275,7 @@ class ClientSocket:
 
     def get_object_without_none_values(self, encoded_object):
         """
-        Get object without None values.
+        Remove objects without None values.
 
         Gets objects and removes any keys where value is None.
 

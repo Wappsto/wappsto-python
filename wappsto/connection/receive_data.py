@@ -263,7 +263,7 @@ class ReceiveData:
         """
         return_id = data.get('id')
         try:
-            uuid = data.get('params').get('data').get('meta').get('id')
+            uuid = data.get('params').get('url').split('/')[-1]
             self.wapp_log.debug("Get request from id: " + uuid)
         except AttributeError:
             error_str = 'Error received incorrect format in get: {}'.format(str(data))
@@ -313,7 +313,7 @@ class ReceiveData:
         """
         return_id = data.get('id')
         try:
-            uuid = data.get('params').get('data').get('meta').get('id')
+            uuid = data.get('params').get('url').split('/')[-1]
             self.wapp_log.debug("Delete request from id: " + uuid)
         except AttributeError:
             error_str = 'Error received incorrect format in delete: {}'.format(str(data))
