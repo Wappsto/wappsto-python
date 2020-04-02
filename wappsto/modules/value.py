@@ -407,7 +407,8 @@ class Value:
             network_id=state.parent.parent.parent.uuid,
             device_id=state.parent.parent.uuid,
             value_id=state.parent.uuid,
-            state_id=state.uuid
+            state_id=state.uuid,
+            verb=message_data.PUT
         )
         self.parent.parent.conn.send_data.send_report(msg)
 
