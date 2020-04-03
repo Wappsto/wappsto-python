@@ -223,6 +223,7 @@ class ReceiveData:
                 period = data.get('params').get('data').get('period')
                 obj.set_period(period)
                 delta = data.get('params').get('data').get('delta')
+                self.success_reply(return_id)
                 obj.set_delta(delta)
                 self.sending_queue_add_trace(
                     obj.parent.uuid,
@@ -230,10 +231,10 @@ class ReceiveData:
                     None,
                     control_value_id=self.__get_random_id()
                 )
-                self.success_reply(return_id)
             elif meta_type == "state":
                 local_data = data.get('params').get('data').get('data')
                 if obj.state_type == "Control":
+                    self.success_reply(return_id)
                     obj.parent.handle_control(data_value=local_data)
                     self.sending_queue_add_trace(
                         obj.parent.uuid,
@@ -241,7 +242,6 @@ class ReceiveData:
                         local_data,
                         control_value_id=self.__get_random_id()
                     )
-                    self.success_reply(return_id)
                 else:
                     self.error_reply('Element is not control state', return_id)
         except AttributeError:
@@ -284,6 +284,7 @@ class ReceiveData:
 
         try:
             if obj.state_type == "Report":
+                self.success_reply(return_id)
                 self.sending_queue_add_trace(
                     obj.parent.uuid,
                     trace_id,
@@ -291,7 +292,6 @@ class ReceiveData:
                     control_value_id=self.__get_random_id()
                 )
                 obj.parent.handle_refresh()
-                self.success_reply(return_id)
             else:
                 self.error_reply('Element is not control state', return_id)
         except AttributeError:
@@ -333,6 +333,7 @@ class ReceiveData:
             return
 
         try:
+            self.success_reply(return_id)
             self.sending_queue_add_trace(
                 obj.uuid,
                 trace_id,
@@ -340,7 +341,6 @@ class ReceiveData:
                 control_value_id=self.__get_random_id()
             )
             obj.handle_delete()
-            self.success_reply(return_id)
         except AttributeError:
             self.error_reply('Attribute error encountered', return_id)
 
