@@ -112,7 +112,7 @@ class Value:
         """
         if attr in ["last_controlled"]:
             warnings.warn("Property %s is deprecated" % attr)
-            return self.get_data()
+            return self.get_control_state().data
 
     def set_period(self, period):
         """
