@@ -64,8 +64,7 @@ class MessageData:
             msg_id: The ID of the message.
             rpc_id: The ID of the RPC instance. (default: {None})
             data: The data to send. (default: {None})
-            network_id: The ID of the network to interact with.
-            (default: {None})
+            network_id: The ID of the network to interact with. (default: {None})
             device_id: The ID of the device to interact with. (default: {None})
             value_id: The ID of the value to interact with. (default: {None})
             state_id: The ID of the state to interact with. (default: {None})

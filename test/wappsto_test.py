@@ -93,34 +93,34 @@ def fix_object_callback(callback_exists, testing_object):
             pass
 
 
-def get_object(self, object_name):
+def get_object(network, name):
     """
-    Get object from newtwork.
+    Get object from network.
 
     Get object based on the name provided.
 
     Args:
-        object_name: name indicating the object being searched for.
+        network: The network from where the data should be found.
+        name: Name indicating the object being searched for.
 
     Returns:
-        the found object
+        The found object.
 
     """
-    actual_object = None
-    if object_name == "network":
-        actual_object = self.service.data_manager.network
-    elif object_name == "device":
-        actual_object = self.service.data_manager.network.devices[0]
-    elif object_name == "value":
-        actual_object = self.service.data_manager.network.devices[0].values[0]
-    elif object_name == "control_state":
-        actual_object = self.service.data_manager.network.devices[0].values[0].get_control_state()
-    elif object_name == "report_state":
-        actual_object = self.service.data_manager.network.devices[0].values[0].get_report_state()
-    return actual_object
+    if name == "network":
+        return network.service.data_manager.network
+    elif name == "device":
+        return network.service.data_manager.network.devices[0]
+    elif name == "value":
+        return network.service.data_manager.network.devices[0].values[0]
+    elif name == "control_state":
+        return network.service.data_manager.network.devices[0].values[0].get_control_state()
+    elif name == "report_state":
+        return network.service.data_manager.network.devices[0].values[0].get_report_state()
+    return None
 
 
-def send_response(self,
+def send_response(instance,
                   verb,
                   trace_id=None,
                   bulk=None,
@@ -128,7 +128,7 @@ def send_response(self,
                   element_id=None,
                   data=None,
                   split_message=None,
-                  type=None,
+                  element_type=None,
                   period=None,
                   delta=None):
     """
@@ -137,6 +137,7 @@ def send_response(self,
     Sends responses to be used in receive tests based on the parameters provided.
 
     Args:
+        instance: The current Test instance.
         verb: specifies if request is DELETE/PUT/POST/GET
         trace_id: id used for tracing messages
         bulk: Boolean value indicating if multiple messages should be sent at once.
@@ -144,12 +145,12 @@ def send_response(self,
         element_id: id used for indicating element
         data: data to be sent
         split_message: Boolean value indicating if message should be sent in parts
-        type: type of module being used.
-        delta: delta of value (determines if change was significant enough to be sent)
+        element_type: type of module being used.
         period: parameter indicating whether value should be updated periodically
+        delta: delta of value (determines if change was significant enough to be sent)
 
     Returns:
-        the generated message
+        the generated message.
 
     """
     trace = ""
@@ -167,9 +168,10 @@ def send_response(self,
                 meta = None
             else:
                 meta = {"id": element_id,
-                        "type": type}
+                        "type": element_type}
 
             params = {"meta": trace,
+                      "url": "/{}/{}".format(element_type, element_id),
                       "data": {
                           "meta": meta,
                           "data": data,
@@ -197,7 +199,7 @@ def send_response(self,
                        "value": message_value,
                        "meta": {
                            "server_send_time": "2020-01-22T08:22:55.315Z"}}}
-        self.service.socket.packet_awaiting_confirm[message_id] = message
+        instance.service.socket.packet_awaiting_confirm[message_id] = message
     else:
         message = {"jsonrpc": "2.0", "id": "1", "params": {}, "method": "??????"}
 
@@ -210,12 +212,12 @@ def send_response(self,
         message1 = message[:message_size]
         message2 = message[message_size:]
         wappsto.connection.communication.receive_data.RECEIVE_SIZE = message_size
-        self.service.socket.my_socket.recv = Mock(side_effect=[message1.encode("utf-8"),
-                                                               message2.encode("utf-8"),
-                                                               KeyboardInterrupt])
+        instance.service.socket.my_socket.recv = Mock(side_effect=[message1.encode("utf-8"),
+                                                                   message2.encode("utf-8"),
+                                                                   KeyboardInterrupt])
     else:
-        self.service.socket.my_socket.recv = Mock(side_effect=[message.encode("utf-8"),
-                                                               KeyboardInterrupt])
+        instance.service.socket.my_socket.recv = Mock(side_effect=[message.encode("utf-8"),
+                                                                   KeyboardInterrupt])
 
 
 def validate_json(json_schema, arg):
@@ -888,7 +890,7 @@ class TestReceiveThreadClass:
             expected_msg_id = message_data.SEND_FAILED
 
         send_response(self, 'PUT', trace_id=trace_id, bulk=bulk, element_id=id,
-                      data=data, split_message=split_message, type=type, period=period,
+                      data=data, split_message=split_message, element_type=type, period=period,
                       delta=delta)
 
         # Act
@@ -950,18 +952,19 @@ class TestReceiveThreadClass:
 
         """
         # Arrange
+        rpc_id = "GET-1"
         actual_object = get_object(self, object_name)
         fix_object_callback(callback_exists, actual_object)
-        id = str(actual_object.report_state.uuid)
+        uuid = str(actual_object.report_state.uuid)
         if not object_exists:
             self.service.data_manager.network = None
             expected_msg_id = message_data.SEND_FAILED
 
         if not id_exists:
-            id = None
+            uuid = None
 
-        send_response(self, "GET", trace_id=trace_id, bulk=bulk, element_id=id, data=1,
-                      split_message=split_message)
+        send_response(self, "GET", message_id=rpc_id, trace_id=trace_id, bulk=bulk, element_id=uuid,
+                      element_type="state", data=1, split_message=split_message)
 
         # Act
         try:
@@ -987,7 +990,15 @@ class TestReceiveThreadClass:
                 if message.msg_id == message_data.SEND_TRACE:
                     assert message.trace_id == trace_id
         else:
-            assert self.service.socket.sending_queue.qsize() == 0
+            if bulk:
+                assert self.service.socket.sending_queue.qsize() == 2
+            else:
+                assert self.service.socket.sending_queue.qsize() == 1
+
+            while self.service.socket.sending_queue.qsize() > 0:
+                message = self.service.socket.sending_queue.get()
+                assert (message.msg_id == message_data.SEND_FAILED)
+                assert (message.rpc_id == rpc_id)
 
     @pytest.mark.parametrize("callback_exists", [False, True])
     @pytest.mark.parametrize("trace_id", [None, "321"])
@@ -1017,6 +1028,7 @@ class TestReceiveThreadClass:
 
         """
         # Arrange
+        rpc_id = "DELETE-1"
         actual_object = get_object(self, object_name)
         fix_object_callback(callback_exists, actual_object)
         id = str(actual_object.uuid)
@@ -1027,8 +1039,8 @@ class TestReceiveThreadClass:
         if not id_exists:
             id = None
 
-        send_response(self, 'DELETE', trace_id=trace_id, bulk=bulk, element_id=id, data=1,
-                      split_message=split_message)
+        send_response(self, 'DELETE', message_id=rpc_id, trace_id=trace_id, bulk=bulk, element_id=id, data=1,
+                      element_type='network', split_message=split_message)
 
         # Act
         try:
@@ -1054,7 +1066,15 @@ class TestReceiveThreadClass:
                 if message.msg_id == message_data.SEND_TRACE:
                     assert message.trace_id == trace_id
         else:
-            assert self.service.socket.sending_queue.qsize() == 0
+            if bulk:
+                assert self.service.socket.sending_queue.qsize() == 2
+            else:
+                assert self.service.socket.sending_queue.qsize() == 1
+
+            while self.service.socket.sending_queue.qsize() > 0:
+                message = self.service.socket.sending_queue.get()
+                assert (message.msg_id == message_data.SEND_FAILED)
+                assert (message.rpc_id == rpc_id)
 
     @pytest.mark.parametrize("id", ["93043873"])
     @pytest.mark.parametrize("data", ["55"])

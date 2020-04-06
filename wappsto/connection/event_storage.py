@@ -91,6 +91,7 @@ class OfflineEventStorage:
 
         Returns:
             path to the file.
+
         """
         return os.path.join(self.log_location, file_name)
 
@@ -101,7 +102,8 @@ class OfflineEventStorage:
         Creates and returns the name of the log.
 
         Returns:
-            name of the latest log
+            name of the latest log.
+
         """
         now = datetime.datetime.now()
         if self.compression_period >= MONTH_PERIOD:
@@ -121,6 +123,7 @@ class OfflineEventStorage:
 
         Returns:
             list of log file names.
+
         """
         file_list = os.listdir(self.log_location)
         pattern = "[0-9][0-9][0-9][0-9]-([0-9]|1[0-2])"
@@ -132,6 +135,7 @@ class OfflineEventStorage:
 
         Uses all logs received from "get_logs" method and compacts the ones that
         are of type text (after compacting the text file is deleted).
+
         """
         all_logs = self.get_logs()
         text_logs = [file_name for id, file_name in enumerate(all_logs) if re.search(".txt$", file_name)]
@@ -149,6 +153,7 @@ class OfflineEventStorage:
 
         Returns:
             name of the file.
+
         """
         all_logs = self.get_logs()
         all_logs.sort()
@@ -167,6 +172,7 @@ class OfflineEventStorage:
 
         Returns:
             name of the file.
+
         """
         if re.search(".zip$", file_name):
             file_path = self.get_file_path(file_name)
@@ -251,6 +257,7 @@ class OfflineEventStorage:
 
         Returns:
             Total size of the folder after changes.
+
         """
         total_size = 0
         for dirpath, dirnames, file_names in os.walk(self.log_location):

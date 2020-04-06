@@ -218,13 +218,16 @@ class ReceiveData:
             self.error_reply('Non-existing uuid provided', return_id)
             return
 
+        param_data = data.get('params').get('data')
         try:
             if meta_type == "value":
-                period = data.get('params').get('data').get('period')
-                obj.set_period(period)
-                delta = data.get('params').get('data').get('delta')
+                period = param_data.get('period')
+                if period:
+                    obj.set_period(period)
+                delta = param_data.get('delta')
+                if delta:
+                    obj.set_delta(delta)
                 self.success_reply(return_id)
-                obj.set_delta(delta)
                 self.sending_queue_add_trace(
                     obj.parent.uuid,
                     trace_id,
@@ -232,7 +235,7 @@ class ReceiveData:
                     control_value_id=self.__get_random_id()
                 )
             elif meta_type == "state":
-                local_data = data.get('params').get('data').get('data')
+                local_data = param_data.get('data')
                 if obj.state_type == "Control":
                     self.success_reply(return_id)
                     obj.parent.handle_control(data_value=local_data)

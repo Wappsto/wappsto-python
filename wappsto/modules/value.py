@@ -93,8 +93,10 @@ class Value:
         self.timer = threading.Timer(None, None)
         self.last_update_of_report = None
 
-        self.set_period(period)
-        self.set_delta(delta)
+        if period:
+            self.set_period(period)
+        if delta:
+            self.set_delta(delta)
 
         msg = "Value {} debug: {}".format(name, str(self.__dict__))
         self.wapp_log.debug(msg)
