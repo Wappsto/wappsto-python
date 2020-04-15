@@ -366,7 +366,7 @@ class Value:
                 result += number_step
             data_value = data_value - result
 
-            data_value = f'{data_value:f}'
+            data_value = '{:f}'.format(data_value)
             data_value = (data_value.rstrip('0').rstrip('.')
                           if '.' in data_value else data_value)
 
