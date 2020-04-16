@@ -18,6 +18,8 @@ from . import send_data
 from .. import status
 from ..errors import wappsto_errors
 
+from .import seluxit_rpc
+
 
 class ClientSocket:
     """
@@ -27,7 +29,7 @@ class ClientSocket:
     information.
     """
 
-    def __init__(self, rpc, data_manager, address, port, path_to_calling_file,
+    def __init__(self, data_manager, address, port, path_to_calling_file,
                  wappsto_status, automatic_trace, event_storage):
         """
         Create a client socket.
@@ -38,7 +40,6 @@ class ClientSocket:
         address and port.
 
         Args:
-            rpc: Sending/receiving queue processing instance.
             data_manager: data_manager of DataManager.
             address: Server address.
             port: Server port.
@@ -77,13 +78,11 @@ class ClientSocket:
 
         self.connected = False
         self.sending_queue = queue.Queue(maxsize=0)
-        self.rpc = rpc
         self.event_storage = event_storage
         self.packet_awaiting_confirm = {}
         self.lock_await = threading.Lock()
         self.set_sockets()
 
-        self.data_manager.network.rpc = self.rpc
         self.data_manager.network.conn = self
 
     def set_sockets(self):
@@ -202,12 +201,12 @@ class ClientSocket:
                     self.send_data.send_control(msg)
 
         trace_id = self.send_data.create_trace(self.data_manager.network.uuid)
-        message = self.rpc.get_rpc_whole_json(self.data_manager.get_encoded_network(), trace_id)
+        message = seluxit_rpc.get_rpc_whole_json(self.data_manager.get_encoded_network(), trace_id)
         self.send_data.create_bulk(message)
 
         msg = "The whole network {} added to Sending queue {}.".format(
             self.data_manager.network.name,
-            self.rpc
+            self.sending_queue
         )
         self.wapp_log.debug(msg)
 

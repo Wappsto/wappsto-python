@@ -4,6 +4,7 @@ The network module.
 Stores attributes for the network instance.
 """
 import logging
+
 from ..connection import message_data
 from ..errors import wappsto_errors
 
@@ -36,7 +37,6 @@ class Network:
         self.name = name
         self.devices = devices
         self.data_manager = data_manager
-        self.rpc = None
         self.conn = None
         self.callback = None
         msg = "Network {} Debug \n{}".format(name, str(self.__dict__))

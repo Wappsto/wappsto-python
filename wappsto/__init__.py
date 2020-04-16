@@ -11,7 +11,6 @@ import signal
 
 from threading import Event
 
-from .connection import seluxit_rpc
 from .connection import communication
 from .errors import wappsto_errors
 from .connection import event_storage
@@ -64,7 +63,6 @@ class Wappsto:
         self.path_to_calling_file = os.path.dirname(os.path.abspath(stack))
 
         self.connecting = True
-        self.rpc = seluxit_rpc.SeluxitRpc()
         self.event_storage = event_storage.OfflineEventStorage(
             log_offline,
             log_location,
@@ -220,7 +218,6 @@ class Wappsto:
         self.status.set_status(status.STARTING)
 
         self.socket = communication.ClientSocket(
-            rpc=self.rpc,
             data_manager=self.data_manager,
             address=address,
             port=port,
