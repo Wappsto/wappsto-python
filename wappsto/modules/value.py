@@ -346,10 +346,9 @@ class Value:
         """
         Ensure number value follows steps.
 
-        Converts values to decimal and ensures number step is always positive,
-        ensures that data value follows steps and removes exes 0's after
-        decimal point.
-
+        Round to the nearest multiple of number_step. Handles negative 
+        number_step.
+        
         Args:
             data_value: float value indicating current state of value.
 
@@ -358,18 +357,7 @@ class Value:
 
         """
         try:
-            data_value = decimal.Decimal(str(data_value))
-            number_step = abs(decimal.Decimal(str(self.number_step)))
-
-            result = data_value % number_step
-            if result < 0:
-                result += number_step
-            data_value = data_value - result
-
-            data_value = '{:f}'.format(data_value)
-            data_value = (data_value.rstrip('0').rstrip('.')
-                          if '.' in data_value else data_value)
-
+            data_value = round(data_value/self.number_step)*self.number_step
             return decimal.Decimal(data_value)
         except decimal.InvalidOperation as e:
             self.wapp_log.error("Invalid operation: {}".format(e))
