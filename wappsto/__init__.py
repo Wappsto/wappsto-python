@@ -38,7 +38,7 @@ class Wappsto:
     starts a sending/receiving thread.
     """
 
-    __version__ = "1.1.0"
+    __version__ = "1.2.1"
 
     def __init__(self, json_file_name=None, load_from_state_file=False,
                  log_offline=False, log_location="logs",
