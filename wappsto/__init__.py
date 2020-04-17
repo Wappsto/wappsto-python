@@ -17,6 +17,16 @@ from .connection import event_storage
 from . import status
 from .data_operation import data_manager
 
+
+class Object_instantiation:
+    # For backward compability.
+    def __init__(self):
+        self.status = status
+
+
+object_instantiation = Object_instantiation()
+
+
 RETRY_LIMIT = 5
 
 
