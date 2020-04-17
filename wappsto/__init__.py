@@ -21,6 +21,15 @@ from .data_operation import data_manager
 RETRY_LIMIT = 5
 
 
+class Object_instantiation:
+    # For backward compability.
+    def __init__(self):
+        self.status = status
+
+
+object_instantiation = Object_instantiation()
+
+
 class Wappsto:
     """
     The main package classs.
@@ -29,7 +38,7 @@ class Wappsto:
     starts a sending/receiving thread.
     """
 
-    __version__ = "1.1.0"
+    __version__ = "1.2.1"
 
     def __init__(self, json_file_name=None, load_from_state_file=False,
                  log_offline=False, log_location="logs",
