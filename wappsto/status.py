@@ -78,7 +78,7 @@ class Status:
 
         Returns:
             True, if state is "STARTING",
-            Flase, Otherwise.
+            False, Otherwise.
         """
         return self.current_status == STARTING
 
@@ -88,7 +88,7 @@ class Status:
 
         Returns:
             True, if state is "CONNECTING",
-            Flase, Otherwise.
+            False, Otherwise.
         """
         return self.current_status == CONNECTING
 
@@ -98,7 +98,7 @@ class Status:
 
         Returns:
             True, if state is "CONNECTED",
-            Flase, Otherwise.
+            False, Otherwise.
         """
         return self.current_status == CONNECTED
 
@@ -108,7 +108,7 @@ class Status:
 
         Returns:
             True, if state is "INITIALIZING",
-            Flase, Otherwise.
+            False, Otherwise.
         """
         return self.current_status == INITIALIZING
 
@@ -118,7 +118,7 @@ class Status:
 
         Returns:
             True, if state is "STARTING_THREADS",
-            Flase, Otherwise.
+            False, Otherwise.
         """
         return self.current_status == STARTING_THREADS
 
@@ -128,7 +128,7 @@ class Status:
 
         Returns:
             True, if state is "RUNNING",
-            Flase, Otherwise.
+            False, Otherwise.
         """
         return self.current_status == RUNNING
 
@@ -138,7 +138,7 @@ class Status:
 
         Returns:
             True, if state is "RECONNECTING",
-            Flase, Otherwise.
+            False, Otherwise.
         """
         return self.current_status == RECONNECTING
 
@@ -148,7 +148,7 @@ class Status:
 
         Returns:
             True, if state is "DISCONNECTING",
-            Flase, Otherwise.
+            False, Otherwise.
         """
         return self.current_status == DISCONNECTING
 
