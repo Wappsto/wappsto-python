@@ -86,7 +86,8 @@ class WappstoDecoder:
             device.values = self.decode_value(device_iterator, device)
             devices.append(device)
 
-            self.wapp_log.debug("Device {} appended to {}".format(device, devices))
+            msg = "Device {} appended to {}".format(device, devices)
+            self.wapp_log.debug(msg)
         return devices
 
     def decode_value(self, json_data, parent):
@@ -156,7 +157,8 @@ class WappstoDecoder:
                     value.add_control_state(state)
             values.append(value)
 
-            self.wapp_log.debug("Value {} appended to {}".format(value, values))
+            msg = "Value {} appended to {}".format(value, values)
+            self.wapp_log.debug(msg)
         return values
 
     def decode_state(self, json_data, parent):

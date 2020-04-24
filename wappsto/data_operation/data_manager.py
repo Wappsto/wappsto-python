@@ -62,10 +62,10 @@ class DataManager:
 
         """
         if attr in ["device_list"]:
-            warnings.warn("Property %s is deprecated" % attr)
+            warnings.warn("Property {} is deprecated".format(attr))
             return self.network.devices
         if attr in ["network_cl"]:
-            warnings.warn("Property %s is deprecated" % attr)
+            warnings.warn("Property {} is deprecated".format(attr))
             return self.network
 
     def get_latest_instance(self):
@@ -141,7 +141,7 @@ class DataManager:
         """
         encoded_string = str(self.get_encoded_network())
         encoded_string = encoded_string.replace("\'", "\\\"")
-        encoded_string = '{"data":"' + encoded_string + '"}'
+        encoded_string = '{"data":"{}"}'.format(encoded_string)
 
         path = os.path.join(self.path_to_calling_file, 'saved_instances')
         os.makedirs(path, exist_ok=True)
@@ -166,6 +166,7 @@ class DataManager:
             A reference to the network/device/value/state object instance.
 
         """
+        # UNSURE(MBK): I feel that there is a more pythonic way of doing this.
         message = "Found instance of {} object with id: {}"
         if self.network is not None:
             if self.network.uuid == id:

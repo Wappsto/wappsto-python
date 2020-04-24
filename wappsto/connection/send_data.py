@@ -86,7 +86,8 @@ class SendData:
         """
         if data is not None:
             self.bulk_send_list.append(data)
-        if ((self.client_socket.sending_queue.qsize() == 0 and len(self.client_socket.packet_awaiting_confirm) == 0)
+        if ((self.client_socket.sending_queue.qsize() == 0 and
+             len(self.client_socket.packet_awaiting_confirm) == 0)
                 or len(self.bulk_send_list) >= MAX_BULK_SIZE):
             self.send_data(self.bulk_send_list)
             self.bulk_send_list.clear()
@@ -300,7 +301,8 @@ class SendData:
 
         context = ssl._create_unverified_context()
         trace_req = request.urlopen(attempt, context=context)
-        msg = "Sending tracer https message {} response {}".format(attempt, trace_req.getcode())
+        msg = "Sending tracer https message {} response {}"
+        msg = msg.format(attempt, trace_req.getcode())
         self.wapp_log.debug(msg)
 
     def send_reconnect(self, package):

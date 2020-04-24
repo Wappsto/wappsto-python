@@ -71,8 +71,9 @@ class State:
 
         """
         if not callable(callback):
-            msg = "Callback method should be a method"
-            self.wapp_log.error("Error setting callback: {}".format(msg))
+            msg = "Error setting callback: "
+            msg += "Callback method should be a method"
+            self.wapp_log.error(msg)
             raise wappsto_errors.CallbackNotCallableException
         self.callback = callback
         self.wapp_log.debug("Callback {} has been set.".format(callback))

@@ -44,7 +44,6 @@ class Wappsto:
                  log_offline=False, log_location="logs",
                  log_data_limit=10, limit_action=event_storage.REMOVE_OLD,
                  compression_period=event_storage.DAY_PERIOD):
-        # TODO(Dimitar): Come up with a better description.
         """
         Initialize wappsto class.
 
@@ -216,13 +215,15 @@ class Wappsto:
 
         Args:
             address: Address to connect the service to.
-                (default: {"wappsto.com"})
-            port: Port to connect the address to. (default: {11006})
+                     (default: "wappsto.com")
+            port: Port to connect the address to.
+                  (default: 11006)
             automatic_trace: indicates if all messages automaticaly send trace.
             blocking: Wheather or not this call should be a block call.
                       (default: False)
                       If sat to True, it will listen for a SIGTERM or SIGINT,
                       and terminate if those was received.
+                      If this option are set, it is not needed to call stop.
 
         """
         self.status.set_status(status.STARTING)

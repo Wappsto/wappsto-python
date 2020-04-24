@@ -206,6 +206,7 @@ def get_rpc_delete(network_id,
         JSON formatted data of delete message
 
     """
+    # UNSURE(MBK): I feel that there is a more pythonic way of doing this.
     if network_id:
         url = '/network/{}'.format(network_id)
         if device_id:
@@ -218,8 +219,7 @@ def get_rpc_delete(network_id,
     if trace_id:
         url = '{}?trace={}'.format(url, trace_id)
 
-    data_json_rpc = requests.Request('DELETE',
-                                     url=url)
+    data_json_rpc = requests.Request('DELETE', url=url)
 
     return data_json_rpc
 
@@ -244,7 +244,5 @@ def get_rpc_whole_json(json_data, trace_id=None):
     if trace_id:
         url = "{}?trace={}".format(url, trace_id)
 
-    data_json_rpc = requests.Request('POST',
-                                     url=url,
-                                     data=json_data)
+    data_json_rpc = requests.Request('POST', url=url, data=json_data)
     return data_json_rpc

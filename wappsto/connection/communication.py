@@ -262,14 +262,13 @@ class ClientSocket:
             self.connect()
 
         if self.connected is True:
-            self.wapp_log.info("Reconnected with " + str(attempt) + " attempts")
+            self.wapp_log.info("Reconnected with {} attempts".format(attempt))
             if send_reconnect:
                 reconnect = message_data.MessageData(message_data.SEND_RECONNECT)
                 self.sending_queue.put(reconnect)
         else:
-            msg = ("Unable to connect to the server[IP: {}, Port: {}]"
-                   .format(self.address, self.port)
-                   )
+            msg = "Unable to connect to the server[IP: {}, Port: {}]"
+            msg = msg.format(self.address, self.port)
             raise wappsto_errors.ServerConnectionException(msg)
 
     def get_object_without_none_values(self, encoded_object):
@@ -282,6 +281,7 @@ class ClientSocket:
             encoded_object: dictionary object.
 
         """
+        # UNSURE(MBK): I feel that there is a more pythonic way of doing this.
         for key, val in list(encoded_object.items()):
             if val is None:
                 del encoded_object[key]
@@ -308,7 +308,8 @@ class ClientSocket:
         for device in self.data_manager.network.devices:
             for value in device.values:
                 if value.timer.is_alive():
-                    msg = "Value: {} is no longer periodically sending updates.".format(value.uuid)
+                    msg = "Value: {} is no longer periodically sending updates."
+                    msg = msg.format(value.uuid)
                     self.wapp_log.debug(msg)
                 value.timer.cancel()
 
