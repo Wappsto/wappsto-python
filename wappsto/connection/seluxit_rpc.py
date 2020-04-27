@@ -75,6 +75,11 @@ def get_rpc_fail_response(message_id, text):
     return json.loads(error_response)
 
 
+def time_stamp():
+    """Return The default timestamp used for Wappsto."""
+    return datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+
+
 def is_upgradable():
     """
     Check if System is set to upgradable.
@@ -159,21 +164,19 @@ def get_rpc_state(
         JSON formatted data of the state.
 
     """
-    update = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-    device_state = {
-        'meta': create_meta('state', state_id),
-        'type': set_type,
-        'status': 'Send',
-        'data': data,
-        'timestamp': update
-    }
-
-    url = '/network/{}/device/{}/value/{}/state'
-    url = url.format(network_id, device_id, value_id)
-
-    if verb == message_data.GET:
+    if verb != message_data.GET:
+        device_state = {
+            'meta': create_meta('state', state_id),
+            'type': set_type,
+            'status': 'Send',
+            'data': data,
+            'timestamp': time_stamp()
+        }
+    else:
         device_state = None
-    url = '{}/{}'.format(url, state_id)
+
+    url = '/network/{}/device/{}/value/{}/state/{}'
+    url = url.format(network_id, device_id, value_id, state_id)
 
     if trace_id:
         url = '{}?trace={}'.format(url, trace_id)

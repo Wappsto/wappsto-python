@@ -1,5 +1,5 @@
 """
-The __init__ method for the wappsto module.
+Rapid Prototyping Python module for wappsto.com
 
 Stores the Wappsto class functionality.
 """
@@ -19,7 +19,7 @@ from .data_operation import data_manager
 
 
 class Object_instantiation:
-    # For backward compability.
+    """For backward compability. (Deprecated)"""
     def __init__(self):
         self.status = status
 

@@ -6,10 +6,10 @@ methods.
 """
 import logging
 import warnings
-import datetime
 import decimal
 import threading
 from ..connection import message_data
+from ..connection import seluxit_rpc
 from ..errors import wappsto_errors
 
 
@@ -278,7 +278,7 @@ class Value:
             Current time in format [%Y-%m-%dT%H:%M:%S.%fZ].
 
         """
-        return datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+        return seluxit_rpc.time_stamp()
 
     def set_callback(self, callback):
         """
