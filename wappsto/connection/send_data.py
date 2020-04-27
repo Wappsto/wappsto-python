@@ -119,6 +119,7 @@ class SendData:
             self.client_socket.connected = False
             msg = "Error sending: {}".format(e)
             self.wapp_log.error(msg, exc_info=True)
+            self.client_socket.request_reconnect()
 
     def send_thread(self):
         """

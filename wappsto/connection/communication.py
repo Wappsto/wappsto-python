@@ -244,11 +244,17 @@ class ClientSocket:
             del self.packet_awaiting_confirm[_id]
         self.lock_await.release()
 
+    def request_reconnect(self):
+        """Reconnect if it is required (No blocking)."""
+        self.wapp_log.info("Reconnect Requested.")
+        if not self.connected:
+            threading.Thread(target=self.reconnect).start()
+
     def reconnect(self, retry_limit=None, send_reconnect=True):
         """
         Attempt to reconnect.
 
-        Reconnection attemps in the instance of a connection being interrupted.
+        Reconnection attempts in the instance of a connection being interrupted.
         """
         self.wappsto_status.set_status(status.RECONNECTING)
         self.connected = False
