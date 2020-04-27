@@ -141,7 +141,7 @@ class DataManager:
         """
         encoded_string = str(self.get_encoded_network())
         encoded_string = encoded_string.replace("\'", "\\\"")
-        encoded_string = '{"data":"{}"}'.format(encoded_string)
+        encoded_string = '{{"data":"{}"}}'.format(encoded_string)
 
         path = os.path.join(self.path_to_calling_file, 'saved_instances')
         os.makedirs(path, exist_ok=True)
