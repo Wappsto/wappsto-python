@@ -11,7 +11,8 @@ import logging
 from . import message_data
 from json.decoder import JSONDecodeError
 
-RECEIVE_SIZE = 1024
+# RECEIVE_SIZE = 1024
+RECEIVE_SIZE = 2048
 MESSAGE_SIZE_BYTES = 1000000
 
 
@@ -397,7 +398,8 @@ class ReceiveData:
             rpc_id=return_id
         )
         # UNSURE(MBK): Is this not something that should be send without delay?
-        self.client_socket.sending_queue.put(success_reply)
+        self.client_socket.send_data.send_success(success_reply)
+        # self.client_socket.sending_queue.put(success_reply)
 
     def error_reply(self, error_str, return_id):
         """
@@ -416,4 +418,5 @@ class ReceiveData:
             text=error_str
         )
         # UNSURE(MBK): Is this not something that should be send without delay?
-        self.client_socket.sending_queue.put(error_reply)
+        self.client_socket.send_data.send_failed(error_reply)
+        # self.client_socket.sending_queue.put(error_reply)

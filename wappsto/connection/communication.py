@@ -199,11 +199,12 @@ class ClientSocket:
                         state_id=state.uuid,
                         verb=message_data.GET
                     )
-                    self.send_data.send_control(msg)
+                    self.sending_queue.put(msg)
+                    # self.send_data.send_control(msg)
 
         trace_id = self.send_data.create_trace(self.data_manager.network.uuid)
         message = self.rpc.get_rpc_whole_json(self.data_manager.get_encoded_network(), trace_id)
-        self.send_data.create_bulk(message)
+        self.send_data.create_bulk(message)  # UNSURE(MBK): This is not conformed.
 
         msg = "The whole network {} added to Sending queue {}.".format(
             self.data_manager.network.name,

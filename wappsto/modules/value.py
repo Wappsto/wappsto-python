@@ -413,7 +413,8 @@ class Value:
             state_id=state.uuid,
             verb=message_data.PUT
         )
-        self.parent.parent.conn.send_data.send_report(msg)
+        # self.parent.parent.conn.send_data.send_report(msg)
+        self.parent.parent.conn.sending_queue.put(msg)
 
     def check_delta_and_period(self, data_value):
         """
