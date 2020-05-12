@@ -4,7 +4,7 @@ The wappsto encoding module.
 Handles encoding object instances to a JSON file.
 """
 import logging
-from ..connection.seluxit_rpc import SeluxitRpc
+from ..connection import seluxit_rpc
 
 
 class WappstoEncoder:
@@ -54,7 +54,7 @@ class WappstoEncoder:
             }
         }
 
-        if SeluxitRpc.is_upgradable():
+        if seluxit_rpc.is_upgradable():
             encoded_network.get('meta').update({'upgradable': True})
 
         self.wapp_log.debug("Network JSON: {}".format(encoded_network))

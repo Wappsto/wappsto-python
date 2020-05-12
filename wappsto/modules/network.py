@@ -4,6 +4,7 @@ The network module.
 Stores attributes for the network instance.
 """
 import logging
+
 from ..connection import message_data
 from ..errors import wappsto_errors
 
@@ -36,7 +37,6 @@ class Network:
         self.name = name
         self.devices = devices
         self.data_manager = data_manager
-        self.rpc = None
         self.conn = None
         self.callback = None
         msg = "Network {} Debug \n{}".format(name, str(self.__dict__))
@@ -57,8 +57,9 @@ class Network:
 
         """
         if not callable(callback):
-            msg = "Callback method should be a method"
-            self.wapp_log.error("Error setting callback: {}".format(msg))
+            msg = "Error setting callback: "
+            msg += "Callback method should be a method"
+            self.wapp_log.error(msg)
             raise wappsto_errors.CallbackNotCallableException
         self.callback = callback
         self.wapp_log.debug("Callback {} has been set.".format(callback))
