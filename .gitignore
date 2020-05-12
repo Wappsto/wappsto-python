@@ -108,3 +108,8 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+
+# Sublime Text Editor
+*.sublime-project
+*.sublime-workspace
