@@ -127,7 +127,7 @@ class OfflineEventStorage:
         """
         file_list = os.listdir(self.log_location)
         pattern = "[0-9][0-9][0-9][0-9]-([0-9]|1[0-2])"
-        return [file_name for id, file_name in enumerate(file_list) if re.search(pattern, file_name)]
+        return [file_name for file_name in file_list if re.search(pattern, file_name)]
 
     def compact_logs(self):
         """
@@ -138,7 +138,7 @@ class OfflineEventStorage:
 
         """
         all_logs = self.get_logs()
-        text_logs = [file_name for id, file_name in enumerate(all_logs) if re.search(".txt$", file_name)]
+        text_logs = [file_name for file_name in all_logs if re.search(".txt$", file_name)]
         for file_name in text_logs:
             file_path = self.get_file_path(file_name)
             with zipfile.ZipFile(file_path.replace(".txt", ".zip"), "w") as zip_file:
