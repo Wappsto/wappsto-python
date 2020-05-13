@@ -83,6 +83,7 @@ class SendData:
         """
         if data is not None:
             self.bulk_send_list.append(data)
+        # If send_thread, have not handled all msg. AND . If there is not nonanswared JSON send.
         if ((self.client_socket.sending_queue.qsize() == 0 and len(self.client_socket.packet_awaiting_confirm) == 0)
                 or len(self.bulk_send_list) >= MAX_BULK_SIZE):
             self.send_data(self.bulk_send_list)
@@ -114,6 +115,7 @@ class SendData:
                     self.wapp_log.debug('Raw Send Json: {}'.format(data))
                     self.client_socket.my_socket.send(data)
             else:
+                self.wapp_log.warning("Data added to storage!")
                 self.client_socket.event_storage.add_message(data)
         except OSError as e:
             self.client_socket.connected = False
@@ -168,7 +170,7 @@ class SendData:
             package: A sending queue item.
 
         """
-        self.wapp_log.info("Sending success")
+        self.wapp_log.info("Sending success for ID: {}".format(package.rpc_id))
         rpc_success_response = self.client_socket.rpc.get_rpc_success_response(
             package.rpc_id
         )
@@ -184,7 +186,8 @@ class SendData:
             package: Sending queue item.
 
         """
-        self.wapp_log.info("Sending failed")
+        self.wapp_log.info("Sending failed for ID: {}".format(package.rpc_id))
+        self.wapp_log.info("Sending failed reason: {}".format(package.text))
         rpc_fail_response = self.client_socket.rpc.get_rpc_fail_response(
             package.rpc_id,
             package.text
