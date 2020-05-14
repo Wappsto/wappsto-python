@@ -86,10 +86,16 @@ class SendData:
         """
         if data is not None:
             self.bulk_send_list.append(data)
+
+        # Logic Checks
+        empty_q = self.client_socket.sending_queue.qsize() == 0
+        bulk_maxed = len(self.bulk_send_list) >= MAX_BULK_SIZE
+
         # If send_thread, have not handled all msg. AND . If there is not nonanswared JSON send.
-        if ((self.client_socket.sending_queue.qsize() == 0 and len(self.client_socket.packet_awaiting_confirm) == 0)
-                or len(self.bulk_send_list) >= MAX_BULK_SIZE):
-            self.send_data([self.bulk_send_list.pop() for _ in range(len(self.bulk_send_list))])
+        if (empty_q or bulk_maxed):
+            free_con_lines = 10 - len(self.client_socket.packet_awaiting_confirm)
+            send_size = len(self.bulk_send_list) if len(self.bulk_send_list) <= free_con_lines else free_con_lines
+            self.send_data([self.bulk_send_list.pop(0) for _ in range(send_size)])
 
     def send_data(self, data):
         """

@@ -296,7 +296,7 @@ class OfflineEventStorage:
                             for data_element in data:
                                 if conn.connected:
                                     time.sleep(TIME_BETWEEN_LOG_SEND)
-                                    conn.send_data.create_bulk(data_element)
+                                    conn.send_data.create_bulk(data_element)  # TODO(MBK): This is not conformed.
                                 else:
                                     raise ConnectionError
                         except JSONDecodeError:
