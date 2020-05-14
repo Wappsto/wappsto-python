@@ -77,6 +77,7 @@ class ClientSocket:
         self.sending_thread.setDaemon(True)
 
         self.connected = False
+        self.reconnect_inprogres = False
         self.sending_queue = queue.Queue(maxsize=0)
         self.event_storage = event_storage
         self.packet_awaiting_confirm = {}
@@ -254,33 +255,43 @@ class ClientSocket:
         )
         self.sending_queue.put(poke_msg)
 
+    def request_reconnect(self):
+        """Reconnect if it is required (No blocking)."""
+        self.wapp_log.info("Reconnect Requested.")
+        if not self.connected and not self.reconnect_inprogres:
+            threading.Thread(target=self.reconnect).start()
+
     def reconnect(self, retry_limit=None, send_reconnect=True):
         """
         Attempt to reconnect.
 
-        Reconnection attemps in the instance of a connection being interrupted.
+        Reconnection attempts in the instance of a connection being interrupted.
         """
-        self.wappsto_status.set_status(status.RECONNECTING)
-        self.connected = False
-        attempt = 0
-        while not self.connected and (retry_limit is None
-                                      or retry_limit > attempt):
-            attempt += 1
-            self.wapp_log.info("Trying to reconnect in 5 seconds")
-            time.sleep(5)
-            self.close()
-            self.set_sockets()
-            self.connect()
+        self.reconnect_inprogres = True
+        try:
+            self.wappsto_status.set_status(status.RECONNECTING)
+            self.connected = False
+            attempt = 0
+            while not self.connected and (retry_limit is None
+                                          or retry_limit > attempt):
+                attempt += 1
+                self.wapp_log.info("Trying to reconnect in 5 seconds")
+                time.sleep(5)
+                self.close()
+                self.set_sockets()
+                self.connect()
 
-        if self.connected is True:
-            self.wapp_log.info("Reconnected with {} attempts".format(attempt))
-            if send_reconnect:
-                reconnect = message_data.MessageData(message_data.SEND_RECONNECT)
-                self.sending_queue.put(reconnect)
-        else:
-            msg = "Unable to connect to the server[IP: {}, Port: {}]"
-            msg = msg.format(self.address, self.port)
-            raise wappsto_errors.ServerConnectionException(msg)
+            if self.connected is True:
+                self.wapp_log.info("Reconnected with " + str(attempt) + " attempts")
+                if send_reconnect:
+                    reconnect = message_data.MessageData(message_data.SEND_RECONNECT)
+                    self.sending_queue.put(reconnect)
+            else:
+                msg = "Unable to connect to the server[IP: {}, Port: {}]"
+                msg = msg.format(self.address, self.port)
+                raise wappsto_errors.ServerConnectionException(msg)
+        finally:
+            self.reconnect_inprogres = False
 
     def get_object_without_none_values(self, encoded_object):
         """
