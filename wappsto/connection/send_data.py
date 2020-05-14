@@ -91,7 +91,6 @@ class SendData:
         empty_q = self.client_socket.sending_queue.qsize() == 0
         bulk_maxed = len(self.bulk_send_list) >= MAX_BULK_SIZE
 
-        # If send_thread, have not handled all msg. AND . If there is not nonanswared JSON send.
         if (empty_q or bulk_maxed):
             free_con_lines = 10 - len(self.client_socket.packet_awaiting_confirm)
             send_size = len(self.bulk_send_list) if len(self.bulk_send_list) <= free_con_lines else free_con_lines
@@ -161,6 +160,10 @@ class SendData:
 
             elif package.msg_id == message_data.SEND_RECONNECT:
                 self.send_reconnect(package)
+
+            elif package.msg_id == message_data.POKE:
+                self.wapp_log.debug("Was Poked.")
+                self.create_bulk(None)
 
             else:
                 self.wapp_log.warning("Unhandled send")

@@ -243,6 +243,16 @@ class ClientSocket:
         if _id in self.packet_awaiting_confirm:
             del self.packet_awaiting_confirm[_id]
         self.lock_await.release()
+        self.poke_send_thread()
+
+    def poke_send_thread(self):
+        """
+        Poke the Send thread, to let it know some thing have changed.
+        """
+        poke_msg = message_data.MessageData(
+            message_data.POKE
+        )
+        self.sending_queue.put(poke_msg)
 
     def reconnect(self, retry_limit=None, send_reconnect=True):
         """
