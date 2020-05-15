@@ -91,3 +91,9 @@ class MessageData:
         self.trace_id = trace_id
         self.control_value_id = control_value_id
         self.verb = verb
+
+    def __str__(self):
+        return "msg_id {0}, rpc_id {1}, data {2}, trace_id {3}, \
+               control_value_id {4}, verb {5}, network_id {6}, device_id {7}, \
+               value_id {8}, state_id {9} \
+               ".format(self.msg_id, self.rpc_id, self.data, self.trace_id, self.control_value_id, self.verb, self.network_id, self.device_id, self.value_id, self.state_id)

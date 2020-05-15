@@ -296,7 +296,7 @@ class OfflineEventStorage:
                             for data_element in data:
                                 if conn.connected:
                                     time.sleep(TIME_BETWEEN_LOG_SEND)
-                                    conn.send_data.create_bulk(data_element)
+                                    conn.sending_queue.put(data_element)
                                 else:
                                     raise ConnectionError
                         except JSONDecodeError:

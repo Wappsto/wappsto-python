@@ -201,16 +201,18 @@ class ClientSocket:
                     self.sending_queue.put(msg)
 
         trace_id = self.send_data.create_trace(self.data_manager.network.uuid)
+
         message = seluxit_rpc.get_rpc_whole_json(self.data_manager.get_encoded_network(), trace_id)
+        # TODO
         self.send_data.create_bulk(message)
+        # self.sending_queue.put(message)
 
         msg = "The whole network {} added to Sending queue {}.".format(
             self.data_manager.network.name,
             self.sending_queue
         )
         self.wapp_log.debug(msg)
-
-        self.confirm_initialize_all()
+        # self.confirm_initialize_all()
 
     def request_reconnect(self):
         """Reconnect if it is required (No blocking)."""
@@ -299,12 +301,12 @@ class ClientSocket:
             self.my_raw_socket.close()
             self.my_raw_socket = None
 
-    def confirm_initialize_all(self):
-        """
-        Confirms that all responses are received.
+    # def confirm_initialize_all(self):
+        # """
+        # Confirms that all responses are received.
 
-        Goes through the list saving expected responses and checks if they are
-        received.
-        """
-        while len(self.packet_awaiting_confirm) > 0:
-            self.receive_data.receive_message()
+        # Goes through the list saving expected responses and checks if they are
+        # received.
+        # """
+        # while len(self.packet_awaiting_confirm) > 0:
+            # self.receive_data.receive_message()

@@ -390,7 +390,7 @@ class ReceiveData:
             message_data.RESPONSE,
             return_id
         )
-        self.sending_queue.put(poke_msg)
+        self.client_socket.sending_queue.put(poke_msg)
 
     def success_reply(self, return_id):
         """

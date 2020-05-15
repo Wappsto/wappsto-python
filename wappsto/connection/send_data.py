@@ -145,6 +145,10 @@ class SendData:
 
         while True:
             package = self.client_socket.sending_queue.get()
+            if not hasattr(package, 'msg_id'):
+                self.wapp_log.error("Get from queue {}".format(package))
+                raise ValueError('Package not a MessageData {}'.format(package))
+
             if package.msg_id == message_data.SEND_SUCCESS:
                 self.send_success(package)
 
