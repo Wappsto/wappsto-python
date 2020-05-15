@@ -7,9 +7,12 @@ Handles sending data to the server.
 import json
 import ssl
 import random
-import urllib.request as request
 import logging
+
+import urllib.request as request
+
 from . import message_data
+from . import seluxit_rpc
 
 MAX_BULK_SIZE = 10
 t_url = 'https://tracer.iot.seluxit.com/trace?id={}&parent={}&name={}&status={}'  # noqa: E501
@@ -210,7 +213,7 @@ class SendData:
 
         """
         self.wapp_log.info("Sending success for ID: {}".format(package.rpc_id))
-        rpc_success_response = self.client_socket.rpc.get_rpc_success_response(
+        rpc_success_response = seluxit_rpc.get_rpc_success_response(
             package.rpc_id
         )
         self.create_bulk(rpc_success_response)
@@ -227,7 +230,7 @@ class SendData:
         """
         self.wapp_log.info("Sending failed for ID: {}".format(package.rpc_id))
         self.wapp_log.info("Sending failed reason: {}".format(package.text))
-        rpc_fail_response = self.client_socket.rpc.get_rpc_fail_response(
+        rpc_fail_response = seluxit_rpc.get_rpc_fail_response(
             package.rpc_id,
             package.text
         )
@@ -253,7 +256,7 @@ class SendData:
         package.trace_id = self.create_trace(
             package.network_id, package.trace_id)
 
-        local_data = self.client_socket.rpc.get_rpc_state(
+        local_data = seluxit_rpc.get_rpc_state(
             package.data,
             package.network_id,
             package.device_id,
@@ -282,7 +285,7 @@ class SendData:
         package.trace_id = self.create_trace(
             package.network_id, package.trace_id)
 
-        local_data = self.client_socket.rpc.get_rpc_state(
+        local_data = seluxit_rpc.get_rpc_state(
             package.data,
             package.network_id,
             package.device_id,
@@ -308,7 +311,7 @@ class SendData:
         package.trace_id = self.create_trace(
             package.network_id, package.trace_id)
 
-        local_data = self.client_socket.rpc.get_rpc_delete(
+        local_data = seluxit_rpc.get_rpc_delete(
             package.network_id,
             package.device_id,
             package.value_id,
@@ -357,7 +360,7 @@ class SendData:
         package.trace_id = self.create_trace(
             package.network_id, package.trace_id)
 
-        rpc_network = self.client_socket.rpc.get_rpc_network(
+        rpc_network = seluxit_rpc.get_rpc_network(
             self.client_socket.data_manager.network.uuid,
             self.client_socket.data_manager.network.name,
             package.verb,
