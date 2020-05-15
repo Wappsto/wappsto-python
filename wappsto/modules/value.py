@@ -4,11 +4,11 @@ The value module.
 Stores attributes for the value instance and handles value-related
 methods.
 """
-import logging
-import warnings
 import datetime
-import decimal
+import logging
 import threading
+import warnings
+
 from ..connection import message_data
 from ..errors import wappsto_errors
 
@@ -92,6 +92,11 @@ class Value:
 
         self.timer = threading.Timer(None, None)
         self.last_update_of_report = None
+
+        # if self._invalid_step(self.number_max):
+        #     msg = "Inconsistent max, min & step provided. "
+        #     msg += "'(max-min)/step' do not appear to an integer-like."
+        #     self.wapp_log.warning(msg)
 
         if period:
             self.set_period(period)
@@ -305,20 +310,21 @@ class Value:
     def __validate_value_data(self, data_value):
         if self.__is_number_type():
             try:
-                data_value = self.ensure_number_value_follows_steps(data_value)
-
-                if data_value is None:
-                    return None
-
-                if self.number_min <= data_value <= self.number_max:
-                    return str(data_value)
-                else:
-                    msg = "Invalid number. Range: {}-{}. Your: {}".format(
+                if self._outside_range(data_value):
+                    msg = "Invalid number. Range: {}-{}. Yours is: {}".format(
                         self.number_min,
                         self.number_max,
-                        str(data_value)
+                        data_value
                     )
                     self.wapp_log.warning(msg)
+                if self._invalid_step(data_value):
+                    msg = "Invalid Step. Step: {}. Min: {}. Value: {}".format(
+                        self.number_step,
+                        self.number_min,
+                        data_value
+                    )
+                    self.wapp_log.warning(msg)
+                return str(data_value)
             except ValueError:
                 msg = "Invalid type of value. Must be a number: {}".format(str(data_value))
                 self.wapp_log.error(msg)
@@ -342,37 +348,32 @@ class Value:
             msg = "Value type {} is invalid".format(self.date_type)
             self.wapp_log.error(msg)
 
-    def ensure_number_value_follows_steps(self, data_value):
+    def _outside_range(self, value):
         """
-        Ensure number value follows steps.
-
-        Converts values to decimal and ensures number step is always positive,
-        ensures that data value follows steps and removes exes 0's after
-        decimal point.
+        Check weather or not the value are outside range.
 
         Args:
-            data_value: float value indicating current state of value.
+            value: The value to be checked.
 
         Returns:
-            data_value
-
+            True, if outside range.
+            False if inside range.
         """
-        try:
-            data_value = decimal.Decimal(str(data_value))
-            number_step = abs(decimal.Decimal(str(self.number_step)))
+        return not (self.number_min <= value <= self.number_max)
 
-            result = data_value % number_step
-            if result < 0:
-                result += number_step
-            data_value = data_value - result
+    def _invalid_step(self, value):
+        """
+        Check weather or not the value are invalid step size.
 
-            data_value = '{:f}'.format(data_value)
-            data_value = (data_value.rstrip('0').rstrip('.')
-                          if '.' in data_value else data_value)
+        Args:
+            value: The value to be checked.
 
-            return decimal.Decimal(data_value)
-        except decimal.InvalidOperation as e:
-            self.wapp_log.error("Invalid operation: {}".format(e))
+        Returns:
+            True, if invalid step size.
+            False if valid step size.
+        """
+        x = (value-self.number_min)/self.number_step
+        return not (abs(round(x) - x) <= 1e-9)
 
     def update(self, data_value, timestamp=get_now()):
         """
@@ -545,6 +546,7 @@ class Value:
             results of __call_callback
 
         """
+        # TODO(MBK): Check if the value are within range, and with right step.
         self.control_state.data = data_value
 
         return self.__call_callback('set')
