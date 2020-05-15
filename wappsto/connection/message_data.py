@@ -20,11 +20,15 @@ Attributes:
 """
 SEND_SUCCESS = 1
 SEND_FAILED = 2
+
 SEND_REPORT = 3
 SEND_RECONNECT = 4
 SEND_CONTROL = 5
 SEND_TRACE = 6
 SEND_DELETE = 7
+# both responses are needed for handling with packet_await_confirm list
+RESPONSE_ERROR = 8
+RESPONSE = 9
 
 GET = "GET"
 PUT = "PUT"

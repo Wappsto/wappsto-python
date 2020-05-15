@@ -143,7 +143,7 @@ class ReceiveData:
 
     def receive(self, decoded):
         """
-        Performs acction on received message.
+        Performs action on received message.
 
         Based on the type of message, directs the decoded data to the
         appropriate methods.
@@ -360,7 +360,12 @@ class ReceiveData:
         return_id = data.get('id')
         msg = "Error: {}".format(data.get('error').get('message'))
         self.wapp_log.error(msg)
-        self.client_socket.remove_id_from_confirm_list(return_id)
+
+        poke_msg = message_data.MessageData(
+            message_data.RESPONSE_ERROR,
+            return_id
+        )
+        self.sending_queue.put(poke_msg)
 
     def incoming_result(self, data):
         """
@@ -380,7 +385,12 @@ class ReceiveData:
             object = self.client_socket.data_manager.get_by_id(uuid)
             if object is not None and object.parent.control_state == object:
                 object.parent.handle_control(data_value=data)
-        self.client_socket.remove_id_from_confirm_list(return_id)
+
+        poke_msg = message_data.MessageData(
+            message_data.RESPONSE,
+            return_id
+        )
+        self.sending_queue.put(poke_msg)
 
     def success_reply(self, return_id):
         """

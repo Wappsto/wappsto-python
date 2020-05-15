@@ -37,6 +37,7 @@ class SendData:
         self.automatic_trace = automatic_trace
         self.add_trace_to_report_list = {}
         self.bulk_send_list = []
+        self.packet_awaiting_confirm = {}
 
     def create_trace(self, parent, trace_id=None):
         """
@@ -83,17 +84,20 @@ class SendData:
         """
         if data is not None:
             self.bulk_send_list.append(data)
-        # If send_thread, have not handled all msg. AND . If there is not nonanswared JSON send.
-        if ((self.client_socket.sending_queue.qsize() == 0 and len(self.client_socket.packet_awaiting_confirm) == 0)
-                or len(self.bulk_send_list) >= MAX_BULK_SIZE):
-            self.send_data(self.bulk_send_list)
-            self.bulk_send_list.clear()
+
+        # Logic Checks
+        empty_q = self.client_socket.sending_queue.qsize() == 0
+        bulk_maxed = len(self.bulk_send_list) >= MAX_BULK_SIZE
+
+        if (empty_q or bulk_maxed):
+            free_con_lines = 10 - len(self.packet_awaiting_confirm)
+            send_size = len(self.bulk_send_list) if len(self.bulk_send_list) <= free_con_lines else free_con_lines
+            self.send_data([self.bulk_send_list.pop(0) for _ in range(send_size)])
 
     def send_data(self, data):
         """
-        Send JSON data.
-
-        Sends the encoded JSON message through the socket.
+        Connection is OK and backend is ready to accept message.
+        MessageData object is encoded to JSON message and send through the socket.
 
         Args:
             data: JSON communication message data.
@@ -108,7 +112,11 @@ class SendData:
             if self.client_socket.connected:
                 for data_element in data:
                     if data_element.get("method", "") in ["PUT", "POST", "DELETE"]:
-                        self.client_socket.add_id_to_confirm_list(data_element)
+                        # check if already exist in the list
+                        rpc_id = data_element.get('id')
+                        if rpc_id not in self.packet_awaiting_confirm:
+                            self.packet_awaiting_confirm[rpc_id] = data_element
+
                 if len(data) > 0:
                     data = json.dumps(data)
                     data = data.encode('utf-8')
@@ -155,10 +163,41 @@ class SendData:
             elif package.msg_id == message_data.SEND_RECONNECT:
                 self.send_reconnect(package)
 
+            # response from backend - search for rpc_id in packet_await_confirm list.
+            elif package.msg_id == message_data.RESPONSE_ERROR:
+                self.response_error(package)
+            elif package.msg_id == message_data.RESPONSE:
+                self.response(package)
             else:
                 self.wapp_log.warning("Unhandled send")
 
             self.client_socket.sending_queue.task_done()
+
+    def response_error(self, package):
+        """
+
+        Such error response should be not prtesent in production, but who knows!?
+
+        """
+
+        self.wapp_log.debug("Error response from server with rpc_id '{}' has been received.".format(package.rpc_id))
+        # TODO handle error response.
+        self.create_bulk(None)
+
+    def response(self, package):
+        """
+
+        Response from backend has been received - remove object from awaiting list
+
+        """
+
+        self.wapp_log.debug("Response from server with rpc_id {} has been received.".format(package.rpc_id))
+        if package.rpc_id in self.packet_awaiting_confirm:
+            del self.packet_awaiting_confirm[package.rpc_id]
+        else:
+            self.wapp_log.warn("Can not find response id: '{}' in awaiting list".format(package.rpc_id))
+
+        self.create_bulk(None)
 
     def send_success(self, package):
         """
