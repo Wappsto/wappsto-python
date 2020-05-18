@@ -92,10 +92,13 @@ class SendData:
         empty_q = self.client_socket.sending_queue.qsize() == 0
         bulk_maxed = len(self.bulk_send_list) >= MAX_BULK_SIZE
 
+        self.wapp_log.debug("empty_q {}, bulk_maxed {}".format(empty_q, bulk_maxed))
+
         if (empty_q or bulk_maxed):
             free_con_lines = 10 - len(self.packet_awaiting_confirm)
             send_size = len(self.bulk_send_list) if len(self.bulk_send_list) <= free_con_lines else free_con_lines
             self.send_data([self.bulk_send_list.pop(0) for _ in range(send_size)])
+            self.wapp_log.debug(" sended!! ------------------------->")
 
     def send_data(self, data):
         """
@@ -371,5 +374,5 @@ class SendData:
             trace_id=package.trace_id
         )
         self.create_bulk(rpc_network)
-        for element in self.client_socket.packet_awaiting_confirm:
-            self.create_bulk(self.client_socket.packet_awaiting_confirm[element])
+        for element in self.packet_awaiting_confirm:
+            self.create_bulk(self.packet_awaiting_confirm[element])
