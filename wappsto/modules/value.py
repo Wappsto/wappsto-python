@@ -9,7 +9,7 @@ import logging
 import threading
 import warnings
 
-from ..connection import message_data
+from ..connection.message_data import MessageData, MsgType, MsgMethod
 from ..errors import wappsto_errors
 
 
@@ -404,14 +404,14 @@ class Value:
 
         state.timestamp = timestamp
 
-        msg = message_data.MessageData(
-            message_data.SEND_REPORT,
+        msg = MessageData(
+            msg_id=MsgType.SEND_REPORT,
             data=data_value,
             network_id=state.parent.parent.parent.uuid,
             device_id=state.parent.parent.uuid,
             value_id=state.parent.uuid,
             state_id=state.uuid,
-            verb=message_data.PUT
+            verb=MsgMethod.PUT
         )
         self.parent.parent.conn.send_data.send_report(msg)
 
@@ -518,8 +518,8 @@ class Value:
         from parent.
 
         """
-        message = message_data.MessageData(
-            message_data.SEND_DELETE,
+        message = MessageData(
+            msg_id=MsgType.SEND_DELETE,
             network_id=self.parent.parent.uuid,
             device_id=self.parent.uuid,
             value_id=self.uuid

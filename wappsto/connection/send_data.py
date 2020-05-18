@@ -11,7 +11,7 @@ import logging
 
 import urllib.request as request
 
-from . import message_data
+from .message_data import MessageData, MsgType
 from . import seluxit_rpc
 
 MAX_BULK_SIZE = 10
@@ -64,8 +64,8 @@ class SendData:
 
             trace_id = random_int
 
-            trace = message_data.MessageData(
-                message_data.SEND_TRACE,
+            trace = MessageData(
+                msg_id=MsgType.SEND_TRACE,
                 parent=parent,
                 trace_id=trace_id,
                 data=None,
@@ -148,35 +148,34 @@ class SendData:
 
         while True:
             package = self.client_socket.sending_queue.get()
-            if not hasattr(package, 'msg_id'):
+            if not isinstance(package, MessageData):
                 self.wapp_log.error("Get from queue {}".format(package))
                 raise ValueError('Package not a MessageData {}'.format(package))
 
-            if package.msg_id == message_data.SEND_SUCCESS:
+            if package.msg_id == MsgType.SEND_SUCCESS:
                 self.send_success(package)
 
-            elif package.msg_id == message_data.SEND_FAILED:
+            elif package.msg_id == MsgType.SEND_FAILED:
                 self.send_failed(package)
 
-            elif package.msg_id == message_data.SEND_REPORT:
+            elif package.msg_id == MsgType.SEND_REPORT:
                 self.send_report(package)
 
-            elif package.msg_id == message_data.SEND_CONTROL:
+            elif package.msg_id == MsgType.SEND_CONTROL:
                 self.send_control(package)
 
-            elif package.msg_id == message_data.SEND_DELETE:
+            elif package.msg_id == MsgType.SEND_DELETE:
                 self.send_delete(package)
 
-            elif package.msg_id == message_data.SEND_TRACE:
+            elif package.msg_id == MsgType.SEND_TRACE:
                 self.send_trace(package)
 
-            elif package.msg_id == message_data.SEND_RECONNECT:
+            elif package.msg_id == MsgType.SEND_RECONNECT:
                 self.send_reconnect(package)
-
             # response from backend - search for rpc_id in packet_await_confirm list.
-            elif package.msg_id == message_data.RESPONSE_ERROR:
+            elif package.msg_id == MsgType.RESPONSE_ERROR:
                 self.response_error(package)
-            elif package.msg_id == message_data.RESPONSE:
+            elif package.msg_id == MsgType.RESPONSE:
                 self.response(package)
             else:
                 self.wapp_log.warning("Unhandled send")

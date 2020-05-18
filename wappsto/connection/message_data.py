@@ -4,36 +4,42 @@ Message data module.
 Saves message data packages to be sent the server and stores
 global state flags.
 
-Attributes:
+"""
+
+from enum import Enum
+
+class MsgType(str, Enum):
+    """
     SEND_SUCCESS: Successful sending response global flag.
     SEND_FAILED: Failed sending response global flag.
     SEND_REPORT: Report message global flag.
     SEND_RECONNECT: Reconnection attempt global flag.
     SEND_CONTROL: Control message global flag.
     SEND_TRACE: Trace sending global flag.
+    """
+    SEND_SUCCESS = 'SEND_SUCCESS'
+    SEND_FAILED =  'SEND_FAILED'
 
+    SEND_REPORT =  'SEND_REPORT'
+    SEND_RECONNECT = 'SEND_RECONNECT'
+    SEND_CONTROL = 'SEND_CONTROL'
+    SEND_TRACE = 'SEND_TRACE'
+    SEND_DELETE = 'SEND_DELETE'
+    # both responses are needed for handling with packet_await_confirm list
+    RESPONSE_ERROR = 'RESPONSE_ERROR'
+    RESPONSE = 'RESPONSE'
+
+class MsgMethod(str, Enum):
+    """
     GET: Get message global flag
     PUT: Put message global flag
     POST: Post message global flag
     DELETE: Delete message global flag
-
-"""
-SEND_SUCCESS = 1
-SEND_FAILED = 2
-
-SEND_REPORT = 3
-SEND_RECONNECT = 4
-SEND_CONTROL = 5
-SEND_TRACE = 6
-SEND_DELETE = 7
-# both responses are needed for handling with packet_await_confirm list
-RESPONSE_ERROR = 8
-RESPONSE = 9
-
-GET = "GET"
-PUT = "PUT"
-POST = "POST"
-DELETE = "DELETE"
+    """
+    GET = "GET"
+    PUT = "PUT"
+    POST = "POST"
+    DELETE = "DELETE"
 
 
 class MessageData:
@@ -45,18 +51,18 @@ class MessageData:
 
     def __init__(
             self,
-            msg_id,
-            rpc_id=None,
-            data=None,
-            network_id=None,
-            device_id=None,
-            value_id=None,
-            state_id=None,
-            text=None,
-            parent=None,
-            trace_id=None,
-            control_value_id=None,
-            verb=POST
+            msg_id: MsgType,
+            rpc_id = None,
+            data = None,
+            network_id = None,
+            device_id = None,
+            value_id = None,
+            state_id = None,
+            text = None,
+            parent = None,
+            trace_id = None,
+            control_value_id = None,
+            verb: MsgMethod = MsgMethod.POST
     ):
         """
         Initialize the MessageData class.
@@ -79,6 +85,11 @@ class MessageData:
             verb: indicates what verb should be used. (default: {POST})
 
         """
+
+        # Type checking
+        if not isinstance(msg_id, MsgType):
+            raise TypeError(',msg_id must be an instance of MsgType Enum')
+
         self.msg_id = msg_id
         self.rpc_id = rpc_id
         self.data = data
@@ -90,6 +101,9 @@ class MessageData:
         self.parent = parent
         self.trace_id = trace_id
         self.control_value_id = control_value_id
+
+        if not isinstance(verb, MsgMethod):
+            raise TypeError(', verb must be an instance of MsgMethod Enum')
         self.verb = verb
 
     def __str__(self):

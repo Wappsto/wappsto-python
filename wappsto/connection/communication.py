@@ -12,7 +12,7 @@ import time
 import queue
 import ssl
 import logging
-from . import message_data
+from .message_data import MessageData, MsgType, MsgMethod
 from . import receive_data
 from . import send_data
 from .. import status
@@ -190,13 +190,13 @@ class ClientSocket:
             for value in device.values:
                 state = value.get_control_state()
                 if state is not None:
-                    msg = message_data.MessageData(
-                        message_data.SEND_CONTROL,
+                    msg = MessageData(
+                        msg_id=MsgType.SEND_CONTROL,
                         network_id=state.parent.parent.parent.uuid,
                         device_id=state.parent.parent.uuid,
                         value_id=state.parent.uuid,
                         state_id=state.uuid,
-                        verb=message_data.GET
+                        verb=MsgMethod.GET
                     )
                     self.sending_queue.put(msg)
 
@@ -243,7 +243,7 @@ class ClientSocket:
             if self.connected is True:
                 self.wapp_log.info("Reconnected with " + str(attempt) + " attempts")
                 if send_reconnect:
-                    reconnect = message_data.MessageData(message_data.SEND_RECONNECT)
+                    reconnect = MessageData(MsgType.SEND_RECONNECT)
                     self.sending_queue.put(reconnect)
             else:
                 msg = ("Unable to connect to the server[IP: {}, Port: {}]"

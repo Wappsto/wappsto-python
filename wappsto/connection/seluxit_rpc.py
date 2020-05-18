@@ -7,7 +7,7 @@ Contain RPC utils, for easy of use.
 import json
 import datetime
 import os
-from . import message_data
+from .message_data import MsgMethod
 from jsonrpcclient import requests, response
 
 JSONRPC = '2.0'
@@ -120,7 +120,7 @@ def get_rpc_network(network_id, network_name, verb,
     }
     url = '/network'
 
-    if verb == message_data.PUT:
+    if verb == MsgMethod.PUT:
         url = '/{}'.format(network_id)
 
     if trace_id:
@@ -164,7 +164,7 @@ def get_rpc_state(
         JSON formatted data of the state.
 
     """
-    if verb != message_data.GET:
+    if verb != MsgMethod.GET:
         device_state = {
             'meta': create_meta('state', state_id),
             'type': set_type,

@@ -4,7 +4,7 @@ The state module.
 Stores attributes for the state instance and handles device-related
 """
 import logging
-from ..connection import message_data
+from ..connection.message_data import MessageData, MsgType
 from ..errors import wappsto_errors
 
 
@@ -98,8 +98,8 @@ class State:
         from parent.
 
         """
-        message = message_data.MessageData(
-            message_data.SEND_DELETE,
+        message = MessageData(
+            msg_id=MsgType.SEND_DELETE,
             network_id=self.parent.parent.parent.uuid,
             device_id=self.parent.parent.uuid,
             value_id=self.parent.uuid,

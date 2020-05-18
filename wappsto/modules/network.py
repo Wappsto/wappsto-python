@@ -4,7 +4,7 @@ The network module.
 Stores attributes for the network instance.
 """
 import logging
-from ..connection import message_data
+from ..connection.message_data import MessageData, MsgType
 from ..errors import wappsto_errors
 
 
@@ -108,8 +108,8 @@ class Network:
         from parent.
 
         """
-        message = message_data.MessageData(
-            message_data.SEND_DELETE,
+        message = MessageData(
+            msg_id=MsgType.SEND_DELETE,
             network_id=self.uuid,
         )
         self.conn.sending_queue.put(message)

@@ -8,7 +8,7 @@ import sys
 import json
 import random
 import logging
-from . import message_data
+from .message_data import MessageData, MsgType
 from json.decoder import JSONDecodeError
 
 RECEIVE_SIZE = 1024
@@ -54,8 +54,8 @@ class ReceiveData:
 
         """
         if trace_id:
-            trace = message_data.MessageData(
-                message_data.SEND_TRACE,
+            trace = MessageData(
+                msg_id=MsgType.SEND_TRACE,
                 parent=parent,
                 trace_id=trace_id,
                 data=data,
@@ -361,9 +361,9 @@ class ReceiveData:
         msg = "Error: {}".format(data.get('error').get('message'))
         self.wapp_log.error(msg)
 
-        poke_msg = message_data.MessageData(
-            message_data.RESPONSE_ERROR,
-            return_id
+        poke_msg = MessageData(
+            msg_id=MsgType.RESPONSE_ERROR,
+            rpc_id=return_id
         )
         self.sending_queue.put(poke_msg)
 
@@ -386,9 +386,9 @@ class ReceiveData:
             if object is not None and object.parent.control_state == object:
                 object.parent.handle_control(data_value=data)
 
-        poke_msg = message_data.MessageData(
-            message_data.RESPONSE,
-            return_id
+        poke_msg = MessageData(
+            msg_id=MsgType.RESPONSE,
+            rpc_id=return_id
         )
         self.client_socket.sending_queue.put(poke_msg)
 
@@ -402,8 +402,8 @@ class ReceiveData:
             return_id: ID of the success message.
 
         """
-        success_reply = message_data.MessageData(
-            message_data.SEND_SUCCESS,
+        success_reply = MessageData(
+            msg_id=MsgType.SEND_SUCCESS,
             rpc_id=return_id
         )
         # UNSURE(MBK): Is this not something that should be send without delay?
@@ -420,8 +420,8 @@ class ReceiveData:
             return_id: ID of the error message.
 
         """
-        error_reply = message_data.MessageData(
-            message_data.SEND_FAILED,
+        error_reply = MessageData(
+            msg_id=MsgType.SEND_FAILED,
             rpc_id=return_id,
             text=error_str
         )
