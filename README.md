@@ -45,6 +45,20 @@ Wappsto can be insalled using the Pything Package Index (PyPI).
 $ pip install -U wappsto
 ```
 
+## Known issues
+
+In rear occasions (frequency ??) SSLError:
+
+    May 18 10:30:16 PQPI-aa20fa15 bash[302]: 2020-05-18 10:30:16,242 - DEBUG: Raw Send Json: b'[{"jsonrpc": "2.0", "method": "PUT", "params": {"url": "/network/aa20fa15-74e2-43bf-995e-fce756579c54/device/3efbc9bd-471a-47f1-8a21-cfae9eec1977/value/847a6a67-8eac-43d0-94a9-9b567837fbbb/state/6d9d63e5-1f3e-4c46-9bb1-42734ae7a292", "data": {"meta": {"id": "6d9d63e5-1f3e-4c46-9bb1-42734ae7a292", "type": "state", "version": "2.0"}, "type": "Report", "status": "Send", "data": "1", "timestamp": "2020-05-18T08:30:16.238466Z"}}, "id": 220}]'
+    May 18 10:30:16 PQPI-aa20fa15 bash[302]: 2020-05-18 10:30:16,244 - ERROR: Error sending: [SSL: BAD_LENGTH] bad length (_ssl.c:2337)
+    May 18 10:30:16 PQPI-aa20fa15 bash[302]: Traceback (most recent call last):
+    May 18 10:30:16 PQPI-aa20fa15 bash[302]:   File "/usr/lib/python3.7/site-packages/wappsto/connection/send_data.py", line 130, in send_data
+    May 18 10:30:16 PQPI-aa20fa15 bash[302]:     self.client_socket.my_socket.send(data)
+    May 18 10:30:16 PQPI-aa20fa15 bash[302]:   File "/usr/lib/python3.7/ssl.py", line 984, in send
+    May 18 10:30:16 PQPI-aa20fa15 bash[302]:     return self._sslobj.write(data)
+    May 18 10:30:16 PQPI-aa20fa15 bash[302]: ssl.SSLError: [SSL: BAD_LENGTH] bad length (_ssl.c:2337)
+
+
 ## License
 
 This project is licensed under the Apache License 2.0 - see the [LICENSE.md](LICENSE.md) file for details.
