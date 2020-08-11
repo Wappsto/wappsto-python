@@ -11,7 +11,6 @@ import urllib.request as request
 import logging
 from . import message_data
 import threading
-import copy
 
 MAX_BULK_SIZE = 10
 t_url = 'https://tracer.iot.seluxit.com/trace?id={}&parent={}&name={}&status={}'  # noqa: E501
