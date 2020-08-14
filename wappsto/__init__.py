@@ -25,12 +25,10 @@ class Object_instantiation:
     """
     For backward compability.
     """
-    
     def __init__(self):
         """
         Initialize Object_instantiation.
-        """
-        
+        """ 
         self.status = status
 
 
@@ -44,7 +42,6 @@ class Wappsto:
     Establishes a connection to the wappsto server, initializes the classes,
     starts a sending/receiving thread.
     """
-
     __version__ = "1.2.3"
 
     def __init__(self, json_file_name=None, load_from_state_file=False,
