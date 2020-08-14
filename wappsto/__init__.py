@@ -22,8 +22,15 @@ RETRY_LIMIT = 5
 
 
 class Object_instantiation:
-    # For backward compability.
+    """
+    For backward compability.
+    """
+    
     def __init__(self):
+        """
+        Initialize Object_instantiation.
+        """
+        
         self.status = status
 
 
