@@ -18,20 +18,11 @@ from . import status
 from .data_operation import data_manager
 
 
-class Object_instantiation:
-    """For backward compability. (Deprecated)"""
-    def __init__(self):
-        self.status = status
-
-
-object_instantiation = Object_instantiation()
-
-
 RETRY_LIMIT = 5
 
 
 class Object_instantiation:
-    """For backward compability."""
+    """For backward compability. (Deprecated)"""
     def __init__(self):
         """Initialize Object_instantiation."""
         self.status = status

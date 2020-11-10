@@ -4,7 +4,6 @@ The value module.
 Stores attributes for the value instance and handles value-related
 methods.
 """
-import datetime
 import logging
 import threading
 import warnings
@@ -58,10 +57,10 @@ class Value:
             number_min: Minimum number a value can have
             number_step: Number defining a step
             number_unit: Unit in which a value should be read
-            (if data_type is string then these parameters are relevant):
+            (if data_type is string then these parameters are irrelevant):
             string_encoding: A string encoding of a value
             string_max: Maximum length of string
-            (if data_type is blob then these parameters are relevant):
+            (if data_type is blob then these parameters are irrelevant):
             blob_encoding: A blob encoding of a value
             blob_max: Maximum length of a blob
 
@@ -254,9 +253,9 @@ class Value:
         """
         if self.report_state is not None:
             return self.report_state
-        else:
-            msg = "Value {} has no report state.".format(self.name)
-            self.wapp_log.warning(msg)
+
+        msg = "Value {} has no report state.".format(self.name)
+        self.wapp_log.warning(msg)
 
     def get_control_state(self):
         """
@@ -270,9 +269,9 @@ class Value:
         """
         if self.control_state is not None:
             return self.control_state
-        else:
-            msg = "Value {} has no control state.".format(self.name)
-            self.wapp_log.warning(msg)
+
+        msg = "Value {} has no control state.".format(self.name)
+        self.wapp_log.warning(msg)
 
     def set_callback(self, callback):
         """
@@ -313,29 +312,33 @@ class Value:
                         data_value
                     )
                     self.wapp_log.warning(msg)
-                return str(data_value)
+                return str(data_value)  # UNSURE(MBK): Why should it be string?
             except ValueError:
                 msg = "Invalid type of value. Must be a number: {}"
                 msg = msg.format(data_value)
                 self.wapp_log.error(msg)
 
         elif self.__is_string_type():
-            if (self.string_max is None
-                    or len(str(data_value)) <= int(self.string_max)):
+            if self.string_max is None:
                 return data_value
-            else:
-                msg = "Value {} not in correct range for {}"
-                msg = msg.format(data_value, self.name)
-                self.wapp_log.warning(msg)
+
+            if len(str(data_value)) <= int(self.string_max):
+                return data_value
+
+            msg = "Value {} not in correct range for {}"
+            msg = msg.format(data_value, self.name)
+            self.wapp_log.warning(msg)
 
         elif self.__is_blob_type():
-            if (self.blob_max is None
-                    or len(str(data_value)) <= int(self.blob_max)):
+            if self.blob_max is None:
                 return data_value
-            else:
-                msg = "Value {} not in correct range for {}"
-                msg = msg.format(data_value, self.name)
-                self.wapp_log.warning(msg)
+
+            if len(str(data_value)) <= int(self.blob_max):
+                return data_value
+
+            msg = "Value {} not in correct range for {}"
+            msg = msg.format(data_value, self.name)
+            self.wapp_log.warning(msg)
 
         else:
             msg = "Value type {} is invalid".format(self.date_type)
@@ -437,9 +440,9 @@ class Value:
                     # timer should be reset if period exists
                     self.__set_timer()
                 return True
-            else:
-                # delta not exeeded
-                return self.check_period(False)
+
+            # delta not exeeded
+            return self.check_period(False)
         return self.check_period(True)
 
     def check_period(self, return_value):
@@ -462,9 +465,8 @@ class Value:
                 # timer has elapsed
                 self.timer_elapsed = False
                 return True
-            else:
-                # timer is working
-                return False
+            # timer is working
+            return False
         return return_value
 
     def get_data(self):
@@ -481,8 +483,8 @@ class Value:
         state = self.get_report_state()
         if state is None:
             return None
-        else:
-            return state.data
+
+        return state.data
 
     def handle_refresh(self):
         """
