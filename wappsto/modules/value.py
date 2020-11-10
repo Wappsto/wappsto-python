@@ -274,18 +274,6 @@ class Value:
             msg = "Value {} has no control state.".format(self.name)
             self.wapp_log.warning(msg)
 
-    def get_now():
-        """
-        Retrieve current time.
-
-        Using datetime library returns current time.
-
-        Returns:
-            Current time in format [%Y-%m-%dT%H:%M:%S.%fZ].
-
-        """
-        return seluxit_rpc.time_stamp()
-
     def set_callback(self, callback):
         """
         Set the callback.
@@ -380,7 +368,7 @@ class Value:
         x = (value-self.number_min)/self.number_step
         return not (abs(round(x) - x) <= 1e-9)
 
-    def update(self, data_value, timestamp=get_now()):
+    def update(self, data_value, timestamp=None):
         """
         Update value.
 
@@ -395,6 +383,9 @@ class Value:
             True/False indicating the result of operation.
 
         """
+        if timestamp is None:
+            timestamp = seluxit_rpc.time_stamp()
+
         if not self.check_delta_and_period(data_value):
             return False
 
