@@ -5,11 +5,14 @@ Handles sending data to the server.
 
 """
 import json
-import ssl
-import random
-import urllib.request as request
 import logging
+import random
+import ssl
+
+import urllib.request as request
+
 from . import message_data
+from . import seluxit_rpc
 
 MAX_BULK_SIZE = 10
 t_url = 'https://tracer.iot.seluxit.com/trace?id={}&parent={}&name={}&status={}'  # noqa: E501
@@ -83,11 +86,15 @@ class SendData:
         """
         if data is not None:
             self.bulk_send_list.append(data)
-        # If send_thread, have not handled all msg. AND . If there is not nonanswared JSON send.
-        if ((self.client_socket.sending_queue.qsize() == 0 and len(self.client_socket.packet_awaiting_confirm) == 0)
-                or len(self.bulk_send_list) >= MAX_BULK_SIZE):
-            self.send_data(self.bulk_send_list)
-            self.bulk_send_list.clear()
+
+        # Logic Checks
+        empty_q = self.client_socket.sending_queue.qsize() == 0
+        bulk_maxed = len(self.bulk_send_list) >= MAX_BULK_SIZE
+
+        if (empty_q or bulk_maxed):
+            free_con_lines = 10 - len(self.client_socket.packet_awaiting_confirm)
+            send_size = len(self.bulk_send_list) if len(self.bulk_send_list) <= free_con_lines else free_con_lines
+            self.send_data([self.bulk_send_list.pop(0) for _ in range(send_size)])
 
     def send_data(self, data):
         """
@@ -155,6 +162,10 @@ class SendData:
             elif package.msg_id == message_data.SEND_RECONNECT:
                 self.send_reconnect(package)
 
+            elif package.msg_id == message_data.POKE:
+                self.wapp_log.debug("Was Poked.")
+                self.create_bulk(None)
+
             else:
                 self.wapp_log.warning("Unhandled send")
 
@@ -171,7 +182,7 @@ class SendData:
 
         """
         self.wapp_log.info("Sending success for ID: {}".format(package.rpc_id))
-        rpc_success_response = self.client_socket.rpc.get_rpc_success_response(
+        rpc_success_response = seluxit_rpc.get_rpc_success_response(
             package.rpc_id
         )
         self.create_bulk(rpc_success_response)
@@ -188,7 +199,7 @@ class SendData:
         """
         self.wapp_log.info("Sending failed for ID: {}".format(package.rpc_id))
         self.wapp_log.info("Sending failed reason: {}".format(package.text))
-        rpc_fail_response = self.client_socket.rpc.get_rpc_fail_response(
+        rpc_fail_response = seluxit_rpc.get_rpc_fail_response(
             package.rpc_id,
             package.text
         )
@@ -214,7 +225,7 @@ class SendData:
         package.trace_id = self.create_trace(
             package.network_id, package.trace_id)
 
-        local_data = self.client_socket.rpc.get_rpc_state(
+        local_data = seluxit_rpc.get_rpc_state(
             package.data,
             package.network_id,
             package.device_id,
@@ -243,7 +254,7 @@ class SendData:
         package.trace_id = self.create_trace(
             package.network_id, package.trace_id)
 
-        local_data = self.client_socket.rpc.get_rpc_state(
+        local_data = seluxit_rpc.get_rpc_state(
             package.data,
             package.network_id,
             package.device_id,
@@ -269,7 +280,7 @@ class SendData:
         package.trace_id = self.create_trace(
             package.network_id, package.trace_id)
 
-        local_data = self.client_socket.rpc.get_rpc_delete(
+        local_data = seluxit_rpc.get_rpc_delete(
             package.network_id,
             package.device_id,
             package.value_id,
@@ -301,7 +312,8 @@ class SendData:
 
         context = ssl._create_unverified_context()
         trace_req = request.urlopen(attempt, context=context)
-        msg = "Sending tracer https message {} response {}".format(attempt, trace_req.getcode())
+        msg = "Sending tracer https message {} response {}"
+        msg = msg.format(attempt, trace_req.getcode())
         self.wapp_log.debug(msg)
 
     def send_reconnect(self, package):
@@ -318,7 +330,7 @@ class SendData:
         package.trace_id = self.create_trace(
             package.network_id, package.trace_id)
 
-        rpc_network = self.client_socket.rpc.get_rpc_network(
+        rpc_network = seluxit_rpc.get_rpc_network(
             self.client_socket.data_manager.network.uuid,
             self.client_socket.data_manager.network.name,
             package.verb,

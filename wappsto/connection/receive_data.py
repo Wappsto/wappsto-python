@@ -11,7 +11,8 @@ import logging
 from . import message_data
 from json.decoder import JSONDecodeError
 
-RECEIVE_SIZE = 1024
+# RECEIVE_SIZE = 1024
+RECEIVE_SIZE = 2048
 MESSAGE_SIZE_BYTES = 1000000
 
 

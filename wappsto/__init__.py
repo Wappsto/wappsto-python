@@ -1,5 +1,5 @@
 """
-The __init__ method for the wappsto module.
+Rapid Prototyping Python module for wappsto.com
 
 Stores the Wappsto class functionality.
 """
@@ -11,12 +11,21 @@ import signal
 
 from threading import Event
 
-from .connection import seluxit_rpc
 from .connection import communication
 from .errors import wappsto_errors
 from .connection import event_storage
 from . import status
 from .data_operation import data_manager
+
+
+class Object_instantiation:
+    """For backward compability. (Deprecated)"""
+    def __init__(self):
+        self.status = status
+
+
+object_instantiation = Object_instantiation()
+
 
 RETRY_LIMIT = 5
 
@@ -38,13 +47,12 @@ class Wappsto:
     starts a sending/receiving thread.
     """
 
-    __version__ = "1.2.1"
+    __version__ = "1.2.3"
 
     def __init__(self, json_file_name=None, load_from_state_file=False,
                  log_offline=False, log_location="logs",
                  log_data_limit=10, limit_action=event_storage.REMOVE_OLD,
                  compression_period=event_storage.DAY_PERIOD):
-        # TODO(Dimitar): Come up with a better description.
         """
         Initialize wappsto class.
 
@@ -73,7 +81,6 @@ class Wappsto:
         self.path_to_calling_file = os.path.dirname(os.path.abspath(stack))
 
         self.connecting = True
-        self.rpc = seluxit_rpc.SeluxitRpc()
         self.event_storage = event_storage.OfflineEventStorage(
             log_offline,
             log_location,
@@ -217,19 +224,20 @@ class Wappsto:
 
         Args:
             address: Address to connect the service to.
-                (default: {"wappsto.com"})
-            port: Port to connect the address to. (default: {11006})
+                     (default: "wappsto.com")
+            port: Port to connect the address to.
+                  (default: 11006)
             automatic_trace: indicates if all messages automaticaly send trace.
             blocking: Wheather or not this call should be a block call.
                       (default: False)
                       If sat to True, it will listen for a SIGTERM or SIGINT,
                       and terminate if those was received.
+                      If this option are set, it is not needed to call stop.
 
         """
         self.status.set_status(status.STARTING)
 
         self.socket = communication.ClientSocket(
-            rpc=self.rpc,
             data_manager=self.data_manager,
             address=address,
             port=port,

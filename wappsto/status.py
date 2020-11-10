@@ -72,6 +72,86 @@ class Status:
         self.wapp_log.debug("Callback {} has been set.".format(callback))
         return True
 
+    def is_starting(self):
+        """
+        Checks if the status is starting.
+
+        Returns:
+            True, if state is "STARTING",
+            False, Otherwise.
+        """
+        return self.current_status == STARTING
+
+    def is_connecting(self):
+        """
+        Checks if the status is connecting.
+
+        Returns:
+            True, if state is "CONNECTING",
+            False, Otherwise.
+        """
+        return self.current_status == CONNECTING
+
+    def is_connected(self):
+        """
+        Checks if the status is connected.
+
+        Returns:
+            True, if state is "CONNECTED",
+            False, Otherwise.
+        """
+        return self.current_status == CONNECTED
+
+    def is_initializing(self):
+        """
+        Checks if the status is initializing.
+
+        Returns:
+            True, if state is "INITIALIZING",
+            False, Otherwise.
+        """
+        return self.current_status == INITIALIZING
+
+    def is_starting_threads(self):
+        """
+        Checks if the status is starting_threads.
+
+        Returns:
+            True, if state is "STARTING_THREADS",
+            False, Otherwise.
+        """
+        return self.current_status == STARTING_THREADS
+
+    def is_running(self):
+        """
+        Checks if the status is running.
+
+        Returns:
+            True, if state is "RUNNING",
+            False, Otherwise.
+        """
+        return self.current_status == RUNNING
+
+    def is_reconnecting(self):
+        """
+        Checks if the status is reconnecting.
+
+        Returns:
+            True, if state is "RECONNECTING",
+            False, Otherwise.
+        """
+        return self.current_status == RECONNECTING
+
+    def is_disconnecting(self):
+        """
+        Checks if the status is disconnecting.
+
+        Returns:
+            True, if state is "DISCONNECTING",
+            False, Otherwise.
+        """
+        return self.current_status == DISCONNECTING
+
     def get_status(self):
         """
         Retrieve current status.

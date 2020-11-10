@@ -10,6 +10,7 @@ import threading
 import warnings
 
 from ..connection import message_data
+from ..connection import seluxit_rpc
 from ..errors import wappsto_errors
 
 
@@ -118,7 +119,7 @@ class Value:
 
         """
         if attr in ["last_controlled"]:
-            warnings.warn("Property %s is deprecated" % attr)
+            warnings.warn("Property {} is deprecated".format(attr))
             return self.get_control_state().data
 
     def set_period(self, period):
@@ -270,7 +271,7 @@ class Value:
         if self.control_state is not None:
             return self.control_state
         else:
-            msg = "Value {}  has no control state.".format(self.name)
+            msg = "Value {} has no control state.".format(self.name)
             self.wapp_log.warning(msg)
 
     def get_now():
@@ -283,7 +284,7 @@ class Value:
             Current time in format [%Y-%m-%dT%H:%M:%S.%fZ].
 
         """
-        return datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+        return seluxit_rpc.time_stamp()
 
     def set_callback(self, callback):
         """
@@ -326,24 +327,28 @@ class Value:
                     self.wapp_log.warning(msg)
                 return str(data_value)
             except ValueError:
-                msg = "Invalid type of value. Must be a number: {}".format(str(data_value))
+                msg = "Invalid type of value. Must be a number: {}"
+                msg = msg.format(data_value)
                 self.wapp_log.error(msg)
+
         elif self.__is_string_type():
             if (self.string_max is None
                     or len(str(data_value)) <= int(self.string_max)):
                 return data_value
             else:
-                msg = ("Value {} not in correct range for {}"
-                       .format(data_value, self.name))
+                msg = "Value {} not in correct range for {}"
+                msg = msg.format(data_value, self.name)
                 self.wapp_log.warning(msg)
+
         elif self.__is_blob_type():
             if (self.blob_max is None
                     or len(str(data_value)) <= int(self.blob_max)):
                 return data_value
             else:
-                msg = ("Value {} not in correct range for {}"
-                       .format(data_value, self.name))
+                msg = "Value {} not in correct range for {}"
+                msg = msg.format(data_value, self.name)
                 self.wapp_log.warning(msg)
+
         else:
             msg = "Value type {} is invalid".format(self.date_type)
             self.wapp_log.error(msg)
@@ -413,7 +418,8 @@ class Value:
             state_id=state.uuid,
             verb=message_data.PUT
         )
-        self.parent.parent.conn.send_data.send_report(msg)
+        # self.parent.parent.conn.send_data.send_report(msg)
+        self.parent.parent.conn.sending_queue.put(msg)
 
     def check_delta_and_period(self, data_value):
         """
@@ -432,7 +438,8 @@ class Value:
         if (self.delta is not None and self.__is_number_type()):
             # delta should work
             data_value = float(data_value)
-            if (self.last_update_of_report is None or abs(data_value - self.last_update_of_report) >= self.delta):
+            if (self.last_update_of_report is None or
+               abs(data_value - self.last_update_of_report) >= self.delta):
                 # delta exeeded
                 self.last_update_of_report = data_value
                 if self.period is not None:
