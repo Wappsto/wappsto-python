@@ -8,11 +8,13 @@ import json
 import logging
 import random
 import ssl
+import threading
 
 import urllib.request as request
 
 from . import message_data
 from . import seluxit_rpc
+
 
 MAX_BULK_SIZE = 10
 t_url = 'https://tracer.iot.seluxit.com/trace?id={}&parent={}&name={}&status={}'  # noqa: E501
@@ -40,6 +42,7 @@ class SendData:
         self.automatic_trace = automatic_trace
         self.add_trace_to_report_list = {}
         self.bulk_send_list = []
+        self.lock = threading.Lock()
 
     def create_trace(self, parent, trace_id=None):
         """
@@ -84,6 +87,7 @@ class SendData:
             data: JSON communication message data.
 
         """
+        self.lock.acquire()
         if data is not None:
             self.bulk_send_list.append(data)
 
@@ -95,6 +99,7 @@ class SendData:
             free_con_lines = 10 - len(self.client_socket.packet_awaiting_confirm)
             send_size = len(self.bulk_send_list) if len(self.bulk_send_list) <= free_con_lines else free_con_lines
             self.send_data([self.bulk_send_list.pop(0) for _ in range(send_size)])
+        self.lock.release()
 
     def send_data(self, data):
         """
@@ -110,6 +115,7 @@ class SendData:
             for data_element in data:
                 self.client_socket.get_object_without_none_values(data_element)
                 if len(data_element) == 0:
+                    self.wapp_log.debug('Removing data element of length 0: {}'.format(data_element))
                     data.remove(data_element)
 
             if self.client_socket.connected:
