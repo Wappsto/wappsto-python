@@ -8,21 +8,29 @@ import inspect
 import logging
 import os
 import signal
+import uuid
 
 from threading import Event
+from typing import Callable
+from typing import Optional
+from typing import Union
+from typing import Type
 
-from .connection import seluxit_rpc
-from .connection import communication
-from .errors import wappsto_errors
-from .connection import event_storage
-from . import status
-from .data_operation import data_manager
+import wappsto.modules
+from wappsto import status
+from wappsto.connection import communication
+from wappsto.connection import event_storage
+from wappsto.connection import seluxit_rpc
+from wappsto.data_operation import data_manager
+from wappsto.errors import wappsto_errors
 
 RETRY_LIMIT = 5
 
 
 class Object_instantiation:
     # For backward compability.
+    # import warnings
+    # warnings.warn("Property %s is deprecated" % attr)
     def __init__(self):
         self.status = status
 
@@ -40,10 +48,16 @@ class Wappsto:
 
     __version__ = "1.2.1"
 
-    def __init__(self, json_file_name=None, load_from_state_file=False,
-                 log_offline=False, log_location="logs",
-                 log_data_limit=10, limit_action=event_storage.REMOVE_OLD,
-                 compression_period=event_storage.DAY_PERIOD):
+    def __init__(
+        self,
+        json_file_name=None,  # Not Really Optional.
+        load_from_state_file=False,
+        log_offline=False,
+        log_location="logs",
+        log_data_limit=10,
+        limit_action=event_storage.REMOVE_OLD,
+        compression_period=event_storage.DAY_PERIOD
+    ):
         # TODO(Dimitar): Come up with a better description.
         """
         Initialize wappsto class.
@@ -64,11 +78,14 @@ class Wappsto:
             limit_action: action to take when limit is reached (default: {REMOVE_OLD})
             compression_period: period for compressing data [day, hour] (default: {DAY_PERIOD})
 
+        Raises:
+            FileNotFoundError: If the json_file_name was not found.
         """
         self.wapp_log = logging.getLogger(__name__)
         self.wapp_log.addHandler(logging.NullHandler())
 
         # TODO(Dimitar): Comment on this later.
+        # UNSURE(MBK): Why do we need to do this? can't __file__ be used?
         stack = inspect.stack()[1][1]
         self.path_to_calling_file = os.path.dirname(os.path.abspath(stack))
 
@@ -96,7 +113,7 @@ class Wappsto:
             self.stop(False)
             raise fnfe
 
-    def get_status(self):
+    def get_status(self) -> Type[wappsto.status.Status]:
         """
         Wappsto status.
 
@@ -109,7 +126,7 @@ class Wappsto:
         """
         return self.status
 
-    def get_network(self):
+    def get_network(self) -> Type[wappsto.modules.network.Network]:
         """
         Wappsto network.
 
@@ -121,7 +138,7 @@ class Wappsto:
         """
         return self.data_manager.network
 
-    def get_devices(self):
+    def get_devices(self) -> list[Type[wappsto.modules.device.Device]]:
         """
         Wappsto devices.
 
@@ -133,22 +150,27 @@ class Wappsto:
         """
         return self.data_manager.network.devices
 
-    def get_by_id(self, id):
+    def get_by_id(self, uuid: uuid.UUID) -> Union[
+        Type[wappsto.modules.network.Network],
+        Type[wappsto.modules.device.Device],
+        Type[wappsto.modules.value.Value],
+        Type[wappsto.modules.state.State]
+    ]:
         """
-        Wappsto get by id.
+        Wappsto get by uuid.
 
-        Retrieves the instance of a class if its id matches the provided one
+        Retrieves the instance of a class if its uuid matches the provided one
 
         Args:
-            id: unique identifier used for searching
+            uuid: unique identifier used for searching
 
         Returns:
             A reference to the network/device/value/state object instance.
 
         """
-        return self.data_manager.get_by_id(id)
+        return self.data_manager.get_by_id(uuid)
 
-    def set_status_callback(self, callback):
+    def set_status_callback(self, callback: Callable[[str], None]) -> None:
         """
         Sets callback for status.
 
@@ -160,7 +182,10 @@ class Wappsto:
         """
         self.status.set_callback(callback)
 
-    def set_network_callback(self, callback):
+    def set_network_callback(
+        self,
+        callback: Callable[[Type[wappsto.modules.network.Network], str], None]
+    ) -> None:
         """
         Sets callback for network.
 
@@ -172,7 +197,10 @@ class Wappsto:
         """
         self.data_manager.network.set_callback(callback)
 
-    def set_value_callback(self, callback):
+    def set_value_callback(
+        self,
+        callback: Callable[[Type[wappsto.modules.device.Device], str], None]
+    ) -> None:
         """
         Sets callback for values.
 
@@ -186,7 +214,7 @@ class Wappsto:
             for value in device.values:
                 value.set_callback(callback)
 
-    def get_device(self, name):
+    def get_device(self, name: str) -> Type[wappsto.modules.device.Device]:
         """
         Device reference.
 
@@ -209,7 +237,13 @@ class Wappsto:
             self.stop(False)
             raise wappsto_errors.DeviceNotFoundException(msg)
 
-    def start(self, address="wappsto.com", port=11006, automatic_trace=False, blocking=False):
+    def start(
+        self,
+        address: Optional[str] = "wappsto.com",
+        port: Optional[int] = 11006,
+        automatic_trace: Optional[bool] = False,
+        blocking: Optional[bool] = False
+    ) -> None:
         """
         Start the server connection.
 
@@ -217,8 +251,8 @@ class Wappsto:
 
         Args:
             address: Address to connect the service to.
-                (default: {"wappsto.com"})
-            port: Port to connect the address to. (default: {11006})
+                     (default: "wappsto.com")
+            port: Port to connect the address to. (default: 11006)
             automatic_trace: indicates if all messages automaticaly send trace.
             blocking: Wheather or not this call should be a block call.
                       (default: False)
@@ -274,7 +308,7 @@ class Wappsto:
         if blocking:
             self.keep_running()
 
-    def keep_running(self):
+    def keep_running(self) -> None:
         """
         Keeps wappsto running.
 
@@ -292,7 +326,10 @@ class Wappsto:
         self.wapp_log.info("Terminate request received.")
         self.stop()
 
-    def stop(self, save=True):
+    def stop(
+        self,
+        save: Optional[bool] = True
+    ) -> None:
         """
         Stop the Wappsto service.
 

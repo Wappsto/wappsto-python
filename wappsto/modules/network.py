@@ -4,11 +4,25 @@ The network module.
 Stores attributes for the network instance.
 """
 import logging
-from ..connection import message_data
-from ..errors import wappsto_errors
+
+from typing import Callable
+from typing import Generic
+from typing import Literal
+from typing import Optional
+from typing import Type
+from typing import TypeVar
+from typing import Union
+
+import wappsto.modules
+from wappsto.status import EventType
+
+from wappsto.connection import message_data
+from wappsto.errors import wappsto_errors
+
+Network_cls = TypeVar('Network_cls', bound='Network')
 
 
-class Network:
+class Network(Generic[Network_cls]):
     """
     Network instance class.
 
@@ -38,11 +52,14 @@ class Network:
         self.data_manager = data_manager
         self.rpc = None
         self.conn = None
-        self.callback = None
+        self.callback: Optional[Callable[[Type[Network_cls], str], None]] = None
         msg = "Network {} Debug \n{}".format(name, str(self.__dict__))
         self.wapp_log.debug(msg)
 
-    def set_callback(self, callback):
+    def set_callback(
+        self,
+        callback: Callable[[Type[Network_cls], str], None]
+    ) -> Literal[True]:
         """
         Set the callback.
 
@@ -64,7 +81,7 @@ class Network:
         self.wapp_log.debug("Callback {} has been set.".format(callback))
         return True
 
-    def get_device(self, name):
+    def get_device(self, name: str) -> wappsto.modules.device.Device:
         """
         Device reference.
 
@@ -88,7 +105,7 @@ class Network:
             msg = "Device {} not found".format(name)
             raise wappsto_errors.DeviceNotFoundException(msg)
 
-    def handle_delete(self):
+    def handle_delete(self) -> None:
         """
         Handle delete.
 
@@ -98,9 +115,9 @@ class Network:
             result of __call_callback method.
 
         """
-        self.__call_callback('remove')
+        self.__call_callback(EventType.REMOVE)
 
-    def delete(self):
+    def delete(self) -> None:
         """
         Delete this object.
 
@@ -116,6 +133,7 @@ class Network:
         self.data_manager.network = None
         self.wapp_log.info("Network removed")
 
-    def __call_callback(self, event):
+    def __call_callback(self, event: EventType) -> None:
+        """Callingt the callback function, if needed."""
         if self.callback is not None:
             self.callback(self, event)

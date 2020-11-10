@@ -46,6 +46,7 @@ class DataManager:
 
         if load_from_state_file:
             json_file_name = self.get_latest_instance()
+            # TODO(MBK): Should check if it is the same Network-UUID Issue:127 ?
             if json_file_name is not None:
                 self.json_file_name = json_file_name
         self.read_file()

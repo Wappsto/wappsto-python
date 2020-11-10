@@ -13,6 +13,19 @@ from ..connection import message_data
 from ..errors import wappsto_errors
 
 
+def get_now():
+    """
+    Retrieve current time.
+
+    Using datetime library returns current time.
+
+    Returns:
+        Current time in format [%Y-%m-%dT%H:%M:%S.%fZ].
+
+    """
+    return datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+
+
 class Value:
     """
     Value instance.
@@ -273,18 +286,6 @@ class Value:
             msg = "Value {}  has no control state.".format(self.name)
             self.wapp_log.warning(msg)
 
-    def get_now():
-        """
-        Retrieve current time.
-
-        Using datetime library returns current time.
-
-        Returns:
-            Current time in format [%Y-%m-%dT%H:%M:%S.%fZ].
-
-        """
-        return datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
-
     def set_callback(self, callback):
         """
         Set the callback.
@@ -375,7 +376,7 @@ class Value:
         x = (value-self.number_min)/self.number_step
         return not (abs(round(x) - x) <= 1e-9)
 
-    def update(self, data_value, timestamp=get_now()):
+    def update(self, data_value, timestamp=None):
         """
         Update value.
 
@@ -390,6 +391,8 @@ class Value:
             True/False indicating the result of operation.
 
         """
+        if timestamp is None:
+            timestamp = get_now()
         if not self.check_delta_and_period(data_value):
             return False
 

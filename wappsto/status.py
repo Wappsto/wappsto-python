@@ -16,9 +16,21 @@ Attributes:
 
 """
 import logging
-from .errors import wappsto_errors
+
+from enum import Enum
+from typing import Generic
+from typing import Literal
+from typing import Type
+from typing import Optional
+from typing import TypeVar
+from typing import Callable
+
+from wappsto.errors import wappsto_errors
 
 
+# TODO(MBK): Deprecate it.
+# import warnings
+# warnings.warn("Property %s is deprecated" % attr)
 STARTING = "Starting"
 CONNECTING = "Connecting"
 CONNECTED = "Connected"
@@ -29,7 +41,30 @@ RECONNECTING = "Reconnecting"
 DISCONNECTING = "Disconnecting"
 
 
-class Status:
+class StatusType(str, Enum):
+    """All the Wappsto Status type states, it can be in."""
+    STARTING = "Starting"
+    CONNECTING = "Connecting"
+    CONNECTED = "Connected"
+    INITIALIZING = "Initializing"
+    STARTING_THREADS = "Starting Threads"
+    RUNNING = "Running"
+    RECONNECTING = "Reconnecting"
+    DISCONNECTING = "Disconnecting"
+
+
+# TODO(MBK): Make use of the Event Enum.
+class EventType(str, Enum):
+    """All the Event types for modules."""
+    REFRESH = 'refresh'
+    REMOVE = 'remove'
+    SET = 'set'
+
+
+Status_cls = TypeVar('Status_cls', bound='Status')
+
+
+class Status(Generic[Status_cls]):
     """
     Status tracking class.
 
@@ -47,10 +82,13 @@ class Status:
         """
         self.wapp_log = logging.getLogger(__name__)
         self.wapp_log.addHandler(logging.NullHandler())
-        self.callback = None
-        self.current_status = None
+        self.callback: Optional[Callable[[Status_cls], None]] = None
+        self.current_status: StatusType
 
-    def set_callback(self, callback):
+    def set_callback(
+        self,
+        callback: Callable[[Status_cls], None]
+    ) -> Literal[True]:
         """
         Set the callback.
 
@@ -72,7 +110,7 @@ class Status:
         self.wapp_log.debug("Callback {} has been set.".format(callback))
         return True
 
-    def get_status(self):
+    def get_status(self) -> StatusType:
         """
         Retrieve current status.
 
@@ -84,7 +122,7 @@ class Status:
         """
         return self.current_status
 
-    def set_status(self, status):
+    def set_status(self, status: StatusType) -> None:
         """
         Set the current status.
 
