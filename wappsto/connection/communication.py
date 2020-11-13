@@ -304,7 +304,8 @@ class ClientSocket:
 
         """
         # UNSURE(MBK): I feel that there is a more pythonic way of doing this.
-        for key, val in encoded_object.items():
+        # ERROR(MBK): Is this the source for slowing down the Porcupine, after a month.
+        for key, val in list(encoded_object.items()):
             if val is None:
                 del encoded_object[key]
             elif isinstance(val, dict):
