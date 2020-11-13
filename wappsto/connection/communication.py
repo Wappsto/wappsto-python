@@ -18,6 +18,8 @@ from . import send_data
 from .. import status
 from ..errors import wappsto_errors
 
+from .import seluxit_rpc
+
 
 class ClientSocket:
     """
@@ -27,7 +29,7 @@ class ClientSocket:
     information.
     """
 
-    def __init__(self, rpc, data_manager, address, port, path_to_calling_file,
+    def __init__(self, data_manager, address, port, path_to_calling_file,
                  wappsto_status, automatic_trace, event_storage):
         """
         Create a client socket.
@@ -38,7 +40,6 @@ class ClientSocket:
         address and port.
 
         Args:
-            rpc: Sending/receiving queue processing instance.
             data_manager: data_manager of DataManager.
             address: Server address.
             port: Server port.
@@ -76,14 +77,13 @@ class ClientSocket:
         self.sending_thread.setDaemon(True)
 
         self.connected = False
+        self.reconnect_inprogres = False
         self.sending_queue = queue.Queue(maxsize=0)
-        self.rpc = rpc
         self.event_storage = event_storage
         self.packet_awaiting_confirm = {}
         self.lock_await = threading.Lock()
         self.set_sockets()
 
-        self.data_manager.network.rpc = self.rpc
         self.data_manager.network.conn = self
 
     def set_sockets(self):
@@ -199,15 +199,16 @@ class ClientSocket:
                         state_id=state.uuid,
                         verb=message_data.GET
                     )
-                    self.send_data.send_control(msg)
+                    self.sending_queue.put(msg)
 
         trace_id = self.send_data.create_trace(self.data_manager.network.uuid)
-        message = self.rpc.get_rpc_whole_json(self.data_manager.get_encoded_network(), trace_id)
-        self.send_data.create_bulk(message)
+
+        message = seluxit_rpc.get_rpc_whole_json(self.data_manager.get_encoded_network(), trace_id)
+        self.send_data.create_bulk(message)  # TODO(MBK): This is not conformed.
 
         msg = "The whole network {} added to Sending queue {}.".format(
             self.data_manager.network.name,
-            self.rpc
+            self.sending_queue
         )
         self.wapp_log.debug(msg)
 
@@ -243,35 +244,54 @@ class ClientSocket:
         if _id in self.packet_awaiting_confirm:
             del self.packet_awaiting_confirm[_id]
         self.lock_await.release()
+        self.poke_send_thread()
+
+    def poke_send_thread(self):
+        """
+        Poke the Send thread, to let it know some thing have changed.
+        """
+        poke_msg = message_data.MessageData(
+            message_data.POKE
+        )
+        self.sending_queue.put(poke_msg)
+
+    def request_reconnect(self):
+        """Reconnect if it is required (No blocking)."""
+        self.wapp_log.info("Reconnect Requested.")
+        if not self.connected and not self.reconnect_inprogres:
+            threading.Thread(target=self.reconnect).start()
 
     def reconnect(self, retry_limit=None, send_reconnect=True):
         """
         Attempt to reconnect.
 
-        Reconnection attemps in the instance of a connection being interrupted.
+        Reconnection attempts in the instance of a connection being interrupted.
         """
-        self.wappsto_status.set_status(status.RECONNECTING)
-        self.connected = False
-        attempt = 0
-        while not self.connected and (retry_limit is None
-                                      or retry_limit > attempt):
-            attempt += 1
-            self.wapp_log.info("Trying to reconnect in 5 seconds")
-            time.sleep(5)
-            self.close()
-            self.set_sockets()
-            self.connect()
+        self.reconnect_inprogres = True
+        try:
+            self.wappsto_status.set_status(status.RECONNECTING)
+            self.connected = False
+            attempt = 0
+            while not self.connected and (retry_limit is None
+                                          or retry_limit > attempt):
+                attempt += 1
+                self.wapp_log.info("Trying to reconnect in 5 seconds")
+                time.sleep(5)
+                self.close()
+                self.set_sockets()
+                self.connect()
 
-        if self.connected is True:
-            self.wapp_log.info("Reconnected with " + str(attempt) + " attempts")
-            if send_reconnect:
-                reconnect = message_data.MessageData(message_data.SEND_RECONNECT)
-                self.sending_queue.put(reconnect)
-        else:
-            msg = ("Unable to connect to the server[IP: {}, Port: {}]"
-                   .format(self.address, self.port)
-                   )
-            raise wappsto_errors.ServerConnectionException(msg)
+            if self.connected is True:
+                self.wapp_log.info("Reconnected with " + str(attempt) + " attempts")
+                if send_reconnect:
+                    reconnect = message_data.MessageData(message_data.SEND_RECONNECT)
+                    self.sending_queue.put(reconnect)
+            else:
+                msg = "Unable to connect to the server[IP: {}, Port: {}]"
+                msg = msg.format(self.address, self.port)
+                raise wappsto_errors.ServerConnectionException(msg)
+        finally:
+            self.reconnect_inprogres = False
 
     def get_object_without_none_values(self, encoded_object):
         """
@@ -283,6 +303,8 @@ class ClientSocket:
             encoded_object: dictionary object.
 
         """
+        # UNSURE(MBK): I feel that there is a more pythonic way of doing this.
+        # ERROR(MBK): Is this the source for slowing down the Porcupine, after a month.
         for key, val in list(encoded_object.items()):
             if val is None:
                 del encoded_object[key]
@@ -309,7 +331,8 @@ class ClientSocket:
         for device in self.data_manager.network.devices:
             for value in device.values:
                 if value.timer.is_alive():
-                    msg = "Value: {} is no longer periodically sending updates.".format(value.uuid)
+                    msg = "Value: {} is no longer periodically sending updates."
+                    msg = msg.format(value.uuid)
                     self.wapp_log.debug(msg)
                 value.timer.cancel()
 
