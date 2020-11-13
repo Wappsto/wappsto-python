@@ -403,7 +403,7 @@ class Value:
             self.wapp_log.warning("Value is write only.")
             return False
 
-        data_value = self.__validate_value_data(data_value)
+        self.__validate_value_data(data_value)
         if data_value is None:
             return False
 
@@ -411,7 +411,7 @@ class Value:
 
         msg = message_data.MessageData(
             message_data.SEND_REPORT,
-            data=data_value,
+            data=str(data_value),
             network_id=state.parent.parent.parent.uuid,
             device_id=state.parent.parent.uuid,
             value_id=state.parent.uuid,

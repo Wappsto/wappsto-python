@@ -227,7 +227,7 @@ def get_rpc_delete(network_id,
     return data_json_rpc
 
 
-def get_rpc_whole_json(json_data, trace_id=None):
+def get_rpc_post(json_data, trace_id=None):
     """
     Creates request containing the whole json file.
 

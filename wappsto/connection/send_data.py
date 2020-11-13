@@ -117,9 +117,11 @@ class SendData:
                     if data_element.get("method", "") in ["PUT", "POST", "DELETE"]:
                         self.client_socket.add_id_to_confirm_list(data_element)
                 if len(data) > 0:
+                    if len(data) == 1:
+                        data = data[0]
                     data = json.dumps(data)
                     data = data.encode('utf-8')
-                    self.wapp_log.debug('Raw Send Json: {}'.format(data))
+                    self.wapp_log.error('Raw Send Json: {}'.format(data))
                     self.client_socket.my_socket.send(data)
             else:
                 self.wapp_log.warning("Data added to storage!")
@@ -137,7 +139,7 @@ class SendData:
         Retrieves packages from the sending queue to
         send data.
         """
-        self.wapp_log.debug("SendingThread Started!")
+        self.wapp_log.error("SendingThread Started!")
 
         while True:
             package = self.client_socket.sending_queue.get()
@@ -152,6 +154,9 @@ class SendData:
 
             elif package.msg_id == message_data.SEND_CONTROL:
                 self.send_control(package)
+
+            elif package.msg_id == message_data.SEND_POST:
+                self.send_post(package)
 
             elif package.msg_id == message_data.SEND_DELETE:
                 self.send_delete(package)
@@ -264,6 +269,27 @@ class SendData:
             package.verb,
             trace_id=package.trace_id
         )
+        self.create_bulk(local_data)
+
+    def send_post(self, package):
+        """
+        Send data post request.
+
+        Sends the data to be posted.
+
+        Args:
+            package: Sending queue item.
+
+        """
+        self.wapp_log.info("Sending post message")
+        package.trace_id = self.create_trace(
+            package.network_id, package.trace_id)
+
+        local_data = seluxit_rpc.get_rpc_post(
+            package.data,
+            package.trace_id
+        )
+
         self.create_bulk(local_data)
 
     def send_delete(self, package):

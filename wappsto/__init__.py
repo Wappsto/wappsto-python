@@ -216,7 +216,7 @@ class Wappsto:
             self.stop(False)
             raise wappsto_errors.DeviceNotFoundException(msg)
 
-    def start(self, address="wappsto.com", port=11006, automatic_trace=False, blocking=False):
+    def start(self, address="collector.wappsto.com", port=443, automatic_trace=False, blocking=False):
         """
         Start the server connection.
 
@@ -224,9 +224,9 @@ class Wappsto:
 
         Args:
             address: Address to connect the service to.
-                     (default: "wappsto.com")
+                     (default: "collector.wappsto.com")
             port: Port to connect the address to.
-                  (default: 11006)
+                  (default: 443)
             automatic_trace: indicates if all messages automaticaly send trace.
             blocking: Wheather or not this call should be a block call.
                       (default: False)

@@ -202,9 +202,13 @@ class ClientSocket:
                     self.sending_queue.put(msg)
 
         trace_id = self.send_data.create_trace(self.data_manager.network.uuid)
-
-        message = seluxit_rpc.get_rpc_whole_json(self.data_manager.get_encoded_network(), trace_id)
-        self.send_data.create_bulk(message)  # TODO(MBK): This is not conformed.
+        self.wapp_log.error("Send POST message")
+        msg = message_data.MessageData(
+            message_data.SEND_POST,
+            data=self.data_manager.get_encoded_network(),
+            verb=message_data.POST
+        )
+        self.sending_queue.put(msg)
 
         msg = "The whole network {} added to Sending queue {}.".format(
             self.data_manager.network.name,
