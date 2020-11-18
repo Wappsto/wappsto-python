@@ -312,7 +312,7 @@ class Value:
                         data_value
                     )
                     self.wapp_log.warning(msg)
-                return str(data_value)  # UNSURE(MBK): Why should it be string?
+                return str(data_value)
             except ValueError:
                 msg = "Invalid type of value. Must be a number: {}"
                 msg = msg.format(data_value)
@@ -355,7 +355,7 @@ class Value:
             True, if outside range.
             False if inside range.
         """
-        return not (self.number_min <= value <= self.number_max)
+        return not (self.number_min <= float(value) <= self.number_max)
 
     def _invalid_step(self, value):
         """
@@ -368,7 +368,7 @@ class Value:
             True, if invalid step size.
             False if valid step size.
         """
-        x = (value-self.number_min)/self.number_step
+        x = (float(value)-self.number_min)/self.number_step
         return not (abs(round(x) - x) <= 1e-9)
 
     def update(self, data_value, timestamp=None):
