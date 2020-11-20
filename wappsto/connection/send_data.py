@@ -347,9 +347,9 @@ class SendData:
             package.verb,
             trace_id=package.trace_id
         )
-        self.send_data([rpc_network])  # NOTE: Need to be send even if bulk is full.
+        # NOTE: Need to be send even if bulk is full.
+        self.send_data([rpc_network])
         self.wapp_log.info("Reconnect data send")
         self.wapp_log.info("Sending awaiting data")
-        for element in self.client_socket.packet_awaiting_confirm:
-            self.create_bulk(self.client_socket.packet_awaiting_confirm[element])
+        self.send_data(list(self.client_socket.packet_awaiting_confirm.values()))
         self.wapp_log.info("Awaiting data send")
