@@ -91,6 +91,8 @@ class ReceiveData:
             if self.client_socket.connected:
                 data = self.client_socket.my_socket.recv(RECEIVE_SIZE)
                 if data == b'':
+                    self.wapp_log.info("Received empty data from connection.")
+                    self.client_socket.connected = False
                     self.client_socket.reconnect()
                     return None
                 try:
@@ -134,12 +136,14 @@ class ReceiveData:
 
         except ConnectionResetError as e:  # pragma: no cover
             msg = "Received Reset: {}".format(e)
-            self.wapp_log.error(msg, exc_info=True)
+            self.wapp_log.error(msg, exc_info=False)
+            self.client_socket.connected = False
             self.client_socket.reconnect()
 
         except OSError as oe:  # pragma: no cover
             msg = "Received OS Error: {}".format(oe)
-            self.wapp_log.error(msg, exc_info=True)
+            self.wapp_log.error(msg, exc_info=False)
+            self.client_socket.connected = False
             self.client_socket.reconnect()
 
     def receive(self, decoded):
