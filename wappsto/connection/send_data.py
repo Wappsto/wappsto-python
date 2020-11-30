@@ -98,6 +98,7 @@ class SendData:
         if (empty_q or bulk_maxed):
             free_con_lines = 10 - len(self.client_socket.packet_awaiting_confirm)
             send_size = len(self.bulk_send_list) if len(self.bulk_send_list) <= free_con_lines else free_con_lines
+            self.wapp_log.debug("Starting to sending bulk data.")
             self.send_data([self.bulk_send_list.pop(0) for _ in range(send_size)])
         self.lock.release()
 
@@ -116,7 +117,7 @@ class SendData:
                 self.client_socket.get_object_without_none_values(data_element)
                 if len(data_element) == 0:
                     self.wapp_log.debug('Removing data element of length 0: {}'.format(data_element))
-                    data.remove(data_element)
+                    data.remove(data_element)  # WARNING(MBK): Do not remove from list when looping over it.
 
             if self.client_socket.connected:
                 for data_element in data:
@@ -125,12 +126,16 @@ class SendData:
                 if len(data) > 0:
                     data = json.dumps(data)
                     data = data.encode('utf-8')
-                    self.wapp_log.debug('Raw Send Json: {}'.format(data))
-                    self.client_socket.my_socket.send(data)
+                    self.client_socket.my_socket.sendall(data)
+                    self.wapp_log.debug('Raw Json Sended: {}'.format(data))
             else:
                 self.wapp_log.warning("Data added to storage!")
                 self.client_socket.event_storage.add_message(data)
         except OSError as e:
+            # NOTE: Can never happen.
+            self.wapp_log.warning("Data added to storage!")
+            self.client_socket.event_storage.add_message(data)
+
             self.client_socket.connected = False
             msg = "Error sending: {}".format(e)
             self.wapp_log.error(msg, exc_info=True)
@@ -243,7 +248,7 @@ class SendData:
         )
         self.create_bulk(local_data)
         data_decoded = local_data.get('params').get('data').get('data')
-        self.wapp_log.info('Sending report value: {}'.format(data_decoded))
+        self.wapp_log.info('Report value send: {}'.format(data_decoded))
 
     def send_control(self, package):
         """
@@ -342,6 +347,9 @@ class SendData:
             package.verb,
             trace_id=package.trace_id
         )
-        self.create_bulk(rpc_network)
-        for element in self.client_socket.packet_awaiting_confirm:
-            self.create_bulk(self.client_socket.packet_awaiting_confirm[element])
+        # NOTE: Need to be send even if bulk is full.
+        self.send_data([rpc_network])
+        self.wapp_log.info("Reconnect data send")
+        self.wapp_log.info("Sending awaiting data")
+        self.send_data(list(self.client_socket.packet_awaiting_confirm.values()))
+        self.wapp_log.info("Awaiting data send")
