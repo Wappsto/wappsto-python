@@ -16,7 +16,7 @@ from . import message_data
 
 JSONRPC = '2.0'
 
-session_id = random.choices(string.ascii_letters + string.digits, k=10)
+session_id = "".join(random.choices(string.ascii_letters + string.digits, k=10))
 session_count = 0
 
 
