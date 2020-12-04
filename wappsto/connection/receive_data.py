@@ -216,7 +216,7 @@ class ReceiveData:
             if trace_id:
                 self.wapp_log.debug("Found trace id: " + trace_id)
         except AttributeError:
-            trace_id = None
+            trace_id = None  # NOTE(MBK): This should never happen.
 
         obj = self.client_socket.data_manager.get_by_id(uuid)
         if obj is None:
@@ -242,6 +242,18 @@ class ReceiveData:
             elif meta_type == "state":
                 local_data = param_data.get('data')
                 if obj.state_type == "Control":
+                    if obj.parent._outside_range(value=local_data):
+                        self.error_reply(
+                            error_str="Outside Range.",
+                            return_id=return_id
+                        )
+                        return
+                    if obj.parent._invalid_step(value=local_data):
+                        self.error_reply(
+                            error_str="Invalid Step",
+                            return_id=return_id
+                        )
+                        return
                     self.success_reply(return_id)
                     obj.parent.handle_control(data_value=local_data)
                     self.sending_queue_add_trace(
