@@ -146,8 +146,19 @@ class Value:
             self.wapp_log.warning("Period value must be greater then 0.")
             return
 
+        self.period = period
+
+    def enable_period(self):
+        """
+        Enable the Period handling if period was set.
+
+        Enable the Period starts the timer that ensures that the
+        value are getting updated with the right Periods.
+        """
+        if not self.period:
+            self.wapp_log.debug("Period was not set.")
+            return
         if self.get_report_state() is not None:
-            self.period = period
             self.__set_timer()
             self.wapp_log.debug("Period successfully set.")
         else:
@@ -195,8 +206,20 @@ class Value:
             self.wapp_log.warning("Delta value must be greater then 0.")
             return
 
-        if self.__is_number_type() and self.get_report_state():
+        if self.__is_number_type():
             self.delta = delta
+
+    def enable_delta(self):
+        """
+        Enable the Delta handling, if delta is set.
+
+        Enable the Delta, ATM do not do anything, other the inform
+        if delta will be able to work.
+        """
+        if not self.delta:
+            self.wapp_log.debug("Delta was not set.")
+            return
+        if self.get_report_state():
             self.wapp_log.debug("Delta successfully set.")
         else:
             self.wapp_log.warning("Cannot set the delta for this value.")
@@ -224,7 +247,9 @@ class Value:
 
         """
         self.report_state = state
-        msg = "Report state {} has been added.".format(state)
+        msg = "Report state {} has been added.".format(state.parent.name)
+        self.enable_period()
+        self.enable_delta()
         self.wapp_log.debug(msg)
 
     def add_control_state(self, state):
@@ -238,7 +263,7 @@ class Value:
 
         """
         self.control_state = state
-        msg = "Control state {} has been added".format(state)
+        msg = "Control state {} has been added".format(state.parent.name)
         self.wapp_log.debug(msg)
 
     def get_report_state(self):
@@ -429,7 +454,7 @@ class Value:
             True/False indicating the result of operation.
 
         """
-        if (self.delta is not None and self.__is_number_type()):
+        if self.delta is not None:
             # delta should work
             data_value = float(data_value)
             if (self.last_update_of_report is None or
