@@ -44,7 +44,7 @@ class WappstoDecoder:
         """
         network = network_module.Network(
             uuid=json_data.get('meta').get('id'),
-            version=json_data.get('meta').get('version'),
+            version=json_data.get('meta').get('version'), # TODO (aeb): Remove? Does not make much sense
             name=json_data.get('name'),
             devices=[],
             data_manager=data_manager
