@@ -472,9 +472,9 @@ class Value:
             try:
                 if isNaN(data_value):
                     raise ValueError("Value is NAN!")
-                data_value = float(data_value)  # NAN
+                data_value = float(data_value)
             except ValueError:
-                if not isNaN(self.last_update_of_report):  # Er IKke NAN
+                if not isNaN(self.last_update_of_report):
                     return True
                 return self.check_period(False)
 
