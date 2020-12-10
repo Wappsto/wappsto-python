@@ -78,7 +78,7 @@ class WappstoDecoder:
                 product=device_iterator.get('product'),
                 protocol=device_iterator.get('protocol'),
                 serial_number=device_iterator.get('serial'),
-                version=device_iterator.get('meta').get('version'),
+                version=device_iterator.get('version', ""),
                 manufacturer=device_iterator.get('manufacturer'),
                 communication=device_iterator.get('communication'),
                 description=device_iterator.get('description')
