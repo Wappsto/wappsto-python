@@ -13,6 +13,10 @@ from ..connection import seluxit_rpc
 from ..errors import wappsto_errors
 
 
+def isNaN(num):
+    return num != num
+
+
 class Value:
     """
     Value instance.
@@ -142,12 +146,23 @@ class Value:
             self.wapp_log.error("Period value must be a number.")
             return
 
-        if period <= 0:
-            self.wapp_log.warning("Period value must be greater then 0.")
+        if period < 0:
+            self.wapp_log.warning("Period value must not be lower then 0.")
             return
 
+        self.period = period
+
+    def enable_period(self):
+        """
+        Enable the Period handling if period was set.
+
+        Enable the Period starts the timer that ensures that the
+        value are getting updated with the right Periods.
+        """
+        if self.period is None:
+            self.wapp_log.debug("Period was not set.")
+            return
         if self.get_report_state() is not None:
-            self.period = period
             self.__set_timer()
             self.wapp_log.debug("Period successfully set.")
         else:
@@ -162,6 +177,7 @@ class Value:
         """
         self.timer.cancel()
         if self.period is not None:
+            self.timer_elapsed = False
             self.timer = threading.Timer(self.period, self.__timer_done)
             self.timer.start()
 
@@ -191,12 +207,24 @@ class Value:
             self.wapp_log.error("Delta value must be a number")
             return
 
-        if delta <= 0:
-            self.wapp_log.warning("Delta value must be greater then 0.")
+        if delta < 0:
+            self.wapp_log.warning("Delta value must not be lower then 0.")
             return
 
-        if self.__is_number_type() and self.get_report_state():
+        if self.__is_number_type():
             self.delta = delta
+
+    def enable_delta(self):
+        """
+        Enable the Delta handling, if delta is set.
+
+        Enable the Delta, ATM do not do anything, other the inform
+        if delta will be able to work.
+        """
+        if self.delta is None:
+            self.wapp_log.debug("Delta was not set.")
+            return
+        if self.get_report_state():
             self.wapp_log.debug("Delta successfully set.")
         else:
             self.wapp_log.warning("Cannot set the delta for this value.")
@@ -224,7 +252,9 @@ class Value:
 
         """
         self.report_state = state
-        msg = "Report state {} has been added.".format(state)
+        msg = "Report state {} has been added.".format(state.parent.name)
+        self.enable_period()
+        self.enable_delta()
         self.wapp_log.debug(msg)
 
     def add_control_state(self, state):
@@ -238,7 +268,7 @@ class Value:
 
         """
         self.control_state = state
-        msg = "Control state {} has been added".format(state)
+        msg = "Control state {} has been added".format(state.parent.name)
         self.wapp_log.debug(msg)
 
     def get_report_state(self):
@@ -317,6 +347,7 @@ class Value:
                 msg = "Invalid type of value. Must be a number: {}"
                 msg = msg.format(data_value)
                 self.wapp_log.error(msg)
+                return "NA"
 
         elif self.__is_string_type():
             if self.string_max is None:
@@ -386,11 +417,10 @@ class Value:
             True/False indicating the result of operation.
 
         """
+        self._update_delta_period_values(data_value)
+
         if timestamp is None:
             timestamp = seluxit_rpc.time_stamp()
-
-        if not self.check_delta_and_period(data_value):
-            return False
 
         state = self.get_report_state()
         if state is None:
@@ -415,6 +445,15 @@ class Value:
         # self.parent.parent.conn.send_data.send_report(msg)
         self.parent.parent.conn.sending_queue.put(msg)
 
+    def _update_delta_period_values(self, data_value):
+        if self.period is not None:
+            self.__set_timer()
+        if self.delta is not None:
+            try:
+                self.last_update_of_report = float(data_value)
+            except ValueError:
+                self.last_update_of_report = float("NAN")
+
     def check_delta_and_period(self, data_value):
         """
         Check if delta and period allows data to be sent.
@@ -429,21 +468,21 @@ class Value:
             True/False indicating the result of operation.
 
         """
-        if (self.delta is not None and self.__is_number_type()):
-            # delta should work
-            data_value = float(data_value)
+        if self.delta is not None:
+            try:
+                if isNaN(data_value):
+                    raise ValueError("Value is NAN!")
+                data_value = float(data_value)
+            except ValueError:
+                if not isNaN(self.last_update_of_report):
+                    return True
+                return self.check_period(False)
+
             if (self.last_update_of_report is None or
-               abs(data_value - self.last_update_of_report) >= self.delta):
-                # delta exeeded
-                self.last_update_of_report = data_value
-                if self.period is not None:
-                    # timer should be reset if period exists
-                    self.__set_timer()
+               not (abs(data_value - self.last_update_of_report) < self.delta)):
                 return True
 
-            # delta not exeeded
-            return self.check_period(False)
-        return self.check_period(True)
+        return self.check_period(False)
 
     def check_period(self, return_value):
         """
@@ -460,13 +499,7 @@ class Value:
 
         """
         if self.period is not None:
-            # period should work
-            if self.timer_elapsed:
-                # timer has elapsed
-                self.timer_elapsed = False
-                return True
-            # timer is working
-            return False
+            return self.timer_elapsed
         return return_value
 
     def get_data(self):

@@ -4,13 +4,26 @@ The RPC(Remote Procedure Call) module.
 Contain RPC utils, for easy of use.
 
 """
-import json
 import datetime
+import json
 import os
-from . import message_data
+import random
+import string
+
 from jsonrpcclient import requests, response
 
+from . import message_data
+
 JSONRPC = '2.0'
+
+session_id = "".join(random.choices(string.ascii_letters + string.digits, k=10))
+session_count = 0
+
+
+def id_count(verb):
+    global session_count
+    session_count += 1
+    return f"{session_id}_{verb}_{session_count}"
 
 
 def create_meta(network, network_id):
@@ -126,9 +139,12 @@ def get_rpc_network(network_id, network_name, verb,
     if trace_id:
         url = "{}?trace={}".format(url, trace_id)
 
-    data_json_rpc = requests.Request(verb,
-                                     url=url,
-                                     data=data_inside)
+    data_json_rpc = requests.Request(
+        verb,
+        url=url,
+        data=data_inside,
+        request_id=id_count(verb)
+    )
 
     return data_json_rpc
 
@@ -181,9 +197,12 @@ def get_rpc_state(
     if trace_id:
         url = '{}?trace={}'.format(url, trace_id)
 
-    data_json_rpc = requests.Request(verb,
-                                     url=url,
-                                     data=device_state)
+    data_json_rpc = requests.Request(
+        verb,
+        url=url,
+        data=device_state,
+        request_id=id_count(verb)
+    )
     return data_json_rpc
 
 
@@ -222,7 +241,11 @@ def get_rpc_delete(network_id,
     if trace_id:
         url = '{}?trace={}'.format(url, trace_id)
 
-    data_json_rpc = requests.Request('DELETE', url=url)
+    data_json_rpc = requests.Request(
+        'DELETE',
+        url=url,
+        request_id=id_count('DELETE')
+    )
 
     return data_json_rpc
 
@@ -247,5 +270,10 @@ def get_rpc_whole_json(json_data, trace_id=None):
     if trace_id:
         url = "{}?trace={}".format(url, trace_id)
 
-    data_json_rpc = requests.Request('POST', url=url, data=json_data)
+    data_json_rpc = requests.Request(
+        'POST',
+        url=url,
+        data=json_data,
+        request_id=id_count('POST')
+    )
     return data_json_rpc

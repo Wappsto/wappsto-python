@@ -170,6 +170,7 @@ class ClientSocket:
             self.connected = True
             self.my_socket.settimeout(None)
             self.wappsto_status.set_status(status.CONNECTED)
+            self.wapp_log.info(f"Connected on interface: {self.my_socket.getsockname()[0]}")
             self.send_logged_data()
             return True
 
