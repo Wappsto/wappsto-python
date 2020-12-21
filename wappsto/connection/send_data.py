@@ -127,7 +127,7 @@ class SendData:
                     data = json.dumps(data)
                     data = data.encode('utf-8')
                     self.client_socket.my_socket.sendall(data)
-                    self.wapp_log.debug('Raw Json Sended: {}'.format(data))
+                    self.wapp_log.debug('Raw Json Sent: {}'.format(data))
             else:
                 self.wapp_log.warning("Data added to storage!")
                 self.client_socket.event_storage.add_message(data)
