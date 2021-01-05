@@ -436,9 +436,7 @@ class Value:
             self.wapp_log.warning("Value is write only.")
             return False
 
-        data_value = self._validate_value_data(data_value)
-        if data_value is None:
-            return False
+        self._validate_value_data(data_value)
 
         state.timestamp = timestamp
 
