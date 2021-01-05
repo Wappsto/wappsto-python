@@ -327,7 +327,7 @@ class Value:
 
     def _validate_value_data(self, data_value, err_msg=None):
         # TODO(MBK): Need refactoring, so it also nicely can be used for control validation, in 'receive_Data/incoming_put'
-        if not err_msg:
+        if err_msg is None:
             err_msg = []
         if self.__is_number_type():
             try:
