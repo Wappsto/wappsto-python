@@ -242,15 +242,13 @@ class ReceiveData:
             elif meta_type == "state":
                 local_data = param_data.get('data')
                 if obj.state_type == "Control":
-                    if obj.parent._outside_range(value=local_data):
+                    err_msg = []
+                    valid = obj.parent._validate_value_data(data_value=local_data, err_msg=err_msg)
+                    self.wapp_log.debug(f"validation was: '{valid}'")
+                    self.wapp_log.debug(err_msg)
+                    if err_msg:
                         self.error_reply(
-                            error_str="Outside Range.",
-                            return_id=return_id
-                        )
-                        return
-                    if obj.parent._invalid_step(value=local_data):
-                        self.error_reply(
-                            error_str="Invalid Step",
+                            error_str=err_msg[0],
                             return_id=return_id
                         )
                         return
