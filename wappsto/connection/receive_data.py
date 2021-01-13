@@ -90,7 +90,6 @@ class ReceiveData:
         while True:
             if self.client_socket.connected:
                 data = self.client_socket.my_socket.recv(RECEIVE_SIZE)
-                self.wapp_log.debug('Raw received Json: {}'.format(data))
                 if data == b'':
                     self.wapp_log.info("Received empty data from connection.")
                     self.client_socket.connected = False
@@ -116,6 +115,7 @@ class ReceiveData:
                     break
             else:
                 break
+        self.wapp_log.debug('Raw received Json: {}'.format(total_decoded))
         return decoded
 
     def receive_message(self):
