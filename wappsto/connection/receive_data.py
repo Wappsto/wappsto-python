@@ -115,7 +115,7 @@ class ReceiveData:
                     break
             else:
                 break
-        self.wapp_log.debug('Raw received Json: {}'.format(total_decoded))
+        self.wapp_log.debug('Received Json: {}'.format(decoded))
         return decoded
 
     def receive_message(self, fail_on_error=False):
@@ -131,7 +131,7 @@ class ReceiveData:
             # if the received string is list
             if isinstance(decoded, list):
                 for decoded_data in decoded:
-                    self.receive(decoded_data)
+                    self.receive(decoded_data, fail_on_error=fail_on_error)
             else:
                 self.receive(decoded, fail_on_error=fail_on_error)
 
@@ -141,11 +141,11 @@ class ReceiveData:
             self.client_socket.connected = False
             self.client_socket.reconnect()
 
-        except OSError as oe:  # pragma: no cover
-            msg = "Received OS Error: {}".format(oe)
-            self.wapp_log.error(msg, exc_info=False)
-            self.client_socket.connected = False
-            self.client_socket.reconnect()
+        # except OSError as oe:  # pragma: no cover
+        #     msg = "Received OS Error: {}".format(oe)
+        #     self.wapp_log.error(msg, exc_info=False)
+        #     self.client_socket.connected = False
+        #     self.client_socket.reconnect()
 
     def receive(self, decoded, fail_on_error=False):
         """
@@ -172,7 +172,9 @@ class ReceiveData:
                 elif decoded.get('error', False):
                     self.incoming_error(decoded)
                     if fail_on_error:
-                        raise ConnectionAbortedError("POST Failed!!")
+                        msg = "POST Failed!!"
+                        self.wapp_log.error(msg)
+                        raise ConnectionAbortedError(msg)
 
                 elif decoded.get('result', False):
                     self.incoming_result(decoded)
