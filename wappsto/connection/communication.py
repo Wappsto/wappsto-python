@@ -193,19 +193,19 @@ class ClientSocket:
 
         Initializes the object instances on the sending/receiving queue.
         """
-        for device in self.data_manager.network.devices:
-            for value in device.values:
-                state = value.get_control_state()
-                if state is not None:
-                    msg = message_data.MessageData(
-                        message_data.SEND_CONTROL,
-                        network_id=state.parent.parent.parent.uuid,
-                        device_id=state.parent.parent.uuid,
-                        value_id=state.parent.uuid,
-                        state_id=state.uuid,
-                        verb=message_data.GET
-                    )
-                    self.sending_queue.put(msg)
+        # for device in self.data_manager.network.devices:
+        #     for value in device.values:
+        #         state = value.get_control_state()
+        #         if state is not None:
+        #             msg = message_data.MessageData(
+        #                 message_data.SEND_CONTROL,
+        #                 network_id=state.parent.parent.parent.uuid,
+        #                 device_id=state.parent.parent.uuid,
+        #                 value_id=state.parent.uuid,
+        #                 state_id=state.uuid,
+        #                 verb=message_data.GET
+        #             )
+        #             self.sending_queue.put(msg)
 
         trace_id = self.send_data.create_trace(self.data_manager.network.uuid)
 
@@ -356,4 +356,4 @@ class ClientSocket:
         received.
         """
         while len(self.packet_awaiting_confirm) > 0:
-            self.receive_data.receive_message()
+            self.receive_data.receive_message(fail_on_error=True)

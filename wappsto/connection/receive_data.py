@@ -118,7 +118,7 @@ class ReceiveData:
         self.wapp_log.debug('Raw received Json: {}'.format(total_decoded))
         return decoded
 
-    def receive_message(self):
+    def receive_message(self, fail_on_error=False):
         """
         Receives message.
 
@@ -133,7 +133,7 @@ class ReceiveData:
                 for decoded_data in decoded:
                     self.receive(decoded_data)
             else:
-                self.receive(decoded)
+                self.receive(decoded, fail_on_error=fail_on_error)
 
         except ConnectionResetError as e:  # pragma: no cover
             msg = "Received Reset: {}".format(e)
@@ -147,7 +147,7 @@ class ReceiveData:
             self.client_socket.connected = False
             self.client_socket.reconnect()
 
-    def receive(self, decoded):
+    def receive(self, decoded, fail_on_error=False):
         """
         Performs acction on received message.
 
@@ -171,6 +171,8 @@ class ReceiveData:
 
                 elif decoded.get('error', False):
                     self.incoming_error(decoded)
+                    if fail_on_error:
+                        raise ConnectionAbortedError("POST Failed!!")
 
                 elif decoded.get('result', False):
                     self.incoming_result(decoded)
@@ -411,7 +413,6 @@ class ReceiveData:
             message_data.SEND_SUCCESS,
             rpc_id=return_id
         )
-        # UNSURE(MBK): Is this not something that should be send without delay?
         self.client_socket.sending_queue.put(success_reply)
 
     def error_reply(self, error_str, return_id):
@@ -430,5 +431,4 @@ class ReceiveData:
             rpc_id=return_id,
             text=error_str
         )
-        # UNSURE(MBK): Is this not something that should be send without delay?
         self.client_socket.sending_queue.put(error_reply)
