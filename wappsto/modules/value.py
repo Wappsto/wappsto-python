@@ -442,7 +442,7 @@ class Value:
 
         msg = message_data.MessageData(
             message_data.SEND_REPORT,
-            data=data_value,
+            data=str(data_value),
             network_id=state.parent.parent.parent.uuid,
             device_id=state.parent.parent.uuid,
             value_id=state.parent.uuid,

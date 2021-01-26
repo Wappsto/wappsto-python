@@ -135,17 +135,11 @@ class ReceiveData:
             else:
                 self.receive(decoded, fail_on_error=fail_on_error)
 
-        except ConnectionResetError as e:  # pragma: no cover
-            msg = "Received Reset: {}".format(e)
+        except (ConnectionResetError, TimeoutError) as e:  # pragma: no cover
+            msg = "Received Connection Error: {}".format(e)
             self.wapp_log.error(msg, exc_info=False)
             self.client_socket.connected = False
             self.client_socket.reconnect()
-
-        # except OSError as oe:  # pragma: no cover
-        #     msg = "Received OS Error: {}".format(oe)
-        #     self.wapp_log.error(msg, exc_info=False)
-        #     self.client_socket.connected = False
-        #     self.client_socket.reconnect()
 
     def receive(self, decoded, fail_on_error=False):
         """

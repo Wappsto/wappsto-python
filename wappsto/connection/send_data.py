@@ -132,13 +132,12 @@ class SendData:
                 self.wapp_log.warning("Data added to storage!")
                 self.client_socket.event_storage.add_message(data)
         except OSError as e:
-            # NOTE: Can never happen.
             self.wapp_log.warning("Data added to storage!")
             self.client_socket.event_storage.add_message(data)
 
             self.client_socket.connected = False
             msg = "Error sending: {}".format(e)
-            self.wapp_log.error(msg, exc_info=True)
+            self.wapp_log.error(msg)
             self.client_socket.request_reconnect()
 
     def send_thread(self):

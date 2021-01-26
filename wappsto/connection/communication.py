@@ -20,6 +20,8 @@ from ..errors import wappsto_errors
 
 from .import seluxit_rpc
 
+PACKET_TIMEOUT = 10
+
 
 class ClientSocket:
     """
@@ -81,6 +83,7 @@ class ClientSocket:
         self.sending_queue = queue.Queue(maxsize=0)
         self.event_storage = event_storage
         self.packet_awaiting_confirm = {}
+        self.packet_timeout_list = {}
         self.lock_await = threading.Lock()
         self.set_sockets()
 
@@ -220,6 +223,13 @@ class ClientSocket:
 
         self.confirm_initialize_all()
 
+    def _resend(self, _id):
+        with self.lock_await:
+            data = self.packet_awaiting_confirm[_id]
+        self.wapp_log.info("Resending: {}".format(_id))
+        self.remove_id_from_confirm_list(_id)
+        self.send_data.create_bulk(data)  # NOTE: Are forced to this.
+
     def add_id_to_confirm_list(self, data):
         """
         Add the message ID to the confirm list.
@@ -231,8 +241,12 @@ class ClientSocket:
             data: JSON communication message data.
 
         """
+        _id = data.get('id')
+        timer = threading.Timer(PACKET_TIMEOUT, lambda: self._resend(_id))
+        timer.start()
         self.lock_await.acquire()
-        self.packet_awaiting_confirm[data.get('id')] = data
+        self.packet_timeout_list[_id] = timer
+        self.packet_awaiting_confirm[_id] = data
         self.lock_await.release()
 
     def remove_id_from_confirm_list(self, _id):
@@ -247,6 +261,9 @@ class ClientSocket:
 
         """
         self.lock_await.acquire()
+        if _id in self.packet_timeout_list:
+            self.packet_timeout_list[_id].cancel()
+            del self.packet_timeout_list[_id]
         if _id in self.packet_awaiting_confirm:
             del self.packet_awaiting_confirm[_id]
         self.lock_await.release()
