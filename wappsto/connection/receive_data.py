@@ -90,7 +90,6 @@ class ReceiveData:
         while True:
             if self.client_socket.connected:
                 data = self.client_socket.my_socket.recv(RECEIVE_SIZE)
-                self.wapp_log.debug('Raw received Json: {}'.format(data))
                 if data == b'':
                     self.wapp_log.info("Received empty data from connection.")
                     self.client_socket.connected = False
@@ -116,9 +115,10 @@ class ReceiveData:
                     break
             else:
                 break
+        self.wapp_log.debug('Received Json: {}'.format(decoded))
         return decoded
 
-    def receive_message(self):
+    def receive_message(self, fail_on_error=False):
         """
         Receives message.
 
@@ -131,23 +131,17 @@ class ReceiveData:
             # if the received string is list
             if isinstance(decoded, list):
                 for decoded_data in decoded:
-                    self.receive(decoded_data)
+                    self.receive(decoded_data, fail_on_error=fail_on_error)
             else:
-                self.receive(decoded)
+                self.receive(decoded, fail_on_error=fail_on_error)
 
-        except ConnectionResetError as e:  # pragma: no cover
-            msg = "Received Reset: {}".format(e)
+        except (ConnectionResetError, TimeoutError) as e:  # pragma: no cover
+            msg = "Received Connection Error: {}".format(e)
             self.wapp_log.error(msg, exc_info=False)
             self.client_socket.connected = False
             self.client_socket.reconnect()
 
-        except OSError as oe:  # pragma: no cover
-            msg = "Received OS Error: {}".format(oe)
-            self.wapp_log.error(msg, exc_info=False)
-            self.client_socket.connected = False
-            self.client_socket.reconnect()
-
-    def receive(self, decoded):
+    def receive(self, decoded, fail_on_error=False):
         """
         Performs acction on received message.
 
@@ -171,6 +165,10 @@ class ReceiveData:
 
                 elif decoded.get('error', False):
                     self.incoming_error(decoded)
+                    if fail_on_error:
+                        msg = "POST Failed!!"
+                        self.wapp_log.error(msg)
+                        raise ConnectionAbortedError(msg)
 
                 elif decoded.get('result', False):
                     self.incoming_result(decoded)
@@ -242,15 +240,13 @@ class ReceiveData:
             elif meta_type == "state":
                 local_data = param_data.get('data')
                 if obj.state_type == "Control":
-                    if obj.parent._outside_range(value=local_data):
+                    err_msg = []
+                    valid = obj.parent._validate_value_data(data_value=local_data, err_msg=err_msg)
+                    self.wapp_log.debug(f"validation was: '{valid}'")
+                    self.wapp_log.debug(err_msg)
+                    if err_msg:
                         self.error_reply(
-                            error_str="Outside Range.",
-                            return_id=return_id
-                        )
-                        return
-                    if obj.parent._invalid_step(value=local_data):
-                        self.error_reply(
-                            error_str="Invalid Step",
+                            error_str=err_msg[0],
                             return_id=return_id
                         )
                         return
@@ -413,7 +409,6 @@ class ReceiveData:
             message_data.SEND_SUCCESS,
             rpc_id=return_id
         )
-        # UNSURE(MBK): Is this not something that should be send without delay?
         self.client_socket.sending_queue.put(success_reply)
 
     def error_reply(self, error_str, return_id):
@@ -432,5 +427,4 @@ class ReceiveData:
             rpc_id=return_id,
             text=error_str
         )
-        # UNSURE(MBK): Is this not something that should be send without delay?
         self.client_socket.sending_queue.put(error_reply)

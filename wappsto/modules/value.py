@@ -325,7 +325,10 @@ class Value:
         self.wapp_log.debug("Callback {} has been set.".format(callback))
         return True
 
-    def __validate_value_data(self, data_value):
+    def _validate_value_data(self, data_value, err_msg=None):
+        # TODO(MBK): Need refactoring, so it also nicely can be used for control validation, in 'receive_Data/incoming_put'
+        if err_msg is None:
+            err_msg = []
         if self.__is_number_type():
             try:
                 if self._outside_range(data_value):
@@ -334,6 +337,7 @@ class Value:
                         self.number_max,
                         data_value
                     )
+                    err_msg.append(msg)
                     self.wapp_log.warning(msg)
                 if self._invalid_step(data_value):
                     msg = "Invalid Step. Step: {}. Min: {}. Value: {}".format(
@@ -341,11 +345,13 @@ class Value:
                         self.number_min,
                         data_value
                     )
+                    err_msg.append(msg)
                     self.wapp_log.warning(msg)
                 return str(data_value)
             except ValueError:
                 msg = "Invalid type of value. Must be a number: {}"
                 msg = msg.format(data_value)
+                err_msg.append(msg)
                 self.wapp_log.error(msg)
                 return "NA"
 
@@ -356,8 +362,9 @@ class Value:
             if len(str(data_value)) <= int(self.string_max):
                 return data_value
 
-            msg = "Value {} not in correct range for {}"
-            msg = msg.format(data_value, self.name)
+            msg = "Value for '{}' not in correct range: {}."
+            msg = msg.format(self.name, self.string_max)
+            err_msg.append(msg)
             self.wapp_log.warning(msg)
 
         elif self.__is_blob_type():
@@ -367,12 +374,14 @@ class Value:
             if len(str(data_value)) <= int(self.blob_max):
                 return data_value
 
-            msg = "Value {} not in correct range for {}"
-            msg = msg.format(data_value, self.name)
+            msg = "Value for '{}' not in correct range: {}."
+            msg = msg.format(self.name, self.blob_max)
+            err_msg.append(msg)
             self.wapp_log.warning(msg)
 
         else:
-            msg = "Value type {} is invalid".format(self.date_type)
+            msg = "Value type '{}' is invalid".format(self.date_type)
+            err_msg.append(msg)
             self.wapp_log.error(msg)
 
     def _outside_range(self, value):
@@ -427,15 +436,13 @@ class Value:
             self.wapp_log.warning("Value is write only.")
             return False
 
-        data_value = self.__validate_value_data(data_value)
-        if data_value is None:
-            return False
+        self._validate_value_data(data_value)
 
         state.timestamp = timestamp
 
         msg = message_data.MessageData(
             message_data.SEND_REPORT,
-            data=data_value,
+            data=str(data_value),
             network_id=state.parent.parent.parent.uuid,
             device_id=state.parent.parent.uuid,
             value_id=state.parent.uuid,

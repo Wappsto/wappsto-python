@@ -12,7 +12,7 @@ clean-build:
 	rm --force --recursive dist/
 	rm --force --recursive *.egg-info
 
-build:
+build: clean-pyc clean-build
 	python3 setup.py sdist bdist_wheel
 
 publish: build
