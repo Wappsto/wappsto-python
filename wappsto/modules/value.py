@@ -184,7 +184,7 @@ class Value:
     def __timer_done(self):
         self.__set_timer()
         self.timer_elapsed = True
-        self.handle_refresh()
+        # self.handle_refresh()  # ERROR: Trickered double sampling. Text needed.
 
     def set_delta(self, delta):
         """
