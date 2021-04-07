@@ -40,10 +40,17 @@ class Wappsto:
     """
     __version__ = "1.2.8"
 
-    def __init__(self, json_file_name=None, load_from_state_file=False,
-                 log_offline=False, log_location="logs",
-                 log_data_limit=10, limit_action=event_storage.REMOVE_OLD,
-                 compression_period=event_storage.DAY_PERIOD):
+    def __init__(
+        self,
+        json_file_name=None,
+        abs_config_path=None,
+        load_from_state_file=False,
+        log_offline=False,
+        log_location="logs",
+        log_data_limit=10,
+        limit_action=event_storage.REMOVE_OLD,
+        compression_period=event_storage.DAY_PERIOD
+    ):
         """
         Initialize wappsto class.
 
@@ -55,13 +62,21 @@ class Wappsto:
         Args:
             json_file_name: name of a json file containing all information
                 about a network (default: {None})
+            abs_config_path: The absolute path to all the config files.
+                If non is given, it will be set to where it was imported from.
+                (Default: None)
             load_from_state_file: Defines if the data should be loaded from
                 saved files (default: {False})
-            log_offline: boolean indicating if data should be logged (default: {False})
-            log_location: location of the logs (default: {"logs"})
-            log_data_limit: limit of data to be saved in log [in Megabytes] (default: {10})
-            limit_action: action to take when limit is reached (default: {REMOVE_OLD})
-            compression_period: period for compressing data [day, hour] (default: {DAY_PERIOD})
+            log_offline: boolean indicating if data should be logged
+                (default: {False})
+            log_location: location of the logs
+                (default: {"logs"})
+            log_data_limit: limit of data to be saved in log [in Megabytes]
+                (default: {10})
+            limit_action: action to take when limit is reached
+                (default: {REMOVE_OLD})
+            compression_period: period for compressing data [day, hour]
+                (default: {DAY_PERIOD})
 
         """
         self.wapp_log = logging.getLogger(__name__)
@@ -69,7 +84,10 @@ class Wappsto:
 
         # TODO(Dimitar): Comment on this later.
         stack = inspect.stack()[1][1]
-        self.path_to_calling_file = os.path.dirname(os.path.abspath(stack))
+        if abs_config_path:
+            self.path_to_calling_file = abs_config_path
+        else:
+            self.path_to_calling_file = os.path.dirname(os.path.abspath(stack))
 
         self.connecting = True
         self.event_storage = event_storage.OfflineEventStorage(
