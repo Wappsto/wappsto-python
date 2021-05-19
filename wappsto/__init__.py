@@ -42,7 +42,7 @@ class Wappsto:
 
     def __init__(
         self,
-        json_file_name=None,
+        json_file_name,
         abs_config_path=None,
         load_from_state_file=False,
         log_offline=False,
@@ -61,7 +61,7 @@ class Wappsto:
 
         Args:
             json_file_name: name of a json file containing all information
-                about a network (default: {None})
+                about a network
             abs_config_path: The absolute path to all the config files.
                 If non is given, it will be set to where it was imported from.
                 (Default: None)

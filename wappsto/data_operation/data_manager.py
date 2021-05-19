@@ -42,7 +42,7 @@ class DataManager:
         self.wappsto_decoder = decoder.WappstoDecoder()
 
         self.path_to_calling_file = path_to_calling_file
-        self.json_file_name = json_file_name
+        self.json_file_name = os.path.join(self.path_to_calling_file, json_file_name)
 
         if load_from_state_file:
             json_file_name = self.get_latest_instance()
