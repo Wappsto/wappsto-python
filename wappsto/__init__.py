@@ -1,5 +1,5 @@
 """
-Rapid Prototyping Python module for wappsto.com
+Rapid Prototyping Python module for wappsto.com.
 
 Stores the Wappsto class functionality.
 """
@@ -22,7 +22,7 @@ RETRY_LIMIT = 5
 
 
 class Object_instantiation:
-    """For backward compability. (Deprecated)"""
+    """For backward compability. (Deprecated)."""
     def __init__(self):
         """Initialize Object_instantiation."""
         self.status = status

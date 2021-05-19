@@ -150,6 +150,8 @@ class ReceiveData:
 
         Args:
             decoded: the received message
+            fail_on_error: Boolean, if a exception should
+                           be raised on failed post.
 
         """
         if decoded:
