@@ -16,7 +16,7 @@ class Network:
     Stores attributes for the network instance.
     """
 
-    def __init__(self, uuid, version, name, devices, data_manager):
+    def __init__(self, uuid, name, devices, data_manager):
         """
         Initialize the Network class.
 
@@ -33,7 +33,7 @@ class Network:
         self.wapp_log = logging.getLogger(__name__)
         self.wapp_log.addHandler(logging.NullHandler())
         self.uuid = uuid
-        self.version = version
+        # self.version = version
         self.name = name
         self.devices = devices
         self.data_manager = data_manager
