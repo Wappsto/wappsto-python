@@ -14,6 +14,7 @@ from ..errors import wappsto_errors
 
 
 def isNaN(num):
+    """Test if input is a float 'NaN' value."""
     return num != num
 
 
@@ -184,7 +185,7 @@ class Value:
     def __timer_done(self):
         self.__set_timer()
         self.timer_elapsed = True
-        self.handle_refresh()
+        # self.handle_refresh()  # ERROR: Trickered double sampling. Text needed.
 
     def set_delta(self, delta):
         """
@@ -326,7 +327,8 @@ class Value:
         return True
 
     def _validate_value_data(self, data_value, err_msg=None):
-        # TODO(MBK): Need refactoring, so it also nicely can be used for control validation, in 'receive_Data/incoming_put'
+        # TODO(MBK): Need refactoring, so it also nicely can be used for
+        #            control validation, in 'receive_Data/incoming_put'
         if err_msg is None:
             err_msg = []
         if self.__is_number_type():
@@ -408,7 +410,7 @@ class Value:
             True, if invalid step size.
             False if valid step size.
         """
-        x = (float(value)-self.number_min)/self.number_step
+        x = (float(value) - self.number_min) / self.number_step
         return not (abs(round(x) - x) <= 1e-9)
 
     def update(self, data_value, timestamp=None):
@@ -485,8 +487,10 @@ class Value:
                     return True
                 return self.check_period(False)
 
-            if (self.last_update_of_report is None or
-               not (abs(data_value - self.last_update_of_report) < self.delta)):
+            if (
+                self.last_update_of_report is None
+                or not (abs(data_value - self.last_update_of_report) < self.delta)
+            ):
                 return True
 
         return self.check_period(False)

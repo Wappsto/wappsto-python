@@ -107,7 +107,7 @@ class ClientSocket:
                 and hasattr(socket, "TCP_KEEPCNT")):
             # After 5 idle minutes, start sending keepalives every 1 minutes.
             # Drop connection after 2 failed keepalives
-            self.wapp_log.debug(f"Setting TCP_KEEPIDLE, TCP_KEEPINTVL & TCP_KEEPCNT.")
+            self.wapp_log.debug("Setting TCP_KEEPIDLE, TCP_KEEPINTVL & TCP_KEEPCNT.")
             self.my_raw_socket.setsockopt(
                 socket.SOL_TCP,
                 socket.TCP_KEEPIDLE,
@@ -130,7 +130,7 @@ class ClientSocket:
             )
 
         if hasattr(socket, "TCP_USER_TIMEOUT"):
-            self.wapp_log.debug(f"Setting TCP_USER_TIMEOUT to 30_000ms.")
+            self.wapp_log.debug("Setting TCP_USER_TIMEOUT to 30_000ms.")
             self.my_raw_socket.setsockopt(
                 socket.IPPROTO_TCP,
                 socket.TCP_USER_TIMEOUT,
@@ -270,9 +270,7 @@ class ClientSocket:
         self.poke_send_thread()
 
     def poke_send_thread(self):
-        """
-        Poke the Send thread, to let it know some thing have changed.
-        """
+        """Poke the Send thread, to let it know some thing have changed."""
         poke_msg = message_data.MessageData(
             message_data.POKE
         )

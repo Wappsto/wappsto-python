@@ -631,7 +631,7 @@ class TestValueSendClass:
         # (2, 123.456e-5, "1.9999872"),
         # (1, 9.0e-20, "0.99999999999999999999"),
         # (0.02442002442002442001001, 0.00000000000002, "0.02442002442002")
-        ])
+    ])
     @pytest.mark.parametrize("send_trace", [True, False])
     @pytest.mark.parametrize("delta", [None, 0.1, 1, 100])
     @pytest.mark.parametrize("period", [True, False])

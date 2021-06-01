@@ -21,6 +21,7 @@ session_count = 0
 
 
 def id_count(verb):
+    """Keep track of the trace-id."""
     global session_count
     session_count += 1
     return f"{session_id}_{verb}_{session_count}"
