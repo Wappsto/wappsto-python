@@ -1,4 +1,6 @@
-# Wappsto python module
+# Wappsto python module - DEPRECATED
+
+The project is archived. Please migrate to https://github.com/Wappsto/python-wappsto-iot
 
 [![Build Status](https://travis-ci.com/Wappsto/wappsto-python.svg?branch=master)](https://travis-ci.com/Wappsto/wappsto-python)
 [![Coverage Status](https://coveralls.io/repos/github/Wappsto/wappsto-python/badge.svg?branch=master)](https://coveralls.io/github/Wappsto/wappsto-python?branch=master)
