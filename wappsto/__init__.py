@@ -8,6 +8,7 @@ import inspect
 import logging
 import os
 import signal
+import warnings
 
 from threading import Event
 
@@ -19,7 +20,7 @@ from .data_operation import data_manager
 
 
 RETRY_LIMIT = 5
-
+warnings.warn("Project is deprecated. Please use https://github.com/Wappsto/python-wappsto-iot instead.", DeprecationWarning)
 
 class Object_instantiation:
     """For backward compability. (Deprecated)."""
