@@ -39,7 +39,7 @@ class Wappsto:
     Establishes a connection to the wappsto server, initializes the classes,
     starts a sending/receiving thread.
     """
-    __version__ = "1.2.11"
+    __version__ = "1.2.12"
 
     def __init__(
         self,

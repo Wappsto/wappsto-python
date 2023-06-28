@@ -241,13 +241,14 @@ class ClientSocket:
             data: JSON communication message data.
 
         """
-        _id = data.get('id')
-        timer = threading.Timer(PACKET_TIMEOUT, lambda: self._resend(_id))
-        timer.start()
-        self.lock_await.acquire()
-        self.packet_timeout_list[_id] = timer
-        self.packet_awaiting_confirm[_id] = data
-        self.lock_await.release()
+        return
+        # _id = data.get('id')
+        # timer = threading.Timer(PACKET_TIMEOUT, lambda: self._resend(_id))
+        # timer.start()
+        # self.lock_await.acquire()
+        # self.packet_timeout_list[_id] = timer
+        # self.packet_awaiting_confirm[_id] = data
+        # self.lock_await.release()
 
     def remove_id_from_confirm_list(self, _id):
         """
